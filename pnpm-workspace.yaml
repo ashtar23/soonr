@@ -1,3 +1,11 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# pnpm 11 blocks dependency build scripts by default and writes this list for you to confirm.
+# true = allowed to run its install/build script. These are all legit native-build deps.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  msw: true
+  unrs-resolver: true
