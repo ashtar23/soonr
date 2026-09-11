@@ -90,4 +90,5 @@ struct RootTabView: View {
 
 #Preview {
     RootTabView(dependencies: .preview)
+        .environment(ThemeSettings(defaults: .previewDefaults))
 }
