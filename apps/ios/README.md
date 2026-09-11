@@ -63,6 +63,25 @@ xcodebuild \
   test
 ```
 
+## Continuous integration
+
+`.github/workflows/ios-ci.yml` runs lint, the iOS 17 deployment build, and the
+test suite on every pull request and on `dev` and `main`, but only when
+`apps/ios` changes, because macOS runner minutes are billed at a premium.
+
+GitHub's macOS images carry iOS 26 simulator runtimes only. CI therefore proves
+the app still compiles against the iOS 17 deployment target, while running the
+suite on iOS 26. Running the tests on an iOS 17 runtime, and any UI check of
+compatibility-sensitive behavior, stays a local step:
+
+```sh
+xcodebuild \
+  -project apps/ios/Soonr.xcodeproj \
+  -scheme Soonr \
+  -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.5' \
+  test
+```
+
 ## Scope
 
 Included:

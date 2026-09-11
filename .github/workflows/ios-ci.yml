@@ -1,0 +1,69 @@
+name: Native iOS CI
+run-name: Native iOS CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios-ci.yml"
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios-ci.yml"
+
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: Native iOS verification
+    # macOS minutes are billed at a premium, so this job runs only when
+    # apps/ios changes.
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Report toolchain
+        run: xcodebuild -version
+
+      - name: Lint Swift sources
+        run: apps/ios/Scripts/lint.sh
+
+      # Compiles against the iOS 17 deployment target; no iOS 17 runtime needed.
+      - name: Build for the oldest supported iOS
+        run: |
+          xcodebuild \
+            -project apps/ios/Soonr.xcodeproj \
+            -target Soonr \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Resolve simulator
+        id: simulator
+        run: echo "udid=$(apps/ios/Scripts/latest-simulator.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Test on the latest simulator
+        run: |
+          xcodebuild \
+            -project apps/ios/Soonr.xcodeproj \
+            -scheme Soonr \
+            -destination "id=${{ steps.simulator.outputs.udid }}" \
+            -resultBundlePath TestResults.xcresult \
+            test
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-test-results
+          path: TestResults.xcresult
+          retention-days: 7
