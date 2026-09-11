@@ -10,7 +10,8 @@ Architecture improvements are extracted at the point of real reuse.
 
 A slice is complete when:
 
-- the user-visible happy path works on an iOS 26 simulator
+- the user-visible happy path works on the latest iOS simulator
+- compatibility-sensitive behavior works on the oldest supported iOS 17 runtime
 - loading, empty, error, and retry behavior are handled where applicable
 - feature logic has deterministic Swift Testing coverage
 - previews use mock data and perform no live network requests
@@ -22,9 +23,9 @@ A slice is complete when:
 
 ### Slice 0: Native walking skeleton
 
-- Swift 6 and SwiftUI iOS 26 application target
+- Swift 6 and SwiftUI application with an iOS 17 deployment target
 - Home, Watchlist, Notifications, Search, and Account tabs
-- native Liquid Glass tab behavior
+- iOS 17 tab fallback, modern iOS 18 tabs, and native iOS 26 Liquid Glass behavior
 - placeholder routes for details, authentication, and settings
 - primary navigation contract tests
 

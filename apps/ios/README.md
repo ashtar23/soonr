@@ -1,8 +1,10 @@
 # Soonr for iOS
 
-Native SwiftUI rebuild of Soonr targeting iOS 26. The app currently contains
-the five documented primary tabs plus guest game search backed by the Soonr
-API.
+Native SwiftUI rebuild of Soonr supporting iOS 17 and newer. The app uses
+current platform capabilities where available, including native Liquid Glass
+behavior on iOS 26, while retaining system-native fallbacks on earlier releases.
+It currently contains the five documented primary tabs plus guest game search
+backed by the Soonr API.
 
 - [Architecture](ARCHITECTURE.md)
 - [Vertical-slice roadmap](ROADMAP.md)
@@ -10,12 +12,13 @@ API.
 ## Requirements
 
 - Xcode 26 or newer
-- An iOS 26 Simulator runtime compatible with the selected Xcode version
+- A simulator runtime compatible with the selected Xcode version
 
 ## Open and run
 
-Open `Soonr.xcodeproj`, select the `Soonr` scheme, and run it on an iOS 26
-simulator.
+Open `Soonr.xcodeproj`, select the `Soonr` scheme, and run it on a simulator.
+For compatibility checks, test the oldest supported iOS 17 runtime and the
+latest available iOS runtime.
 
 Search uses `https://soonr-staging.up.railway.app` by default. Override it in
 the Xcode scheme when needed:
@@ -48,8 +51,9 @@ xcodebuild \
 Included:
 
 - Swift 6 and SwiftUI
-- iOS 26 deployment target
-- Native Liquid Glass tab bar and controls
+- iOS 17 deployment target
+- Modern tab APIs on iOS 18 and native Liquid Glass behavior on iOS 26
+- System-native tab and control fallbacks on earlier supported releases
 - Home, Watchlist, Notifications, Search, and Account tabs
 - Debounced guest title search with loading, empty, error, and result states
 - Skeleton title detail, authentication, and settings routes

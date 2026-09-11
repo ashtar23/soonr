@@ -2,9 +2,11 @@
 
 ## Purpose
 
-Soonr for iOS is a native SwiftUI client targeting iOS 26. The app is built as
-small end-to-end vertical slices while preserving clear ownership boundaries.
-This document records the rules that should remain stable as features are added.
+Soonr for iOS is a native SwiftUI client supporting iOS 17 and newer. It adopts
+new platform capabilities through availability-gated enhancements while keeping
+system-native fallbacks for older supported releases. The app is built as small
+end-to-end vertical slices while preserving clear ownership boundaries. This
+document records the rules that should remain stable as features are added.
 
 The current codebase is a single application target. Folders communicate intent;
 they are not separate modules yet. Swift packages should only be introduced when
@@ -18,8 +20,11 @@ team ownership, reuse, or build performance gives us a concrete reason.
 - Keep network, authentication, persistence, and logging out of SwiftUI views.
 - Extract shared code after a second real consumer appears, not in anticipation.
 - Prefer Apple frameworks and Swift concurrency before adding dependencies.
+- Keep iOS 18+ and iOS 26+ APIs behind explicit availability checks with an
+  iOS 17 fallback.
 - Every completed slice must build, have deterministic tests, and receive a
-  simulator smoke test.
+  simulator smoke test on the latest runtime. Compatibility-sensitive changes
+  must also be exercised on the oldest supported runtime when it is available.
 
 ## Dependency and data flow
 
