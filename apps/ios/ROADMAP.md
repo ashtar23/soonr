@@ -68,6 +68,22 @@ Deferred:
 - semantic colors and adaptive brand assets
 - initial reusable title artwork and metadata components
 - light, dark, increased-contrast, and Dynamic Type checks
+- decide on view snapshot tests once these components stabilize
+
+**Snapshot testing, deferred here deliberately.** A search-row layout
+regression reached review past a green suite, because unit tests cannot see
+layout. A spike showed `ImageRenderer` can snapshot views inside the existing
+test target with no dependency: about 0.25s per view, byte-stable across runs
+on one runtime, and it distinguishes the broken layout from the fixed one.
+References differ per iOS version, so they must be pinned to one runtime, and
+they only cover SwiftUI content, not navigation or tab bar chrome.
+
+Two options remain open: an in-repo helper of roughly 100 lines, or
+swift-snapshot-testing, which is currently blocked by an open crash on iOS 26
+simulators (pointfreeco/swift-snapshot-testing#1089) and would be the
+project's first third-party dependency. Snapshots are worth adopting only
+after the components they capture stop changing, otherwise every design change
+means re-recording.
 
 ### Slice 4: Home discovery
 
