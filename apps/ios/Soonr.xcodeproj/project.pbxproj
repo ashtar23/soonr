@@ -23,6 +23,9 @@
 		B10000000000000000000012 /* TitleSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000012 /* TitleSummary.swift */; };
 		B10000000000000000000013 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000013 /* SearchModel.swift */; };
 		B10000000000000000000014 /* SearchModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000014 /* SearchModelTests.swift */; };
+		B10000000000000000000015 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000015 /* APIClient.swift */; };
+		B10000000000000000000016 /* TitleSearching.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000016 /* TitleSearching.swift */; };
+		B1000000000000000000001E /* SoonrAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1000000000000000000001E /* SoonrAPITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +57,9 @@
 		C10000000000000000000012 /* TitleSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSummary.swift; sourceTree = "<group>"; };
 		C10000000000000000000013 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 		C10000000000000000000014 /* SearchModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModelTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000015 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		C10000000000000000000016 /* TitleSearching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSearching.swift; sourceTree = "<group>"; };
+		C1000000000000000000001E /* SoonrAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoonrAPITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -146,6 +152,7 @@
 			children = (
 				C10000000000000000000008 /* SearchView.swift */,
 				C10000000000000000000013 /* SearchModel.swift */,
+				C10000000000000000000016 /* TitleSearching.swift */,
 			);
 			path = Search;
 			sourceTree = "<group>";
@@ -180,6 +187,7 @@
 			children = (
 				C1000000000000000000000C /* AppTabTests.swift */,
 				G10000000000000000000013 /* Search */,
+				G10000000000000000000015 /* API */,
 			);
 			path = SoonrTests;
 			sourceTree = "<group>";
@@ -206,6 +214,7 @@
 			children = (
 				C10000000000000000000010 /* AppConfiguration.swift */,
 				C10000000000000000000011 /* SoonrAPI.swift */,
+				C10000000000000000000015 /* APIClient.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -224,6 +233,14 @@
 				C10000000000000000000014 /* SearchModelTests.swift */,
 			);
 			path = Search;
+			sourceTree = "<group>";
+		};
+		G10000000000000000000015 /* API */ = {
+			isa = PBXGroup;
+			children = (
+				C1000000000000000000001E /* SoonrAPITests.swift */,
+			);
+			path = API;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -330,6 +347,8 @@
 				B10000000000000000000011 /* SoonrAPI.swift in Sources */,
 				B10000000000000000000012 /* TitleSummary.swift in Sources */,
 				B10000000000000000000013 /* SearchModel.swift in Sources */,
+				B10000000000000000000015 /* APIClient.swift in Sources */,
+				B10000000000000000000016 /* TitleSearching.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -339,6 +358,7 @@
 			files = (
 				B1000000000000000000000C /* AppTabTests.swift in Sources */,
 				B10000000000000000000014 /* SearchModelTests.swift in Sources */,
+				B1000000000000000000001E /* SoonrAPITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

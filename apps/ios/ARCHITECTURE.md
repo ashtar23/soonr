@@ -75,8 +75,11 @@ Typical feature contents:
 Search/
   SearchView.swift       presentation and user interaction
   SearchModel.swift      screen state and async orchestration
-  TitleSearching.swift   capability required by the model, when extracted
+  TitleSearching.swift   capability required by the model
 ```
+
+Capability protocols live with the feature that consumes them, not beside the
+infrastructure that implements them.
 
 Small reusable row views may remain in their feature. They move to the design
 system only after reuse is demonstrated.
@@ -94,6 +97,11 @@ The API layer is responsible for:
 - bearer-token attachment for authenticated routes
 - HTTP status validation and response decoding
 - transport-level error normalization
+
+`APIClient` implements that shared request behavior, including turning a
+cancelled `URLSession` request into `CancellationError`. Its transport is an
+injectable closure so tests exercise request construction and decoding without
+a network. `SoonrAPI` holds endpoint-specific paths and response wrappers.
 
 The iOS client calls `apps/api` for application data. It never calls RAWG or the
 Supabase database directly. Supabase on iOS is limited to authentication and
@@ -166,7 +174,8 @@ implementation uses a generated client.
 
 Revisit structure only when evidence warrants it:
 
-- A second endpoint needs the same request behavior: extract the request core.
+- A second endpoint needs the same request behavior: extract the request core
+  (done: `APIClient`).
 - A second feature needs a UI component: consider the design system.
 - API and application models diverge: add an explicit mapper.
 - Multiple features share mutable lifetime: define a deliberate shared owner.
