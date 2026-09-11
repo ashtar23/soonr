@@ -1,8 +1,6 @@
 import Foundation
 
 struct SoonrAPI: TitleSearching, Sendable {
-    static let live = SoonrAPI(configuration: .live)
-
     private let client: APIClient
 
     init(client: APIClient) {

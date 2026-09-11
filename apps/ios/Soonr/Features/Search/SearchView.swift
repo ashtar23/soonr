@@ -4,7 +4,7 @@ struct SearchView: View {
     @State private var model: SearchModel
 
     init(
-        titleSearch: any TitleSearching = SoonrAPI.live,
+        titleSearch: any TitleSearching,
         debounceDuration: Duration = .milliseconds(350)
     ) {
         _model = State(
@@ -167,43 +167,12 @@ private struct TitleResultRow: View {
 }
 
 #Preview("Search") {
-    SearchView(titleSearch: PreviewTitleSearch())
+    SearchView(titleSearch: PreviewTitleCatalog())
 }
 
 #Preview("Results") {
     NavigationStack {
-        SearchResultsList(titles: [.preview])
+        SearchResultsList(titles: PreviewTitleCatalog().results)
             .navigationTitle("Search")
     }
-}
-
-private struct PreviewTitleSearch: TitleSearching {
-    func searchTitles(query: String) async throws -> [TitleSummary] {
-        [.preview]
-    }
-}
-
-private extension TitleSummary {
-    static let preview = TitleSummary(
-        id: "preview-game",
-        kind: "game",
-        source: "rawg",
-        externalID: "3498",
-        slug: "grand-theft-auto-v",
-        name: "Grand Theft Auto V",
-        coverImageURL: nil,
-        earliestReleaseDate: "2013-09-17",
-        platforms: [
-            TitlePlatform(id: "4", name: "PC"),
-            TitlePlatform(id: "18", name: "PlayStation 4"),
-            TitlePlatform(id: "1", name: "Xbox One"),
-        ],
-        rawgRating: 4.47,
-        rawgRatingsCount: 7_200,
-        rawgMetacritic: 92,
-        rawgAdded: 21_000,
-        rawgReviewsCount: 690,
-        rawgSuggestionsCount: 430,
-        rawgRatingTop: 5
-    )
 }

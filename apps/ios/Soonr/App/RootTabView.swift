@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct RootTabView: View {
+    let dependencies: AppDependencies
+
     @State private var selection: AppTab = .home
 
     var body: some View {
@@ -35,7 +37,7 @@ struct RootTabView: View {
                 value: AppTab.search,
                 role: .search
             ) {
-                SearchView()
+                searchView
             }
 
             Tab("Account", systemImage: "person.crop.circle", value: AppTab.account) {
@@ -65,7 +67,7 @@ struct RootTabView: View {
                 }
                 .tag(AppTab.notifications)
 
-            SearchView()
+            searchView
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
@@ -79,8 +81,12 @@ struct RootTabView: View {
         }
         .tint(.indigo)
     }
+
+    private var searchView: some View {
+        SearchView(titleSearch: dependencies.titleSearch)
+    }
 }
 
 #Preview {
-    RootTabView()
+    RootTabView(dependencies: .preview)
 }

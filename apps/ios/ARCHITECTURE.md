@@ -60,9 +60,10 @@ implementation. Tests and previews supply deterministic substitutes.
 Owns application startup, dependency composition, top-level navigation, tabs,
 and app lifecycle integration. It must not contain feature business logic.
 
-As shared services appear, `SoonrApp` will create an `AppDependencies` value and
-pass dependencies into feature roots. Observable global state such as the signed-
-in session is created once here and injected through the SwiftUI environment.
+`SoonrApp` creates one live `AppDependencies` value and `RootTabView` passes its
+capabilities into feature roots. Previews use `AppDependencies.preview`, which is
+backed by in-memory data. Observable global state such as the signed-in session
+will be created once here and injected through the SwiftUI environment.
 
 ### `Features`
 

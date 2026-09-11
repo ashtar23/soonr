@@ -26,6 +26,8 @@
 		B10000000000000000000015 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000015 /* APIClient.swift */; };
 		B10000000000000000000016 /* TitleSearching.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000016 /* TitleSearching.swift */; };
 		B1000000000000000000001E /* SoonrAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1000000000000000000001E /* SoonrAPITests.swift */; };
+		B10000000000000000000017 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000017 /* AppDependencies.swift */; };
+		B10000000000000000000018 /* PreviewTitleCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000018 /* PreviewTitleCatalog.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +62,8 @@
 		C10000000000000000000015 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		C10000000000000000000016 /* TitleSearching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSearching.swift; sourceTree = "<group>"; };
 		C1000000000000000000001E /* SoonrAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoonrAPITests.swift; sourceTree = "<group>"; };
+		C10000000000000000000017 /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
+		C10000000000000000000018 /* PreviewTitleCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewTitleCatalog.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +110,7 @@
 				C10000000000000000000001 /* SoonrApp.swift */,
 				C10000000000000000000002 /* AppTab.swift */,
 				C10000000000000000000003 /* RootTabView.swift */,
+				C10000000000000000000017 /* AppDependencies.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -178,6 +183,7 @@
 			children = (
 				G10000000000000000000012 /* Models */,
 				C10000000000000000000004 /* PlaceholderScreen.swift */,
+				C10000000000000000000018 /* PreviewTitleCatalog.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -349,6 +355,8 @@
 				B10000000000000000000013 /* SearchModel.swift in Sources */,
 				B10000000000000000000015 /* APIClient.swift in Sources */,
 				B10000000000000000000016 /* TitleSearching.swift in Sources */,
+				B10000000000000000000017 /* AppDependencies.swift in Sources */,
+				B10000000000000000000018 /* PreviewTitleCatalog.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
