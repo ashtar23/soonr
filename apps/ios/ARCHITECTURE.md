@@ -12,6 +12,11 @@ The current codebase is a single application target. Folders communicate intent;
 they are not separate modules yet. Swift packages should only be introduced when
 team ownership, reuse, or build performance gives us a concrete reason.
 
+`Soonr` and `SoonrTests` are Xcode synchronized folders, so the folder structure
+on disk is the project structure. Adding, moving, or removing a source file
+needs no `project.pbxproj` edit, which keeps that file out of merge conflicts.
+Files land in the target that owns their folder.
+
 ## Guiding principles
 
 - Build the smallest user-visible flow through UI, state, API, and tests.

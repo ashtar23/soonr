@@ -14,6 +14,10 @@ backed by the Soonr API.
 - Xcode 26 or newer
 - A simulator runtime compatible with the selected Xcode version
 
+The project uses synchronized folders: add a Swift file anywhere under `Soonr/`
+or `SoonrTests/` and it joins that target automatically, with no project file
+edit.
+
 ## Open and run
 
 Open `Soonr.xcodeproj`, select the `Soonr` scheme, and run it on a simulator.
