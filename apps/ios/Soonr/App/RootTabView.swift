@@ -44,7 +44,6 @@ struct RootTabView: View {
                 AccountView()
             }
         }
-        .tint(.indigo)
     }
 
     private var legacyTabs: some View {
@@ -79,7 +78,6 @@ struct RootTabView: View {
                 }
                 .tag(AppTab.account)
         }
-        .tint(.indigo)
     }
 
     private var searchView: some View {
