@@ -26,7 +26,7 @@ A slice is complete when:
 - Swift 6 and SwiftUI application with an iOS 17 deployment target
 - Home, Watchlist, Notifications, Search, and Account tabs
 - iOS 17 tab fallback, modern iOS 18 tabs, and native iOS 26 Liquid Glass behavior
-- placeholder routes for details, authentication, and settings
+- placeholder routes for authentication and settings
 - primary navigation contract tests
 
 ### Slice 1: Guest title search
@@ -38,30 +38,26 @@ A slice is complete when:
 - injected search capability with deterministic model tests
 - staging API default with an Xcode environment override
 
-## Next
-
 ### Slice 2: Search result to title details
 
-**User outcome:** A guest can select a search result and view useful details for
-that game.
-
-Minimum scope:
-
-- make search rows value-based navigation links
-- connect `GET /titles/:titleId`
-- show cover, name, description, genres, developers, publishers, platforms, and
-  release information
-- support loading, not-found, network-failure, and retry states
-- introduce app-root dependency composition instead of constructing the live API
-  dependency inside `SearchView`
-- extract common request behavior now that a second endpoint needs it
-- add model and response-decoding tests
+- value-based navigation from search results to title details
+- `GET /titles/:titleId` integration with loading, not-found, failure, and retry
+  states
+- cover, name, description, genres, developers, publishers, platforms, and
+  per-platform release dates; sections hide when staging data is sparse
+- compact landscape result rows with release countdown badges and resized RAWG
+  artwork
+- `AppDependencies` composition root; `SearchView` no longer builds the live API
+- shared `APIClient` request core, including cancellation normalization
+- Xcode synchronized folders, so new files need no project file edits
+- Swift OpenAPI Generator evaluated and deferred (see Architecture)
+- request, decoding, formatting, and model tests
 
 Deferred:
 
-- watchlist mutation
+- watchlist mutation and `isInWatchlist` display
 - authenticated personalization
-- sharing and rich media
+- website link, sharing, and rich media
 - offline details caching
 
 ## Planned

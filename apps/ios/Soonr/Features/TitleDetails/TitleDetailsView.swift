@@ -120,13 +120,11 @@ private struct TitleDetailsList: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // A clear shape sets the size so the filled image cannot grow it.
             Color.clear
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .overlay {
-                    artwork
+                    TitleArtwork(url: summary.coverImageURL, width: .hero, cornerRadius: 16)
                 }
-                .clipShape(.rect(cornerRadius: 16))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(summary.name)
@@ -140,34 +138,6 @@ private struct TitleDetailsList: View {
             }
         }
         .padding(.bottom, 4)
-    }
-
-    @ViewBuilder
-    private var artwork: some View {
-        if let coverImageURL = summary.coverImageURL {
-            AsyncImage(url: coverImageURL) { phase in
-                switch phase {
-                case let .success(image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                default:
-                    artworkPlaceholder
-                }
-            }
-        } else {
-            artworkPlaceholder
-        }
-    }
-
-    private var artworkPlaceholder: some View {
-        Rectangle()
-            .fill(.quaternary)
-            .overlay {
-                Image(systemName: "gamecontroller")
-                    .font(.title)
-                    .foregroundStyle(.tertiary)
-            }
     }
 
     private var releaseText: String {
@@ -204,6 +174,9 @@ private struct TitleDetailsList: View {
 
 #Preview("Not found") {
     NavigationStack {
-        TitleDetailsView(summary: .preview, titleDetails: PreviewTitleCatalog(details: nil))
+        TitleDetailsView(
+            summary: .preview,
+            titleDetails: PreviewTitleCatalog(details: nil)
+        )
     }
 }

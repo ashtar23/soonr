@@ -63,8 +63,8 @@ Included:
 - Title details from search results with loading, not-found, error, and retry
   states
 - Skeleton authentication and settings routes
-- Swift Testing coverage for tabs, search and details models, API requests, and
-  response decoding
+- Swift Testing coverage for tabs, search and details models, API requests,
+  response decoding, and release-date formatting
 
 Deferred:
 

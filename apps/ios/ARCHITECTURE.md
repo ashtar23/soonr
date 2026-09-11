@@ -194,7 +194,12 @@ Revisit structure only when evidence warrants it:
 
 - A second endpoint needs the same request behavior: extract the request core
   (done: `APIClient`).
-- A second feature needs a UI component: consider the design system.
+- A second feature needs a UI component: consider the design system
+  (`TitleArtwork` is shared by search rows and title details, and
+  `ReleaseDateText` by both features).
+- Image sizing moves server-side when another client needs it. Today
+  `TitleArtwork` rewrites RAWG CDN URLs to a supported resize width (420 for
+  rows, 1280 for heroes) because originals can be 4K JPEGs.
 - API and application models diverge: add an explicit mapper.
 - Multiple features share mutable lifetime: define a deliberate shared owner.
 - Team ownership or build times become painful: consider Swift packages.

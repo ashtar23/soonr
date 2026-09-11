@@ -18,8 +18,9 @@ final class SearchModel {
     @ObservationIgnored private let titleSearch: any TitleSearching
     @ObservationIgnored private let debounceDuration: Duration
     /// The query whose results are currently shown. SwiftUI restarts
-    /// `.task(id:)` whenever the screen reappears, such as after switching
-    /// tabs; this keeps that from refetching unchanged results.
+    /// `.task(id:)` whenever the screen reappears, such as after switching tabs
+    /// or returning from title details; this keeps that from refetching
+    /// unchanged results.
     @ObservationIgnored private var completedQuery: String?
 
     init(

@@ -103,6 +103,10 @@ private struct SearchResultsList: View {
             NavigationLink(value: title) {
                 TitleResultRow(title: title)
             }
+            // Plain lists also draw separators above the first row and below
+            // the last one; separators belong between results only.
+            .listRowSeparator(title.id == titles.first?.id ? .hidden : .automatic, edges: .top)
+            .listRowSeparator(title.id == titles.last?.id ? .hidden : .automatic, edges: .bottom)
         }
         .listStyle(.plain)
         .accessibilityLabel("Search results")
@@ -113,65 +117,53 @@ private struct TitleResultRow: View {
     let title: TitleSummary
 
     var body: some View {
-        HStack(spacing: 14) {
-            cover
+        let daysUntilRelease = ReleaseDateText.daysUntil(title.earliestReleaseDate)
 
-            VStack(alignment: .leading, spacing: 5) {
+        HStack(spacing: 12) {
+            // RAWG artwork is landscape, so the thumbnail keeps a 16:9 shape.
+            TitleArtwork(url: title.coverImageURL, width: .thumbnail, cornerRadius: 8)
+                .frame(width: 104, height: 58)
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title.name)
                     .font(.headline)
                     .lineLimit(2)
 
-                if let releaseYear = title.releaseYear {
-                    Label(releaseYear, systemImage: "calendar")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                Text(metadata(daysUntilRelease: daysUntilRelease))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
 
-                if let platformSummary = title.platformSummary {
-                    Text(platformSummary)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+                if let countdown = daysUntilRelease.flatMap(ReleaseDateText.countdown) {
+                    Text(countdown)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tint)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(.tint.opacity(0.15), in: .capsule)
                 }
+            }
+            .alignmentGuide(.listRowSeparatorLeading) { dimensions in
+                dimensions[.leading]
             }
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
     }
 
-    private var cover: some View {
-        Group {
-            if let coverImageURL = title.coverImageURL {
-                AsyncImage(url: coverImageURL) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        coverPlaceholder
-                    @unknown default:
-                        coverPlaceholder
-                    }
-                }
-            } else {
-                coverPlaceholder
-            }
+    /// Upcoming releases show the full date; past releases show the year.
+    private func metadata(daysUntilRelease: Int?) -> String {
+        let releaseText = if let daysUntilRelease, daysUntilRelease >= 0 {
+            ReleaseDateText.format(title.earliestReleaseDate, precision: .day)
+        } else {
+            title.releaseYear ?? ReleaseDateText.unannounced
         }
-        .frame(width: 68, height: 88)
-        .background(.quaternary, in: .rect(cornerRadius: 12))
-        .clipShape(.rect(cornerRadius: 12))
-        .accessibilityHidden(true)
-    }
 
-    private var coverPlaceholder: some View {
-        Image(systemName: "photo")
-            .font(.title2)
-            .foregroundStyle(.secondary)
+        return [releaseText, title.platformSummary]
+            .compactMap { $0 }
+            .joined(separator: " · ")
     }
 }
 

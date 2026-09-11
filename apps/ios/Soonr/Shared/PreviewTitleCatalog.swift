@@ -2,7 +2,7 @@ import Foundation
 
 /// In-memory title data for SwiftUI previews. Performs no network requests.
 struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading {
-    var results: [TitleSummary] = [.preview]
+    var results: [TitleSummary] = [.previewUpcoming, .preview]
     var details: TitleDetails? = .preview
 
     func searchTitles(query: String) async throws -> [TitleSummary] {
@@ -36,6 +36,28 @@ extension TitleSummary {
         rawgReviewsCount: 690,
         rawgSuggestionsCount: 430,
         rawgRatingTop: 5
+    )
+
+    /// Releases four days from whenever the preview renders.
+    static let previewUpcoming = TitleSummary(
+        id: "rawg:upcoming",
+        kind: "game",
+        source: "rawg",
+        externalID: "0",
+        slug: "upcoming-game",
+        name: "Marvel's Wolverine",
+        coverImageURL: nil,
+        earliestReleaseDate: Date.now
+            .addingTimeInterval(4 * 24 * 60 * 60)
+            .formatted(.iso8601.year().month().day()),
+        platforms: [TitlePlatform(id: "rawg-platform:187", name: "PlayStation 5")],
+        rawgRating: nil,
+        rawgRatingsCount: nil,
+        rawgMetacritic: nil,
+        rawgAdded: nil,
+        rawgReviewsCount: nil,
+        rawgSuggestionsCount: nil,
+        rawgRatingTop: nil
     )
 }
 
