@@ -1,11 +1,16 @@
 import Foundation
 
 /// In-memory title data for SwiftUI previews. Performs no network requests.
-struct PreviewTitleCatalog: TitleSearching {
+struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading {
     var results: [TitleSummary] = [.preview]
+    var details: TitleDetails? = .preview
 
     func searchTitles(query: String) async throws -> [TitleSummary] {
         results
+    }
+
+    func titleDetails(id: String) async throws -> TitleDetails? {
+        details
     }
 }
 
@@ -31,5 +36,44 @@ extension TitleSummary {
         rawgReviewsCount: 690,
         rawgSuggestionsCount: 430,
         rawgRatingTop: 5
+    )
+}
+
+extension TitleDetails {
+    static let preview = TitleDetails(
+        summary: .preview,
+        description: "Rockstar Games went bigger with an open world spanning Los Santos and Blaine County.",
+        genres: ["Action", "Adventure"],
+        developers: ["Rockstar North", "Rockstar Games"],
+        publishers: ["Rockstar Games"],
+        releases: [
+            TitleRelease(
+                platformID: "rawg-platform:4",
+                platformName: "PC",
+                releaseDate: "2015-04-14",
+                precision: .day
+            ),
+            TitleRelease(
+                platformID: "rawg-platform:18",
+                platformName: "PlayStation 4",
+                releaseDate: "2014-11-18",
+                precision: .day
+            ),
+            TitleRelease(
+                platformID: "rawg-platform:187",
+                platformName: "PlayStation 5",
+                releaseDate: nil,
+                precision: .unknown
+            ),
+        ]
+    )
+
+    static let previewSparse = TitleDetails(
+        summary: .preview,
+        description: nil,
+        genres: [],
+        developers: [],
+        publishers: [],
+        releases: []
     )
 }

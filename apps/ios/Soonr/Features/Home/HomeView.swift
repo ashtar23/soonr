@@ -6,23 +6,9 @@ struct HomeView: View {
             PlaceholderScreen(
                 icon: "sparkles",
                 title: "Discover what is coming soon",
-                description: "Game discovery will appear here in the next slice."
-            ) {
-                if #available(iOS 26, *) {
-                    titleLink
-                        .buttonStyle(.glassProminent)
-                } else {
-                    titleLink
-                        .buttonStyle(.borderedProminent)
-                }
-            }
+                description: "Upcoming, latest, and popular games will appear here in a later slice."
+            )
             .navigationTitle("Home")
-        }
-    }
-
-    private var titleLink: some View {
-        NavigationLink("Open example title") {
-            TitleDetailView()
         }
     }
 }

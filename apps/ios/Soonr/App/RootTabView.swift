@@ -83,7 +83,10 @@ struct RootTabView: View {
     }
 
     private var searchView: some View {
-        SearchView(titleSearch: dependencies.titleSearch)
+        SearchView(
+            titleSearch: dependencies.titleSearch,
+            titleDetails: dependencies.titleDetails
+        )
     }
 }
 

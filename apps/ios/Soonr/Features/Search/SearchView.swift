@@ -3,8 +3,11 @@ import SwiftUI
 struct SearchView: View {
     @State private var model: SearchModel
 
+    private let titleDetails: any TitleDetailsLoading
+
     init(
         titleSearch: any TitleSearching,
+        titleDetails: any TitleDetailsLoading,
         debounceDuration: Duration = .milliseconds(350)
     ) {
         _model = State(
@@ -13,6 +16,7 @@ struct SearchView: View {
                 debounceDuration: debounceDuration
             )
         )
+        self.titleDetails = titleDetails
     }
 
     var body: some View {
@@ -24,6 +28,9 @@ struct SearchView: View {
                 .searchable(text: $model.query, prompt: "Search games")
                 .task(id: model.query) {
                     await model.search()
+                }
+                .navigationDestination(for: TitleSummary.self) { title in
+                    TitleDetailsView(summary: title, titleDetails: titleDetails)
                 }
         }
     }
@@ -93,7 +100,9 @@ private struct SearchResultsList: View {
 
     var body: some View {
         List(titles) { title in
-            TitleResultRow(title: title)
+            NavigationLink(value: title) {
+                TitleResultRow(title: title)
+            }
         }
         .listStyle(.plain)
         .accessibilityLabel("Search results")
@@ -167,7 +176,10 @@ private struct TitleResultRow: View {
 }
 
 #Preview("Search") {
-    SearchView(titleSearch: PreviewTitleCatalog())
+    SearchView(
+        titleSearch: PreviewTitleCatalog(),
+        titleDetails: PreviewTitleCatalog()
+    )
 }
 
 #Preview("Results") {

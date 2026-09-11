@@ -167,14 +167,26 @@ are supplied by the Supabase session and are not manually persisted in
 
 ## API contract evolution
 
-The first search endpoint uses a small handwritten Codable contract. When the
-second substantial endpoint is integrated, evaluate Swift OpenAPI Generator
-against `apps/api/openapi.generated.json`. The goal is to remove contract drift
-without adding generation complexity before it pays for itself.
+Search and title details use small handwritten Codable contracts. Title details
+decode `TitleSummary` from the same flat payload instead of duplicating fields.
 
-Common request behavior should be centralized as endpoints are added. Feature
-models should continue depending on narrow protocols even if their live
-implementation uses a generated client.
+Swift OpenAPI Generator was evaluated against `apps/api/openapi.generated.json`
+when title details became the second endpoint, and deferred:
+
+- it adds three Swift packages (generator, runtime, URLSession transport) and a
+  build plugin, the project's first dependencies
+- the spec inlines every schema and has no `components`, so generated types are
+  anonymous, operation-scoped payloads that would still need mapping into
+  `TitleSummary` and `TitleDetails`
+- two read-only endpoints are cheap to maintain by hand, with decoding tests
+  built from real payloads
+
+Revisit when the API publishes named component schemas or when the
+authenticated watchlist and notification endpoints arrive. A lighter
+alternative is a drift check that decodes spec examples in tests.
+
+Feature models keep depending on narrow protocols even if their live
+implementation later uses a generated client.
 
 ## Architecture checkpoints
 

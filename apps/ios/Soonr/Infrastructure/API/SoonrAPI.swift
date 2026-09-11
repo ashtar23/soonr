@@ -1,6 +1,6 @@
 import Foundation
 
-struct SoonrAPI: TitleSearching, Sendable {
+struct SoonrAPI: TitleSearching, TitleDetailsLoading, Sendable {
     private let client: APIClient
 
     init(client: APIClient) {
@@ -27,8 +27,21 @@ struct SoonrAPI: TitleSearching, Sendable {
         )
         return response.results
     }
+
+    func titleDetails(id: String) async throws -> TitleDetails? {
+        do {
+            let response: TitleDetailsResponse = try await client.get(["titles", id])
+            return response.details
+        } catch APIError.requestFailed(404, _) {
+            return nil
+        }
+    }
 }
 
 private struct TitleSearchResponse: Decodable {
     let results: [TitleSummary]
+}
+
+private struct TitleDetailsResponse: Decodable {
+    let details: TitleDetails
 }

@@ -24,7 +24,7 @@ Open `Soonr.xcodeproj`, select the `Soonr` scheme, and run it on a simulator.
 For compatibility checks, test the oldest supported iOS 17 runtime and the
 latest available iOS runtime.
 
-Search uses `https://soonr-staging.up.railway.app` by default. Override it in
+The app uses `https://soonr-staging.up.railway.app` by default. Override it in
 the Xcode scheme when needed:
 
 ```text
@@ -60,8 +60,11 @@ Included:
 - System-native tab and control fallbacks on earlier supported releases
 - Home, Watchlist, Notifications, Search, and Account tabs
 - Debounced guest title search with loading, empty, error, and result states
-- Skeleton title detail, authentication, and settings routes
-- Swift Testing coverage for the primary tab and search-state contracts
+- Title details from search results with loading, not-found, error, and retry
+  states
+- Skeleton authentication and settings routes
+- Swift Testing coverage for tabs, search and details models, API requests, and
+  response decoding
 
 Deferred:
 

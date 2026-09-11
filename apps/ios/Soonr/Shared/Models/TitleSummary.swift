@@ -1,11 +1,11 @@
 import Foundation
 
-struct TitlePlatform: Codable, Equatable, Identifiable, Sendable {
+struct TitlePlatform: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String
 }
 
-struct TitleSummary: Codable, Equatable, Identifiable, Sendable {
+struct TitleSummary: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let kind: String
     let source: String

@@ -1,17 +1,5 @@
 import SwiftUI
 
-struct TitleDetailView: View {
-    var body: some View {
-        PlaceholderScreen(
-            icon: "gamecontroller",
-            title: "Example game",
-            description: "Artwork, platforms, release dates, and watchlist controls will live here."
-        )
-        .navigationTitle("Title details")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 struct SignInView: View {
     var body: some View {
         PlaceholderScreen(
@@ -93,12 +81,6 @@ private struct SettingsPlaceholderView: View {
         )
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-#Preview("Title detail") {
-    NavigationStack {
-        TitleDetailView()
     }
 }
 
