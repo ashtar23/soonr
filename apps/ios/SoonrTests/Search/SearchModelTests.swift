@@ -58,18 +58,66 @@ struct SearchModelTests {
 
         #expect(model.state == .failed(message: "You're offline."))
     }
+
+    @Test
+    func searchingTheCompletedQueryAgainKeepsResultsWithoutRefetching() async {
+        let search = RecordingTitleSearch(result: .success([.fixture]))
+        let model = SearchModel(titleSearch: search, debounceDuration: .zero)
+        model.query = "halo"
+
+        await model.search()
+        await model.search()
+
+        #expect(model.state == .loaded([.fixture]))
+        #expect(await search.queries == ["halo"])
+    }
+
+    @Test
+    func retryRefetchesTheCompletedQuery() async {
+        let search = RecordingTitleSearch(result: .success([.fixture]))
+        let model = SearchModel(titleSearch: search, debounceDuration: .zero)
+        model.query = "halo"
+
+        await model.search()
+        await model.retry()
+
+        #expect(await search.queries == ["halo", "halo"])
+    }
+
+    @Test
+    func aFailedQueryIsRetriedWhenTheScreenReappears() async {
+        let search = RecordingTitleSearch(
+            results: [.failure(SearchFixtureError.offline), .success([.fixture])]
+        )
+        let model = SearchModel(titleSearch: search, debounceDuration: .zero)
+        model.query = "halo"
+
+        await model.search()
+        #expect(model.state == .failed(message: "You're offline."))
+
+        await model.search()
+
+        #expect(model.state == .loaded([.fixture]))
+    }
 }
 
 private actor RecordingTitleSearch: TitleSearching {
     private(set) var queries: [String] = []
-    private let result: Result<[TitleSummary], SearchFixtureError>
+    private var results: [Result<[TitleSummary], SearchFixtureError>]
 
+    /// Answers every request with the same result.
     init(result: Result<[TitleSummary], SearchFixtureError>) {
-        self.result = result
+        self.results = [result]
+    }
+
+    /// Answers requests in order, repeating the last result.
+    init(results: [Result<[TitleSummary], SearchFixtureError>]) {
+        self.results = results
     }
 
     func searchTitles(query: String) async throws -> [TitleSummary] {
         queries.append(query)
+        let result = results.count > 1 ? results.removeFirst() : results[0]
         return try result.get()
     }
 }

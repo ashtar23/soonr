@@ -17,6 +17,10 @@ final class SearchModel {
 
     @ObservationIgnored private let titleSearch: any TitleSearching
     @ObservationIgnored private let debounceDuration: Duration
+    /// The query whose results are currently shown. SwiftUI restarts
+    /// `.task(id:)` whenever the screen reappears, such as after switching
+    /// tabs; this keeps that from refetching unchanged results.
+    @ObservationIgnored private var completedQuery: String?
 
     init(
         titleSearch: any TitleSearching,
@@ -37,7 +41,12 @@ final class SearchModel {
     private func load(debounced: Bool) async {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard normalizedQuery.count >= 2 else {
+            completedQuery = nil
             state = .idle
+            return
+        }
+
+        if debounced, normalizedQuery == completedQuery {
             return
         }
 
@@ -47,11 +56,13 @@ final class SearchModel {
             }
 
             try Task.checkCancellation()
+            completedQuery = nil
             state = .loading
 
             let titles = try await titleSearch.searchTitles(query: normalizedQuery)
             try Task.checkCancellation()
             state = titles.isEmpty ? .empty : .loaded(titles)
+            completedQuery = normalizedQuery
         } catch is CancellationError {
             return
         } catch {
