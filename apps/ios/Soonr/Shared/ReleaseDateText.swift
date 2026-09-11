@@ -12,13 +12,14 @@ enum ReleaseDateText {
         locale: Locale = .autoupdatingCurrent
     ) -> String {
         guard precision != .unknown,
-              let isoDate,
-              let date = date(fromISODate: isoDate)
+            let isoDate,
+            let date = date(fromISODate: isoDate)
         else {
             return unannounced
         }
 
-        let style = Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
+        let style = Date.FormatStyle(
+            locale: locale, calendar: calendar, timeZone: calendar.timeZone)
         switch precision {
         case .day:
             return date.formatted(style.year().month(.abbreviated).day())
@@ -81,8 +82,8 @@ enum ReleaseDateText {
             part.allSatisfy { $0.isASCII && $0.isNumber } ? Int(part) : nil
         }
         guard (1...3).contains(parts.count),
-              numbers.count == parts.count,
-              parts[0].count == 4
+            numbers.count == parts.count,
+            parts[0].count == 4
         else {
             return nil
         }

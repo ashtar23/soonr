@@ -6,7 +6,8 @@ struct HomeView: View {
             PlaceholderScreen(
                 icon: "sparkles",
                 title: "Discover what is coming soon",
-                description: "Upcoming, latest, and popular games will appear here in a later slice."
+                description:
+                    "Upcoming, latest, and popular games will appear here in a later slice."
             )
             .navigationTitle("Home")
         }

@@ -1,1 +1,2 @@
 pnpm verify:pre-push
+apps/ios/Scripts/lint.sh

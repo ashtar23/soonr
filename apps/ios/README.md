@@ -32,6 +32,19 @@ SOONR_API_BASE_URL=http://127.0.0.1:3001
 SOONR_SUPABASE_PUBLISHABLE_KEY=<optional publishable key>
 ```
 
+## Formatting and lint
+
+Swift sources are formatted with `swift-format`, which ships with Xcode, using
+the settings in `.swift-format`. No install step is needed.
+
+```sh
+apps/ios/Scripts/format.sh   # format in place
+apps/ios/Scripts/lint.sh     # fail on any deviation
+```
+
+`Scripts/lint.sh` also runs in the repository pre-push hook, and skips itself
+with a message on machines without Xcode.
+
 Command-line verification:
 
 ```sh

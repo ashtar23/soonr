@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soonr
 
 struct TitleArtworkTests {
@@ -15,7 +16,9 @@ struct TitleArtworkTests {
             "https://media.rawg.io/media/resize/1280/-/screenshots/2dc/2dcc5b76de63a99799364f962334525f.jpg"
         ),
     ])
-    func rawgMediaRequestsAResizedCopy(original: String, width: TitleArtwork.Width, expected: String) throws {
+    func rawgMediaRequestsAResizedCopy(
+        original: String, width: TitleArtwork.Width, expected: String
+    ) throws {
         let url = try #require(URL(string: original))
 
         #expect(TitleArtwork.sizedURL(url, width: width).absoluteString == expected)

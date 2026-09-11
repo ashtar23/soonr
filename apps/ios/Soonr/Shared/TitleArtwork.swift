@@ -66,8 +66,8 @@ struct TitleArtwork: View {
 
         let assetPath = path.dropFirst(mediaPrefix.count)
         guard assetPath.hasPrefix("resize/") == false,
-              assetPath.hasPrefix("crop/") == false,
-              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            assetPath.hasPrefix("crop/") == false,
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else {
             return url
         }

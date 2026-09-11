@@ -155,11 +155,12 @@ private struct TitleResultRow: View {
 
     /// Upcoming releases show the full date; past releases show the year.
     private func metadata(daysUntilRelease: Int?) -> String {
-        let releaseText = if let daysUntilRelease, daysUntilRelease >= 0 {
-            ReleaseDateText.format(title.earliestReleaseDate, precision: .day)
-        } else {
-            title.releaseYear ?? ReleaseDateText.unannounced
-        }
+        let releaseText =
+            if let daysUntilRelease, daysUntilRelease >= 0 {
+                ReleaseDateText.format(title.earliestReleaseDate, precision: .day)
+            } else {
+                title.releaseYear ?? ReleaseDateText.unannounced
+            }
 
         return [releaseText, title.platformSummary]
             .compactMap { $0 }

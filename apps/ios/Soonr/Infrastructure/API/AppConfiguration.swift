@@ -14,9 +14,9 @@ struct AppConfiguration: Sendable {
 
     private static var environmentURL: URL? {
         guard let value = nonEmptyEnvironmentValue(named: "SOONR_API_BASE_URL"),
-              let url = URL(string: value),
-              let scheme = url.scheme,
-              ["http", "https"].contains(scheme)
+            let url = URL(string: value),
+            let scheme = url.scheme,
+            ["http", "https"].contains(scheme)
         else {
             return nil
         }
@@ -25,9 +25,10 @@ struct AppConfiguration: Sendable {
     }
 
     private static func nonEmptyEnvironmentValue(named name: String) -> String? {
-        guard let value = ProcessInfo.processInfo.environment[name]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              value.isEmpty == false
+        guard
+            let value = ProcessInfo.processInfo.environment[name]?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            value.isEmpty == false
         else {
             return nil
         }

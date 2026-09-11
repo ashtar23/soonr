@@ -10,7 +10,7 @@ struct TitleDetails: Equatable, Sendable {
 
     var displayDescription: String? {
         guard let description = description?.trimmingCharacters(in: .whitespacesAndNewlines),
-              description.isEmpty == false
+            description.isEmpty == false
         else {
             return nil
         }

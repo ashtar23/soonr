@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soonr
 
 @Suite(.tags(.networking))
@@ -200,7 +201,8 @@ private actor StubTransport {
         requests.append(request)
         let url = try #require(request.url)
         let httpResponse = try #require(
-            HTTPURLResponse(url: url, statusCode: response.statusCode, httpVersion: nil, headerFields: nil)
+            HTTPURLResponse(
+                url: url, statusCode: response.statusCode, httpVersion: nil, headerFields: nil)
         )
         return (Data(response.body.utf8), httpResponse)
     }
@@ -215,108 +217,108 @@ private extension AppConfiguration {
 
 private extension SoonrAPITests {
     static let fullDetailsJSON = #"""
-    {
-      "details": {
-        "id": "rawg:891238",
-        "kind": "game",
-        "source": "rawg",
-        "externalId": "891238",
-        "slug": "hades-2",
-        "name": "Hades II",
-        "coverImageUrl": "https://media.rawg.io/media/games/hades-ii.jpg",
-        "earliestReleaseDate": "2025-09-25",
-        "platforms": [
-          { "id": "rawg-platform:4", "name": "PC" },
-          { "id": "rawg-platform:7", "name": "Nintendo Switch" }
-        ],
-        "rawgRating": 4.5,
-        "rawgRatingsCount": 300,
-        "rawgMetacritic": 95,
-        "rawgAdded": 5000,
-        "rawgReviewsCount": 310,
-        "rawgSuggestionsCount": 400,
-        "rawgRatingTop": 5,
-        "description": "The first-ever sequel from Supergiant Games.",
-        "genres": ["Action", "RPG"],
-        "developers": ["Supergiant Games"],
-        "publishers": ["Supergiant Games"],
-        "websiteUrl": "https://www.supergiantgames.com/games/hades-ii/",
-        "releases": [
-          {
-            "platformId": "rawg-platform:4",
-            "platformName": "PC",
-            "releaseDate": "2025-09-25",
-            "releaseDatePrecision": "day"
+        {
+          "details": {
+            "id": "rawg:891238",
+            "kind": "game",
+            "source": "rawg",
+            "externalId": "891238",
+            "slug": "hades-2",
+            "name": "Hades II",
+            "coverImageUrl": "https://media.rawg.io/media/games/hades-ii.jpg",
+            "earliestReleaseDate": "2025-09-25",
+            "platforms": [
+              { "id": "rawg-platform:4", "name": "PC" },
+              { "id": "rawg-platform:7", "name": "Nintendo Switch" }
+            ],
+            "rawgRating": 4.5,
+            "rawgRatingsCount": 300,
+            "rawgMetacritic": 95,
+            "rawgAdded": 5000,
+            "rawgReviewsCount": 310,
+            "rawgSuggestionsCount": 400,
+            "rawgRatingTop": 5,
+            "description": "The first-ever sequel from Supergiant Games.",
+            "genres": ["Action", "RPG"],
+            "developers": ["Supergiant Games"],
+            "publishers": ["Supergiant Games"],
+            "websiteUrl": "https://www.supergiantgames.com/games/hades-ii/",
+            "releases": [
+              {
+                "platformId": "rawg-platform:4",
+                "platformName": "PC",
+                "releaseDate": "2025-09-25",
+                "releaseDatePrecision": "day"
+              },
+              {
+                "platformId": "rawg-platform:7",
+                "platformName": "Nintendo Switch",
+                "releaseDate": null,
+                "releaseDatePrecision": "unknown"
+              }
+            ]
           },
-          {
-            "platformId": "rawg-platform:7",
-            "platformName": "Nintendo Switch",
-            "releaseDate": null,
-            "releaseDatePrecision": "unknown"
-          }
-        ]
-      },
-      "isInWatchlist": false
-    }
-    """#
+          "isInWatchlist": false
+        }
+        """#
 
     static let sparseDetailsJSON = #"""
-    {
-      "details": {
-        "id": "rawg:274755",
-        "kind": "game",
-        "source": "rawg",
-        "externalId": "274755",
-        "slug": "hades-2018",
-        "name": "Hades",
-        "coverImageUrl": null,
-        "earliestReleaseDate": "2020-09-17",
-        "platforms": [{ "id": "rawg-platform:4", "name": "PC" }],
-        "rawgRating": null,
-        "rawgRatingsCount": null,
-        "rawgMetacritic": null,
-        "rawgAdded": null,
-        "rawgReviewsCount": null,
-        "rawgSuggestionsCount": null,
-        "rawgRatingTop": null,
-        "description": null,
-        "genres": [],
-        "developers": [],
-        "publishers": [],
-        "websiteUrl": null,
-        "releases": []
-      },
-      "isInWatchlist": false
-    }
-    """#
+        {
+          "details": {
+            "id": "rawg:274755",
+            "kind": "game",
+            "source": "rawg",
+            "externalId": "274755",
+            "slug": "hades-2018",
+            "name": "Hades",
+            "coverImageUrl": null,
+            "earliestReleaseDate": "2020-09-17",
+            "platforms": [{ "id": "rawg-platform:4", "name": "PC" }],
+            "rawgRating": null,
+            "rawgRatingsCount": null,
+            "rawgMetacritic": null,
+            "rawgAdded": null,
+            "rawgReviewsCount": null,
+            "rawgSuggestionsCount": null,
+            "rawgRatingTop": null,
+            "description": null,
+            "genres": [],
+            "developers": [],
+            "publishers": [],
+            "websiteUrl": null,
+            "releases": []
+          },
+          "isInWatchlist": false
+        }
+        """#
 
     static let searchJSON = #"""
-    {
-      "query": "hades",
-      "results": [
         {
-          "id": "rawg:274755",
-          "kind": "game",
-          "source": "rawg",
-          "externalId": "274755",
-          "slug": "hades-2018",
-          "name": "Hades",
-          "coverImageUrl": null,
-          "earliestReleaseDate": "2020-09-17",
-          "platforms": [],
-          "rawgRating": null,
-          "rawgRatingsCount": null,
-          "rawgMetacritic": null,
-          "rawgAdded": null,
-          "rawgReviewsCount": null,
-          "rawgSuggestionsCount": null,
-          "rawgRatingTop": null
+          "query": "hades",
+          "results": [
+            {
+              "id": "rawg:274755",
+              "kind": "game",
+              "source": "rawg",
+              "externalId": "274755",
+              "slug": "hades-2018",
+              "name": "Hades",
+              "coverImageUrl": null,
+              "earliestReleaseDate": "2020-09-17",
+              "platforms": [],
+              "rawgRating": null,
+              "rawgRatingsCount": null,
+              "rawgMetacritic": null,
+              "rawgAdded": null,
+              "rawgReviewsCount": null,
+              "rawgSuggestionsCount": null,
+              "rawgRatingTop": null
+            }
+          ],
+          "totalCount": 1,
+          "page": 1,
+          "limit": 20,
+          "hasMore": false
         }
-      ],
-      "totalCount": 1,
-      "page": 1,
-      "limit": 20,
-      "hasMore": false
-    }
-    """#
+        """#
 }

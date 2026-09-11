@@ -64,7 +64,8 @@ extension TitleSummary {
 extension TitleDetails {
     static let preview = TitleDetails(
         summary: .preview,
-        description: "Rockstar Games went bigger with an open world spanning Los Santos and Blaine County.",
+        description:
+            "Rockstar Games went bigger with an open world spanning Los Santos and Blaine County.",
         genres: ["Action", "Adventure"],
         developers: ["Rockstar North", "Rockstar Games"],
         publishers: ["Rockstar Games"],

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import Soonr
 
 struct ReleaseDateTextTests {
@@ -22,7 +23,9 @@ struct ReleaseDateTextTests {
         #expect(ReleaseDateText.format(isoDate, precision: precision, locale: locale) == expected)
     }
 
-    @Test(arguments: [nil, "", "soon", "2025-13-01", "2025-02-30", "25-09-25", "2025-09-25-01"] as [String?])
+    @Test(
+        arguments: [nil, "", "soon", "2025-13-01", "2025-02-30", "25-09-25", "2025-09-25-01"]
+            as [String?])
     func missingOrMalformedDatesAreUnannounced(isoDate: String?) {
         #expect(ReleaseDateText.format(isoDate, precision: .day, locale: locale) == "TBA")
     }
@@ -57,14 +60,15 @@ struct ReleaseDateTextTests {
         #expect(ReleaseDateText.daysUntil(isoDate) == nil)
     }
 
-    @Test(arguments: [
-        (-1, nil),
-        (0, "Out today"),
-        (1, "Tomorrow"),
-        (4, "In 4 days"),
-        (30, "In 30 days"),
-        (31, "Upcoming"),
-    ] as [(Int, String?)])
+    @Test(
+        arguments: [
+            (-1, nil),
+            (0, "Out today"),
+            (1, "Tomorrow"),
+            (4, "In 4 days"),
+            (30, "In 30 days"),
+            (31, "Upcoming"),
+        ] as [(Int, String?)])
     func countdownDescribesUpcomingReleases(days: Int, expected: String?) {
         #expect(ReleaseDateText.countdown(daysUntil: days) == expected)
     }
