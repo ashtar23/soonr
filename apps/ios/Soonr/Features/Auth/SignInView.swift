@@ -1,6 +1,12 @@
 import SwiftUI
 
 struct SignInView: View {
+    /// Shown above the form when an action raised this screen.
+    var prompt: String?
+    /// Called when the user starts filling the form, so a sheet can make room
+    /// for the keyboard.
+    var onBeginEditing: () -> Void = {}
+
     @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
 
@@ -19,6 +25,14 @@ struct SignInView: View {
 
     var body: some View {
         Form {
+            if let prompt {
+                Section {
+                    Text(prompt)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 TextField("Email", text: $email)
                     .textContentType(.emailAddress)
@@ -53,9 +67,22 @@ struct SignInView: View {
                 }
                 .disabled(canSubmit == false)
             }
+
+            Section {
+                NavigationLink("Create account") {
+                    SignUpView()
+                }
+            } footer: {
+                Text("New to Soonr? Creating an account takes a moment.")
+            }
         }
         .navigationTitle("Sign in")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: focus) { _, focus in
+            if focus != nil {
+                onBeginEditing()
+            }
+        }
         .onChange(of: email) { session.clearSignInFailure() }
         .onChange(of: password) { session.clearSignInFailure() }
         .onChange(of: session.state) { _, state in

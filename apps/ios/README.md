@@ -92,6 +92,13 @@ References are valid on one iOS major version and in `en_US`, because release
 dates are formatted through the current locale. The suites skip themselves
 anywhere else, so the iOS 17 run above stays green.
 
+`ImageRenderer` renders SwiftUI content only. A `List` comes out as the
+unsupported-view placeholder and a `ScrollView` comes out blank, so a screen
+built from either is split, and the snapshot covers the content view inside
+it. Give that view a generous frame: too short a one makes SwiftUI truncate
+text, recording a layout bug the scrolling screen does not have. Artwork is
+absent by design, since `AsyncImage` cannot load during a render.
+
 After a deliberate design change, re-record and review the result before
 committing it:
 
