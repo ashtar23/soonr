@@ -16,6 +16,9 @@ struct HomeView: View {
                 state: model.state,
                 retry: {
                     await model.retry()
+                },
+                refresh: {
+                    await model.refresh()
                 }
             )
             .navigationTitle("Home")
@@ -32,6 +35,7 @@ struct HomeView: View {
 private struct HomeContent: View {
     let state: HomeState
     let retry: () async -> Void
+    let refresh: () async -> Void
 
     var body: some View {
         switch state {
@@ -45,7 +49,7 @@ private struct HomeContent: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityElement(children: .combine)
         case let .loaded(discovery):
-            HomeRails(rails: discovery.populatedRails)
+            HomeRails(rails: discovery.populatedRails, refresh: refresh)
         case .empty:
             ContentUnavailableView(
                 "Nothing to discover yet",
@@ -70,6 +74,7 @@ private struct HomeContent: View {
 
 private struct HomeRails: View {
     let rails: [HomeRail]
+    let refresh: () async -> Void
 
     var body: some View {
         ScrollView {
@@ -79,6 +84,11 @@ private struct HomeRails: View {
                 }
             }
             .padding(.vertical, 8)
+        }
+        // Refreshing keeps the current rails on screen, so pulling again does
+        // not blank the page the way retry from the failure state does.
+        .refreshable {
+            await refresh()
         }
     }
 }

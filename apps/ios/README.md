@@ -91,6 +91,7 @@ Included:
 - Modern tab APIs on iOS 18 and native Liquid Glass behavior on iOS 26
 - System-native tab and control fallbacks on earlier supported releases
 - Home, Watchlist, Notifications, Search, and Account tabs
+- Home discovery rails from `/home/discovery` with pull to refresh
 - Debounced guest title search with loading, empty, error, and result states
 - Title details from search results with loading, not-found, error, and retry
   states

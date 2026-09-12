@@ -86,13 +86,21 @@ project's first third-party dependency. Snapshots are worth adopting only
 after the components they capture stop changing, otherwise every design change
 means re-recording.
 
-## Planned
-
 ### Slice 4: Home discovery
 
-- upcoming, latest, and popular sections from `apps/api`
-- reuse title presentation and details navigation
-- refresh, empty, and partial-failure behavior
+- `GET /home/discovery` rails: coming soon, just released, worth watching
+- horizontal `TitleCard` rails reusing the details destination search opens
+- pull to refresh that keeps the current rails on screen
+- empty rails dropped, all-empty and failure states with retry
+- model and decoding tests
+
+Deferred:
+
+- `See all` screens and `nextCursor` pagination
+- personalised rails and watchlist state on cards
+- offline caching
+
+## Planned
 
 ### Slice 5: Authentication and session
 
