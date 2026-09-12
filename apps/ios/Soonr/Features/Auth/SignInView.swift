@@ -25,14 +25,6 @@ struct SignInView: View {
 
     var body: some View {
         Form {
-            if let prompt {
-                Section {
-                    Text(prompt)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             Section {
                 TextField("Email", text: $email)
                     .textContentType(.emailAddress)
@@ -48,6 +40,16 @@ struct SignInView: View {
                     .focused($focus, equals: .password)
                     .submitLabel(.go)
                     .onSubmit(submit)
+            } header: {
+                // A plain header rather than a section of its own: a boxed
+                // sentence pushed the form past the sheet's medium detent and
+                // clipped the last row.
+                if let prompt {
+                    Text(prompt)
+                        .textCase(nil)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             } footer: {
                 if let failure = session.signInFailure {
                     Text(failure)
