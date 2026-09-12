@@ -39,17 +39,24 @@ struct APIClient: Sendable {
         case delete = "DELETE"
     }
 
+    /// Called when the server rejects the session, so ending it is decided in
+    /// one place instead of by whichever screen happened to make the request.
+    typealias UnauthorizedHandler = @Sendable () -> Void
+
     private let configuration: AppConfiguration
     private let transport: Transport
     private let accessToken: AccessTokenProvider
+    private let onUnauthorized: UnauthorizedHandler
 
     init(
         configuration: AppConfiguration,
         accessToken: @escaping AccessTokenProvider = { nil },
+        onUnauthorized: @escaping UnauthorizedHandler = {},
         transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }
     ) {
         self.configuration = configuration
         self.accessToken = accessToken
+        self.onUnauthorized = onUnauthorized
         self.transport = transport
     }
 
@@ -109,6 +116,13 @@ struct APIClient: Sendable {
         }
 
         guard httpResponse.statusCode != 401 else {
+            // Only a request that carried a session says anything about that
+            // session; a guest hitting an authenticated route is simply not
+            // signed in and has nothing to sign out of.
+            if request.value(forHTTPHeaderField: "Authorization") != nil {
+                onUnauthorized()
+            }
+
             throw APIError.unauthorized
         }
 

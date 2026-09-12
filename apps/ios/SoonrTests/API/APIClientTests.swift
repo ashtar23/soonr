@@ -94,6 +94,53 @@ struct APIClientTests {
         }
     }
 
+    /// A rejected session has to reach the app root, or a screen is left
+    /// offering a retry that can only fail again.
+    @Test
+    func aRejectedSessionIsReported() async {
+        let transport = StubTransport(.json(401, #"{"error":"Authentication failed."}"#))
+        let rejections = Counter()
+
+        await #expect(throws: APIError.unauthorized) {
+            let _: CreatedItem =
+                try await transport
+                .client(accessToken: "expired", onUnauthorized: { rejections.increment() })
+                .post(["watchlist"], body: WatchlistMutation(titleID: "rawg:1"))
+        }
+
+        #expect(rejections.value == 1)
+    }
+
+    /// A guest is not signed in to begin with, so a 401 on a request that
+    /// carried no session must not sign anyone out.
+    @Test
+    func aGuestsRejectionIsNotASessionEnding() async {
+        let transport = StubTransport(.json(401, #"{"error":"Authorization is required."}"#))
+        let rejections = Counter()
+
+        await #expect(throws: APIError.unauthorized) {
+            let _: CreatedItem =
+                try await transport
+                .client(onUnauthorized: { rejections.increment() })
+                .get(["watchlist"])
+        }
+
+        #expect(rejections.value == 0)
+    }
+
+    @Test
+    func aSuccessfulRequestReportsNoRejection() async throws {
+        let transport = StubTransport(.json(200, #"{"item":{"id":"1"}}"#))
+        let rejections = Counter()
+
+        let _: CreatedItem =
+            try await transport
+            .client(accessToken: "token", onUnauthorized: { rejections.increment() })
+            .get(["watchlist"])
+
+        #expect(rejections.value == 0)
+    }
+
     @Test
     func aFailedWriteSurfacesTheServerMessage() async {
         let transport = StubTransport(.json(400, #"{"error":"titleId is required."}"#))
@@ -141,6 +188,21 @@ private struct WatchlistMutation: Codable {
     }
 }
 
+/// The handler is called from whatever context the request finished on, so the
+/// count is guarded.
+private final class Counter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        lock.withLock { count }
+    }
+
+    func increment() {
+        lock.withLock { count += 1 }
+    }
+}
+
 private struct CreatedItem: Decodable {
     struct Item: Decodable {
         let id: String
@@ -166,10 +228,14 @@ private actor StubTransport {
         self.response = response
     }
 
-    nonisolated func client(accessToken: String? = nil) -> APIClient {
+    nonisolated func client(
+        accessToken: String? = nil,
+        onUnauthorized: @escaping @Sendable () -> Void = {}
+    ) -> APIClient {
         APIClient(
             configuration: .test,
             accessToken: { accessToken },
+            onUnauthorized: onUnauthorized,
             transport: { request in
                 try await self.send(request)
             }

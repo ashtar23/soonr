@@ -26,6 +26,13 @@ struct SoonrApp: App {
                 .task {
                     await session.restore()
                 }
+                // A rejected session ends here rather than leaving a screen
+                // offering a retry that can only fail again.
+                .task {
+                    for await _ in dependencies.rejectedSessions {
+                        await session.signOut()
+                    }
+                }
                 // Loaded as soon as there is a session, so a bookmark is
                 // already known by the time any title is opened, and dropped on
                 // sign out rather than left for the next account.

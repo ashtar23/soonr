@@ -7,13 +7,17 @@ struct AppDependencies: Sendable {
     /// Shared with the session store, so requests and the signed-in state read
     /// the same session.
     let authentication: any Authenticating
+    /// Yields when the server rejects the session, so the app root can end it.
+    let rejectedSessions: AsyncStream<Void>
 
     static func live() -> AppDependencies {
         let authentication = liveAuthentication()
+        let (rejectedSessions, rejected) = AsyncStream<Void>.makeStream()
         let api = SoonrAPI(
             client: APIClient(
                 configuration: .live,
-                accessToken: { await authentication.accessToken() }
+                accessToken: { await authentication.accessToken() },
+                onUnauthorized: { rejected.yield() }
             )
         )
 
@@ -22,7 +26,8 @@ struct AppDependencies: Sendable {
             titleDetails: TitleDetailsDependencies(titleDetails: api),
             homeDiscovery: api,
             watchlist: api,
-            authentication: authentication
+            authentication: authentication,
+            rejectedSessions: rejectedSessions
         )
     }
 
@@ -41,6 +46,7 @@ struct AppDependencies: Sendable {
         titleDetails: .preview,
         homeDiscovery: PreviewTitleCatalog(),
         watchlist: PreviewTitleCatalog(),
-        authentication: PreviewAuthentication()
+        authentication: PreviewAuthentication(),
+        rejectedSessions: AsyncStream { _ in }
     )
 }

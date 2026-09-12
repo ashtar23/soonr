@@ -122,38 +122,52 @@ Deferred:
   endpoints exist to trigger it
 - Sign in with Apple, and associated domains for password autofill
 
-## Planned
-
 ### Slice 6: Watchlist
 
-- authenticated watchlist loading
-- add and remove from details
-- optimistic state with rollback on failure
-- one sign-in sheet with two entry points
+- `POST` and `DELETE` on the API client, beside the existing `GET`
+- watchlist membership read from the details payload rather than a second
+  request
+- one sign-in sheet with two entry points, and a redesigned account screen
+- add and remove from details, optimistic with rollback and a gated sign-in
+  that finishes the save the user started
+- the watchlist tab, with empty, failure, and signed-out states
+- `WatchlistStore` as the app's single source of truth, so the tab and details
+  cannot disagree
+- signing out when the server rejects the session
 
-**How authentication surfaces.** A sheet, opened only by a deliberate tap:
-the Account row, or a gated action such as the watchlist button. No persistent
-sign-up banner on browsing screens, and the watchlist button looks the same
-signed in or out, so nothing nags a guest.
+**One store, not realtime.** Screens first kept their own copy, and the two
+disagreed exactly as expected: unsaving a title left its row on the tab, and
+opening a saved title showed an empty bookmark for a frame. Both came from
+this device's own action, so the answer was local state rather than a
+subscription — no round trip beats state you already hold. Cross-device sync
+stays a question for the notification slice, where the transport gets decided
+anyway. The watchlist lives in Railway Postgres, not Supabase, so Supabase
+Realtime would not cover it regardless.
 
-The sheet opens at a short detent, keeping the game visible behind it, and
-grows to large when the email form needs the keyboard. Sign-up pushes inside
-the same stack, and becomes a full-screen flow only if it grows past a couple
-of steps.
+Deferred:
 
-The prompt carries the action that raised it, so signing in finishes what the
-user started: tapping watchlist, signing in, and dismissing must leave the
-title saved. Sign in with Apple joins the sheet once the capability and the
-Supabase provider are configured.
+- sign up, which still pushes a placeholder from the sheet
+- `nextCursor` paging, with Home's `See all`
+- Sign in with Apple, and associated domains for password autofill
+- a retry for requests that time out against a sleeping staging container
 
-### Slice 7: Notifications
+## Planned
+
+### Slice 7: Sign up
+
+- account creation with a username, mirroring the availability checks the
+  React Native app already makes
+- replaces the placeholder the sign-in sheet pushes, which is today the only
+  thing stopping a new user from starting on iOS
+
+### Slice 8: Notifications
 
 - notification list and unread state
 - mark-as-read behavior
 - preferences
 - realtime or push delivery only after the HTTP flow is stable
 
-### Slice 8: Production hardening
+### Slice 9: Production hardening
 
 - OpenAPI contract generation or drift checks
 - structured logging and crash reporting
