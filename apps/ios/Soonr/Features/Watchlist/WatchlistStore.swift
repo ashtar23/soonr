@@ -113,6 +113,9 @@ final class WatchlistStore {
             savedIDs = previousIDs
             state = previousState
         } catch {
+            AppLog.watchlist.error(
+                "Could not \(shouldSave ? "save" : "remove", privacy: .public) a title: \(error)"
+            )
             savedIDs = previousIDs
             state = previousState
             mutationFailure =
@@ -164,6 +167,7 @@ final class WatchlistStore {
         } catch is CancellationError {
             return
         } catch {
+            AppLog.watchlist.error("Could not load the watchlist: \(error)")
             state = .failed(
                 message: error.localizedDescription.isEmpty
                     ? "Your watchlist couldn't be loaded. Please try again."

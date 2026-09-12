@@ -38,6 +38,7 @@ final class SessionStore {
         }
 
         let session = await authentication.restoreSession()
+        AppLog.auth.info("Session restored: \(session != nil, privacy: .public)")
         state = session.map(SessionState.signedIn) ?? .signedOut
     }
 
@@ -55,6 +56,7 @@ final class SessionStore {
         } catch is CancellationError {
             return
         } catch {
+            AppLog.auth.error("Sign in failed: \(error)")
             signInFailure =
                 error.localizedDescription.isEmpty
                 ? "Sign in failed. Please try again."
@@ -65,6 +67,7 @@ final class SessionStore {
     func signOut() async {
         // Whatever the server says, the app must end up signed out locally.
         try? await authentication.signOut()
+        AppLog.auth.info("Signed out")
         state = .signedOut
         signInFailure = nil
     }

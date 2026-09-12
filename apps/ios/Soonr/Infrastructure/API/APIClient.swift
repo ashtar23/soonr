@@ -103,15 +103,21 @@ struct APIClient: Sendable {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
+        let route = "\(method.rawValue) /\(pathComponents.joined(separator: "/"))"
+
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await transport(request)
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
+        } catch let error as URLError {
+            AppLog.api.error("\(route, privacy: .public) failed: \(error.code.rawValue)")
+            throw error
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
+            AppLog.api.error("\(route, privacy: .public) returned a non-HTTP response")
             throw APIError.invalidResponse
         }
 
@@ -119,7 +125,11 @@ struct APIClient: Sendable {
             // Only a request that carried a session says anything about that
             // session; a guest hitting an authenticated route is simply not
             // signed in and has nothing to sign out of.
-            if request.value(forHTTPHeaderField: "Authorization") != nil {
+            let carriedSession = request.value(forHTTPHeaderField: "Authorization") != nil
+            AppLog.api.error(
+                "\(route, privacy: .public) rejected the session (carried: \(carriedSession))"
+            )
+            if carriedSession {
                 onUnauthorized()
             }
 
@@ -128,12 +138,18 @@ struct APIClient: Sendable {
 
         guard (200..<300).contains(httpResponse.statusCode) else {
             let errorResponse = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+            AppLog.api.error(
+                "\(route, privacy: .public) failed: \(httpResponse.statusCode, privacy: .public)"
+            )
             throw APIError.requestFailed(
                 statusCode: httpResponse.statusCode,
                 message: errorResponse?.error ?? "Something went wrong. Please try again."
             )
         }
 
+        AppLog.api.debug(
+            "\(route, privacy: .public) \(httpResponse.statusCode, privacy: .public)"
+        )
         return data
     }
 
@@ -186,6 +202,9 @@ struct APIClient: Sendable {
         do {
             return try JSONDecoder().decode(Response.self, from: data)
         } catch {
+            AppLog.api.error(
+                "Could not read \(String(describing: Response.self), privacy: .public): \(error)"
+            )
             throw APIError.invalidPayload
         }
     }
