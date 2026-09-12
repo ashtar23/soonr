@@ -61,12 +61,15 @@ with a message on machines without Xcode.
 
 Command-line verification:
 
+`-scheme` is required rather than `-target`: only a scheme build resolves and
+builds Swift package dependencies.
+
 ```sh
 xcodebuild \
   -project apps/ios/Soonr.xcodeproj \
-  -target Soonr \
+  -scheme Soonr \
   -configuration Debug \
-  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO \
   build
 

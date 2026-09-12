@@ -233,7 +233,10 @@ private actor StubTransport {
 private extension AppConfiguration {
     static let test = AppConfiguration(
         apiBaseURL: URL(string: "https://api.soonr.test")!,
-        supabasePublishableKey: "test-publishable-key"
+        supabase: SupabaseConfiguration(
+            url: URL(string: "https://project.supabase.test")!,
+            publishableKey: "test-publishable-key"
+        )
     )
 }
 

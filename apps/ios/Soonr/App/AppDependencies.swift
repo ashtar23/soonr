@@ -9,6 +9,17 @@ struct AppDependencies: Sendable {
         return AppDependencies(titleSearch: api, titleDetails: api, homeDiscovery: api)
     }
 
+    /// Authentication is created separately from the API capabilities because
+    /// the app root owns the session, and a build without Supabase settings
+    /// still runs as a guest.
+    static func liveAuthentication() -> any Authenticating {
+        guard let supabase = AppConfiguration.live.supabase else {
+            return UnconfiguredAuthentication()
+        }
+
+        return SupabaseAuthService(configuration: supabase)
+    }
+
     static let preview = AppDependencies(
         titleSearch: PreviewTitleCatalog(),
         titleDetails: PreviewTitleCatalog(),

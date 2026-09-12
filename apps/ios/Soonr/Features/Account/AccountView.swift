@@ -1,8 +1,32 @@
 import SwiftUI
 
 struct AccountView: View {
+    @Environment(SessionStore.self) private var session
+
     var body: some View {
         NavigationStack {
+            content
+                .navigationTitle("Account")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink {
+                            SettingsView()
+                        } label: {
+                            Label("Settings", systemImage: "gear")
+                        }
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch session.state {
+        case .restoring:
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .signedOut:
             PlaceholderScreen(
                 icon: "person.crop.circle",
                 title: "Your Soonr account",
@@ -13,15 +37,9 @@ struct AccountView: View {
                     signUpLink
                 }
             }
-            .navigationTitle("Account")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Label("Settings", systemImage: "gear")
-                    }
-                }
+        case let .signedIn(user):
+            SignedInAccount(user: user) {
+                await session.signOut()
             }
         }
     }
@@ -57,6 +75,35 @@ struct AccountView: View {
     }
 }
 
-#Preview {
+private struct SignedInAccount: View {
+    let user: UserSession
+    let signOut: () async -> Void
+
+    var body: some View {
+        List {
+            Section("Signed in") {
+                LabeledContent("Email", value: user.email ?? "Unknown")
+            }
+
+            Section {
+                Button("Sign out", role: .destructive) {
+                    Task {
+                        await signOut()
+                    }
+                }
+            }
+        }
+    }
+}
+
+#Preview("Signed out") {
     AccountView()
+        .environment(SessionStore(authentication: PreviewAuthentication()))
+}
+
+#Preview("Signed in") {
+    AccountView()
+        .environment(
+            SessionStore(authentication: PreviewAuthentication(restored: .preview))
+        )
 }

@@ -7,3 +7,4 @@
 #include "Base.xcconfig"
 
 SOONR_API_HOST =
+SOONR_SUPABASE_HOST = fljjbtpyxmntskcbqlkh.supabase.co

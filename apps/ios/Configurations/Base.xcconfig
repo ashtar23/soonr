@@ -5,6 +5,11 @@
 
 SOONR_API_SCHEME = https
 
+// Build the machine's own architecture. Swift package products are built for
+// the native slice only, so a fat simulator build fails to resolve their
+// modules. Device builds are arm64 regardless.
+ONLY_ACTIVE_ARCH = YES
+
 // Values that must not be committed (for example the Supabase publishable key)
 // belong in Local.xcconfig, which is gitignored. See Local.xcconfig.example.
 #include? "Local.xcconfig"

@@ -4,3 +4,4 @@
 #include "Base.xcconfig"
 
 SOONR_API_HOST = soonr-staging.up.railway.app
+SOONR_SUPABASE_HOST = ipgvxeutodkdxmdukkym.supabase.co

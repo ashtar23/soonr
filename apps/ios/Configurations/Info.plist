@@ -4,5 +4,9 @@
 <dict>
 	<key>SoonrAPIBaseURL</key>
 	<string>$(SOONR_API_SCHEME)://$(SOONR_API_HOST)</string>
+	<key>SoonrSupabaseURL</key>
+	<string>$(SOONR_API_SCHEME)://$(SOONR_SUPABASE_HOST)</string>
+	<key>SoonrSupabasePublishableKey</key>
+	<string>$(SOONR_SUPABASE_PUBLISHABLE_KEY)</string>
 </dict>
 </plist>
