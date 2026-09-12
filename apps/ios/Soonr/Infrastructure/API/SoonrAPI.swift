@@ -1,6 +1,6 @@
 import Foundation
 
-struct SoonrAPI: TitleSearching, TitleDetailsLoading, Sendable {
+struct SoonrAPI: TitleSearching, TitleDetailsLoading, HomeDiscovering, Sendable {
     private let client: APIClient
 
     init(client: APIClient) {
@@ -26,6 +26,10 @@ struct SoonrAPI: TitleSearching, TitleDetailsLoading, Sendable {
             ]
         )
         return response.results
+    }
+
+    func homeDiscovery() async throws -> HomeDiscovery {
+        try await client.get(["home", "discovery"])
     }
 
     func titleDetails(id: String) async throws -> TitleDetails? {

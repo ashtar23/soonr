@@ -1,9 +1,14 @@
 import Foundation
 
 /// In-memory title data for SwiftUI previews. Performs no network requests.
-struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading {
+struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering {
     var results: [TitleSummary] = [.previewUpcoming, .preview]
     var details: TitleDetails? = .preview
+    var discovery = HomeDiscovery(
+        upcoming: [.previewUpcoming, .preview],
+        latest: [.preview],
+        popular: [.preview, .previewUpcoming]
+    )
 
     func searchTitles(query: String) async throws -> [TitleSummary] {
         results
@@ -11,6 +16,10 @@ struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading {
 
     func titleDetails(id: String) async throws -> TitleDetails? {
         details
+    }
+
+    func homeDiscovery() async throws -> HomeDiscovery {
+        discovery
     }
 }
 

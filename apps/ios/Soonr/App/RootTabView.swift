@@ -20,7 +20,7 @@ struct RootTabView: View {
     private var modernTabs: some View {
         TabView(selection: $selection) {
             Tab("Home", systemImage: "house", value: AppTab.home) {
-                HomeView()
+                homeView
             }
 
             Tab("Watchlist", systemImage: "bookmark", value: AppTab.watchlist) {
@@ -48,7 +48,7 @@ struct RootTabView: View {
 
     private var legacyTabs: some View {
         TabView(selection: $selection) {
-            HomeView()
+            homeView
                 .tabItem {
                     Label("Home", systemImage: "house")
                 }
@@ -78,6 +78,13 @@ struct RootTabView: View {
                 }
                 .tag(AppTab.account)
         }
+    }
+
+    private var homeView: some View {
+        HomeView(
+            homeDiscovery: dependencies.homeDiscovery,
+            titleDetails: dependencies.titleDetails
+        )
     }
 
     private var searchView: some View {

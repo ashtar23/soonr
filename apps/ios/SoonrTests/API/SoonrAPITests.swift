@@ -163,6 +163,28 @@ struct SoonrAPITests {
     }
 
     @Test
+    func homeDiscoveryRequestTargetsTheDiscoveryResource() async throws {
+        let transport = StubTransport(.init(statusCode: 200, body: Self.homeDiscoveryJSON))
+
+        _ = try await transport.api().homeDiscovery()
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.url?.path(percentEncoded: false) == "/home/discovery")
+    }
+
+    @Test
+    func homeDiscoveryDecodesEveryRail() async throws {
+        let api = StubTransport(.init(statusCode: 200, body: Self.homeDiscoveryJSON)).api()
+
+        let discovery = try await api.homeDiscovery()
+
+        #expect(discovery.upcoming.map(\.name) == ["Marvel's Wolverine"])
+        #expect(discovery.latest.map(\.name) == ["Hades"])
+        #expect(discovery.popular.isEmpty)
+        #expect(discovery.populatedRails.map(\.section) == [.upcoming, .latest])
+    }
+
+    @Test
     func cancelledTransportThrowsCancellationError() async {
         let api = SoonrAPI(
             client: APIClient(configuration: .test) { _ in
@@ -289,6 +311,52 @@ private extension SoonrAPITests {
             "releases": []
           },
           "isInWatchlist": false
+        }
+        """#
+
+    static let homeDiscoveryJSON = #"""
+        {
+          "upcoming": [
+            {
+              "id": "rawg:662318",
+              "kind": "game",
+              "source": "rawg",
+              "externalId": "662318",
+              "slug": "wolverine-2022",
+              "name": "Marvel's Wolverine",
+              "coverImageUrl": "https://media.rawg.io/media/games/28d/wolverine.jpg",
+              "earliestReleaseDate": "2026-09-15",
+              "platforms": [{ "id": "rawg-platform:187", "name": "PlayStation 5" }],
+              "rawgRating": null,
+              "rawgRatingsCount": null,
+              "rawgMetacritic": null,
+              "rawgAdded": null,
+              "rawgReviewsCount": null,
+              "rawgSuggestionsCount": null,
+              "rawgRatingTop": null
+            }
+          ],
+          "latest": [
+            {
+              "id": "rawg:274755",
+              "kind": "game",
+              "source": "rawg",
+              "externalId": "274755",
+              "slug": "hades-2018",
+              "name": "Hades",
+              "coverImageUrl": null,
+              "earliestReleaseDate": "2020-09-17",
+              "platforms": [],
+              "rawgRating": null,
+              "rawgRatingsCount": null,
+              "rawgMetacritic": null,
+              "rawgAdded": null,
+              "rawgReviewsCount": null,
+              "rawgSuggestionsCount": null,
+              "rawgRatingTop": null
+            }
+          ],
+          "popular": []
         }
         """#
 
