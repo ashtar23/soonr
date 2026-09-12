@@ -40,6 +40,11 @@ struct SoonrAPI: TitleSearching, TitleDetailsLoading, HomeDiscovering, Watchlist
         }
     }
 
+    func watchlist() async throws -> [WatchlistEntry] {
+        let response: WatchlistResponse = try await client.get(["watchlist"])
+        return response.items
+    }
+
     func addToWatchlist(titleID: String) async throws {
         try await client.post(["watchlist"], body: WatchlistMutationBody(titleID: titleID))
     }
@@ -61,4 +66,9 @@ private struct WatchlistMutationBody: Encodable {
 
 private struct TitleSearchResponse: Decodable {
     let results: [TitleSummary]
+}
+
+/// `nextCursor` is ignored while the screen shows a single page.
+private struct WatchlistResponse: Decodable {
+    let items: [WatchlistEntry]
 }

@@ -188,6 +188,28 @@ struct SoonrAPITests {
     }
 
     @Test
+    func theWatchlistDecodesItsSavedTitles() async throws {
+        let transport = StubTransport(.init(statusCode: 200, body: Self.watchlistJSON))
+
+        let entries = try await transport.api(accessToken: "token").watchlist()
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.url?.path(percentEncoded: false) == "/watchlist")
+        #expect(entries.map(\.id) == ["user:rawg:274755"])
+        #expect(entries.first?.title.name == "Hades")
+        #expect(entries.first?.addedAt == "2026-01-01T10:00:00.000Z")
+    }
+
+    @Test
+    func anEmptyWatchlistDecodes() async throws {
+        let api = StubTransport(
+            .init(statusCode: 200, body: #"{"items":[],"nextCursor":null}"#)
+        ).api(accessToken: "token")
+
+        #expect(try await api.watchlist().isEmpty)
+    }
+
+    @Test
     func addingToTheWatchlistPostsTheTitleInTheBody() async throws {
         let transport = StubTransport(.init(statusCode: 201, body: #"{"item":{}}"#))
 
@@ -473,6 +495,46 @@ private extension SoonrAPITests {
             }
           ],
           "popular": []
+        }
+        """#
+
+    /// Shaped like `apps/api`'s watchlist route: the entry wraps a title and
+    /// carries per-platform releases the screen does not decode.
+    static let watchlistJSON = #"""
+        {
+          "items": [
+            {
+              "id": "user:rawg:274755",
+              "title": {
+                "id": "rawg:274755",
+                "kind": "game",
+                "source": "rawg",
+                "externalId": "274755",
+                "slug": "hades-2018",
+                "name": "Hades",
+                "coverImageUrl": null,
+                "earliestReleaseDate": "2020-09-17",
+                "platforms": [{ "id": "rawg-platform:4", "name": "PC" }],
+                "rawgRating": null,
+                "rawgRatingsCount": null,
+                "rawgMetacritic": null,
+                "rawgAdded": null,
+                "rawgReviewsCount": null,
+                "rawgSuggestionsCount": null,
+                "rawgRatingTop": null
+              },
+              "releases": [
+                {
+                  "platformId": "rawg-platform:4",
+                  "platformName": "PC",
+                  "releaseDate": "2020-09-17",
+                  "releaseDatePrecision": "day"
+                }
+              ],
+              "addedAt": "2026-01-01T10:00:00.000Z"
+            }
+          ],
+          "nextCursor": null
         }
         """#
 

@@ -14,6 +14,10 @@ struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering
     var results: [TitleSummary] = [.previewUpcoming, .preview]
     var details: TitleDetails? = .preview
     var isInWatchlist = false
+    var saved: [WatchlistEntry] = [
+        WatchlistEntry(id: "w1", title: .previewUpcoming, addedAt: "2026-01-02T10:00:00Z"),
+        WatchlistEntry(id: "w2", title: .preview, addedAt: "2026-01-01T10:00:00Z"),
+    ]
     var discovery = HomeDiscovery(
         upcoming: [.previewUpcoming, .preview],
         latest: [.preview],
@@ -30,6 +34,10 @@ struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering
 
     func homeDiscovery() async throws -> HomeDiscovery {
         discovery
+    }
+
+    func watchlist() async throws -> [WatchlistEntry] {
+        saved
     }
 
     /// No-ops: the details model updates the button optimistically, so a

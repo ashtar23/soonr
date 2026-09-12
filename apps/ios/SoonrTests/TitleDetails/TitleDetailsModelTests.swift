@@ -200,6 +200,10 @@ private actor RecordingWatchlist: WatchlistManaging {
         self.failure = failure
     }
 
+    func watchlist() async throws -> [WatchlistEntry] {
+        []
+    }
+
     func addToWatchlist(titleID: String) async throws {
         changes.append(.added(titleID))
         if let failure {
