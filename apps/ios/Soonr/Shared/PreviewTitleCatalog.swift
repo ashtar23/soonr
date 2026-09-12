@@ -4,6 +4,7 @@ import Foundation
 struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering {
     var results: [TitleSummary] = [.previewUpcoming, .preview]
     var details: TitleDetails? = .preview
+    var isInWatchlist = false
     var discovery = HomeDiscovery(
         upcoming: [.previewUpcoming, .preview],
         latest: [.preview],
@@ -14,8 +15,8 @@ struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering
         results
     }
 
-    func titleDetails(id: String) async throws -> TitleDetails? {
-        details
+    func titleDetails(id: String) async throws -> TitleDetailsResult? {
+        details.map { TitleDetailsResult(details: $0, isInWatchlist: isInWatchlist) }
     }
 
     func homeDiscovery() async throws -> HomeDiscovery {

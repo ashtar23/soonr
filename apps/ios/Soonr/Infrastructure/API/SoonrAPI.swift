@@ -32,10 +32,9 @@ struct SoonrAPI: TitleSearching, TitleDetailsLoading, HomeDiscovering, Sendable 
         try await client.get(["home", "discovery"])
     }
 
-    func titleDetails(id: String) async throws -> TitleDetails? {
+    func titleDetails(id: String) async throws -> TitleDetailsResult? {
         do {
-            let response: TitleDetailsResponse = try await client.get(["titles", id])
-            return response.details
+            return try await client.get(["titles", id])
         } catch APIError.requestFailed(404, _) {
             return nil
         }
@@ -44,8 +43,4 @@ struct SoonrAPI: TitleSearching, TitleDetailsLoading, HomeDiscovering, Sendable 
 
 private struct TitleSearchResponse: Decodable {
     let results: [TitleSummary]
-}
-
-private struct TitleDetailsResponse: Decodable {
-    let details: TitleDetails
 }

@@ -104,7 +104,7 @@ struct SoonrAPITests {
     func fullTitleDetailsDecode() async throws {
         let api = StubTransport(.init(statusCode: 200, body: Self.fullDetailsJSON)).api()
 
-        let details = try #require(try await api.titleDetails(id: "rawg:891238"))
+        let details = try #require(try await api.titleDetails(id: "rawg:891238")).details
 
         #expect(details.summary.id == "rawg:891238")
         #expect(details.summary.name == "Hades II")
@@ -135,7 +135,7 @@ struct SoonrAPITests {
     func sparseTitleDetailsDecode() async throws {
         let api = StubTransport(.init(statusCode: 200, body: Self.sparseDetailsJSON)).api()
 
-        let details = try #require(try await api.titleDetails(id: "rawg:274755"))
+        let details = try #require(try await api.titleDetails(id: "rawg:274755")).details
 
         #expect(details.summary.name == "Hades")
         #expect(details.summary.coverImageURL == nil)
@@ -151,7 +151,7 @@ struct SoonrAPITests {
         let body = Self.fullDetailsJSON.replacingOccurrences(of: "\"day\"", with: "\"quarter\"")
         let api = StubTransport(.init(statusCode: 200, body: body)).api()
 
-        let details = try #require(try await api.titleDetails(id: "rawg:891238"))
+        let details = try #require(try await api.titleDetails(id: "rawg:891238")).details
 
         #expect(details.releases.map(\.precision) == [.unknown, .unknown])
     }
@@ -163,6 +163,28 @@ struct SoonrAPITests {
         ).api()
 
         #expect(try await api.titleDetails(id: "rawg:0") == nil)
+    }
+
+    @Test
+    func titleDetailsCarryWatchlistMembership() async throws {
+        let saved = Self.fullDetailsJSON.replacingOccurrences(
+            of: #""isInWatchlist": false"#,
+            with: #""isInWatchlist": true"#
+        )
+        let api = StubTransport(.init(statusCode: 200, body: saved)).api(accessToken: "token")
+
+        let result = try #require(try await api.titleDetails(id: "rawg:891238"))
+
+        #expect(result.isInWatchlist)
+    }
+
+    @Test
+    func aGuestIsNeverInTheWatchlist() async throws {
+        let api = StubTransport(.init(statusCode: 200, body: Self.fullDetailsJSON)).api()
+
+        let result = try #require(try await api.titleDetails(id: "rawg:891238"))
+
+        #expect(result.isInWatchlist == false)
     }
 
     @Test

@@ -46,6 +46,31 @@ struct TitleDetailsModelTests {
     }
 
     @Test
+    func loadRecordsWatchlistMembership() async {
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.saved)])
+        )
+
+        await model.load()
+
+        #expect(model.state == .loaded(.preview))
+        #expect(model.isInWatchlist)
+    }
+
+    @Test
+    func aTitleThatIsNotSavedLoadsAsNotInTheWatchlist() async {
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.preview)])
+        )
+
+        await model.load()
+
+        #expect(model.isInWatchlist == false)
+    }
+
+    @Test
     func loadingAgainAfterSuccessDoesNotRefetch() async {
         let loader = RecordingTitleDetails(results: [.success(.preview)])
         let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
@@ -60,16 +85,21 @@ struct TitleDetailsModelTests {
 
 private actor RecordingTitleDetails: TitleDetailsLoading {
     private(set) var requestedIDs: [String] = []
-    private var results: [Result<TitleDetails?, DetailsFixtureError>]
+    private var results: [Result<TitleDetailsResult?, DetailsFixtureError>]
 
-    init(results: [Result<TitleDetails?, DetailsFixtureError>]) {
+    init(results: [Result<TitleDetailsResult?, DetailsFixtureError>]) {
         self.results = results
     }
 
-    func titleDetails(id: String) async throws -> TitleDetails? {
+    func titleDetails(id: String) async throws -> TitleDetailsResult? {
         requestedIDs.append(id)
         return try results.removeFirst().get()
     }
+}
+
+private extension TitleDetailsResult {
+    static let preview = TitleDetailsResult(details: .preview, isInWatchlist: false)
+    static let saved = TitleDetailsResult(details: .preview, isInWatchlist: true)
 }
 
 private enum DetailsFixtureError: Error, LocalizedError, Sendable {

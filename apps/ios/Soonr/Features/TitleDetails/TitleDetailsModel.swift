@@ -13,6 +13,9 @@ enum TitleDetailsState: Equatable {
 final class TitleDetailsModel {
     let summary: TitleSummary
     private(set) var state: TitleDetailsState = .loading
+    /// Kept beside `state` rather than inside it: the watchlist button toggles
+    /// membership on its own, without rebuilding the loaded details.
+    private(set) var isInWatchlist = false
 
     @ObservationIgnored private let titleDetails: any TitleDetailsLoading
 
@@ -39,9 +42,10 @@ final class TitleDetailsModel {
         state = .loading
 
         do {
-            let details = try await titleDetails.titleDetails(id: summary.id)
+            let result = try await titleDetails.titleDetails(id: summary.id)
             try Task.checkCancellation()
-            state = details.map(TitleDetailsState.loaded) ?? .notFound
+            isInWatchlist = result?.isInWatchlist ?? false
+            state = result.map { .loaded($0.details) } ?? .notFound
         } catch is CancellationError {
             return
         } catch {
