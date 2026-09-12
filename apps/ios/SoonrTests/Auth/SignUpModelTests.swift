@@ -13,7 +13,7 @@ struct SignUpModelTests {
 
         await model.checkUsername()
 
-        #expect(model.usernameAvailability == .available)
+        #expect(model[.username] == .ok)
     }
 
     @Test(arguments: [
@@ -27,26 +27,23 @@ struct SignUpModelTests {
 
         await model.checkUsername()
 
-        #expect(model.usernameAvailability == .taken(message))
+        #expect(model[.username] == .problem(message))
     }
 
-    /// A malformed username is answered locally, so no request is sent.
     @Test
     func aMalformedUsernameIsNotSentToTheServer() async {
-        let accounts = StubAccounts(username: .init(available: true, reason: nil))
+        let accounts = StubAccounts()
         let model = SignUpModel(accounts: accounts, debounceDuration: .zero)
         model.username = "_nope"
 
         await model.checkUsername()
 
-        #expect(model.usernameProblem == .malformed)
-        #expect(model.usernameAvailability == .unchecked)
         #expect(await accounts.usernameChecks.isEmpty)
     }
 
     @Test
     func theUsernameIsNormalisedBeforeItIsChecked() async {
-        let accounts = StubAccounts(username: .init(available: true, reason: nil))
+        let accounts = StubAccounts()
         let model = SignUpModel(accounts: accounts, debounceDuration: .zero)
         model.username = "  SomeOne  "
 
@@ -55,77 +52,134 @@ struct SignUpModelTests {
         #expect(await accounts.usernameChecks == ["someone"])
     }
 
-    /// A failed check must not block sign-up: the server validates anyway.
+    /// The server validates again on submit, so a failed check must not leave
+    /// a problem the user cannot clear.
     @Test
-    func aFailedCheckDoesNotBlockSubmission() async {
+    func aFailedCheckLeavesTheFieldWithNothingToSay() async {
         let model = SignUpModel(accounts: StubAccounts(failing: true), debounceDuration: .zero)
-        model.email = "someone@example.com"
         model.username = "someone"
-        model.password = "hunter2hunter2"
-        model.repeatedPassword = "hunter2hunter2"
 
         await model.checkUsername()
 
-        #expect(model.usernameAvailability == .indeterminate)
-        #expect(model.canSubmit)
+        #expect(model[.username] == .idle)
     }
 
+    /// Each field answers for itself; a problem on one never silences another.
     @Test
-    func aTakenUsernameBlocksSubmission() async {
-        let model = makeModel(username: .init(available: false, reason: .taken))
-        model.email = "someone@example.com"
-        model.username = "someone"
-        model.password = "hunter2hunter2"
-        model.repeatedPassword = "hunter2hunter2"
+    func everyUnavailableFieldKeepsItsOwnMessage() async {
+        let accounts = StubAccounts(
+            email: .init(available: false, reason: .taken),
+            username: .init(available: false, reason: .taken)
+        )
+        let model = SignUpModel(accounts: accounts, debounceDuration: .zero)
+        model.email = "taken@example.com"
+        model.username = "taken"
 
+        await model.checkEmail()
         await model.checkUsername()
 
-        #expect(model.canSubmit == false)
+        #expect(model[.email] == .problem("An account with this email already exists."))
+        #expect(model[.username] == .problem("That username is already taken."))
     }
 
     @Test(arguments: [
-        ("someone@example.com", "someone", "hunter2hunter2", "hunter2hunter2", true),
-        ("no-at-sign", "someone", "hunter2hunter2", "hunter2hunter2", false),
-        ("someone@example.com", "_nope", "hunter2hunter2", "hunter2hunter2", false),
-        ("someone@example.com", "someone", "short", "short", false),
-        ("someone@example.com", "someone", "hunter2hunter2", "hunter2hunter3", false),
-        ("someone@example.com", "someone", "hunter2hunter2", "", false),
+        (SignUpField.email, "nope", "Enter an email address you can receive mail at."),
+        (.username, "_nope", "Usernames use letters, numbers, dots and underscores."),
+        (.password, "short", "Use at least 8 characters."),
     ])
-    func submissionRequiresEveryField(
-        email: String,
-        username: String,
-        password: String,
-        repeated: String,
-        expected: Bool
+    func leavingAnInvalidFieldExplainsIt(
+        field: SignUpField,
+        value: String,
+        message: String
     ) {
-        let model = makeModel(username: .init(available: true, reason: nil))
-        model.email = email
-        model.username = username
-        model.password = password
-        model.repeatedPassword = repeated
+        let model = makeModel()
+        switch field {
+        case .email: model.email = value
+        case .username: model.username = value
+        case .password: model.password = value
+        case .repeatedPassword: break
+        }
 
-        #expect(model.canSubmit == expected)
+        model.validate(field)
+
+        #expect(model[field] == .problem(message))
     }
 
     /// Repeat-password exists because there is no password reset: a typo would
     /// lock the account for good.
     @Test
-    func mismatchedPasswordsAreReportedBeforeSubmitting() {
-        let model = makeModel(username: .init(available: true, reason: nil))
+    func mismatchedPasswordsAreExplainedOnTheRepeatedField() {
+        let model = makeModel()
         model.password = "hunter2hunter2"
         model.repeatedPassword = "hunter2hunter3"
 
-        #expect(model.passwordsMatch == false)
+        model.validate(.repeatedPassword)
+
+        #expect(model[.repeatedPassword] == .problem("Those passwords don't match."))
+    }
+
+    /// Matching but too-short passwords must not look settled.
+    @Test
+    func aShortPasswordIsAProblemEvenWhenTheRepeatMatches() {
+        let model = makeModel()
+        model.email = "someone@example.com"
+        model.username = "someone"
+        model.password = "short"
+        model.repeatedPassword = "short"
+
+        #expect(model.validateAll() == .password)
+        #expect(model[.password].isProblem)
+        #expect(model[.repeatedPassword] == .ok)
+    }
+
+    @Test
+    func validatingEverythingReportsTheFirstFieldToFix() {
+        let model = makeModel()
+        model.email = "someone@example.com"
+        model.username = "_nope"
+        model.password = "hunter2hunter2"
+        model.repeatedPassword = "hunter2hunter2"
+
+        #expect(model.validateAll() == .username)
+    }
+
+    @Test
+    func acompleteFormHasNothingLeftToFix() {
+        let model = makeModel()
+        fill(model)
+
+        #expect(model.validateAll() == nil)
+    }
+
+    /// A check owns the availability verdict, so leaving the field must not
+    /// overwrite what the server said.
+    @Test
+    func leavingAFieldDoesNotClearATakenUsername() async {
+        let model = makeModel(username: .init(available: false, reason: .taken))
+        model.username = "taken"
+        await model.checkUsername()
+
+        model.validate(.username)
+
+        #expect(model[.username] == .problem("That username is already taken."))
+    }
+
+    @Test
+    func typingAgainRetiresTheMessage() {
+        let model = makeModel()
+        model.password = "short"
+        model.validate(.password)
+
+        model.fieldChanged(.password)
+
+        #expect(model[.password] == .idle)
     }
 
     @Test
     func submittingCreatesTheAccountWithANormalisedUsername() async {
-        let accounts = StubAccounts(username: .init(available: true, reason: nil))
+        let accounts = StubAccounts()
         let model = SignUpModel(accounts: accounts, debounceDuration: .zero)
-        model.email = "someone@example.com"
-        model.username = "SomeOne"
-        model.password = "hunter2hunter2"
-        model.repeatedPassword = "hunter2hunter2"
+        fill(model, username: "SomeOne")
 
         let created = await model.submit()
 
@@ -139,39 +193,34 @@ struct SignUpModelTests {
     }
 
     @Test
-    func aConflictIsReportedAndNothingIsCreated() async {
+    func aConflictIsReportedAtFormLevel() async {
         let accounts = StubAccounts(
-            username: .init(available: true, reason: nil),
             signUpFailure: .conflict("An account with this email already exists.")
         )
         let model = SignUpModel(accounts: accounts, debounceDuration: .zero)
-        model.email = "someone@example.com"
-        model.username = "someone"
-        model.password = "hunter2hunter2"
-        model.repeatedPassword = "hunter2hunter2"
+        fill(model)
 
         let created = await model.submit()
 
         #expect(created == false)
-        #expect(
-            model.failure == .server(message: "An account with this email already exists.")
+        #expect(model.failure == .server(message: "An account with this email already exists."))
+    }
+
+    private func makeModel(
+        email: FieldAvailability = .init(available: true, reason: nil),
+        username: FieldAvailability = .init(available: true, reason: nil)
+    ) -> SignUpModel {
+        SignUpModel(
+            accounts: StubAccounts(email: email, username: username),
+            debounceDuration: .zero
         )
     }
 
-    @Test
-    func anIncompleteFormSendsNothing() async {
-        let accounts = StubAccounts(username: .init(available: true, reason: nil))
-        let model = SignUpModel(accounts: accounts, debounceDuration: .zero)
+    private func fill(_ model: SignUpModel, username: String = "someone") {
         model.email = "someone@example.com"
-
-        let created = await model.submit()
-
-        #expect(created == false)
-        #expect(await accounts.signUps.isEmpty)
-    }
-
-    private func makeModel(username: FieldAvailability) -> SignUpModel {
-        SignUpModel(accounts: StubAccounts(username: username), debounceDuration: .zero)
+        model.username = username
+        model.password = "hunter2hunter2"
+        model.repeatedPassword = "hunter2hunter2"
     }
 }
 
@@ -185,15 +234,18 @@ private actor StubAccounts: AccountCreating {
     private(set) var usernameChecks: [String] = []
     private(set) var signUps: [SignUpCall] = []
 
+    private let email: FieldAvailability
     private let username: FieldAvailability
     private let failing: Bool
     private let signUpFailure: SignUpFailure?
 
     init(
+        email: FieldAvailability = .init(available: true, reason: nil),
         username: FieldAvailability = .init(available: true, reason: nil),
         failing: Bool = false,
         signUpFailure: SignUpFailure? = nil
     ) {
+        self.email = email
         self.username = username
         self.failing = failing
         self.signUpFailure = signUpFailure
@@ -201,7 +253,7 @@ private actor StubAccounts: AccountCreating {
 
     func emailAvailability(email: String) async throws -> FieldAvailability {
         try failIfNeeded()
-        return FieldAvailability(available: true, reason: nil)
+        return self.email
     }
 
     func usernameAvailability(username: String) async throws -> FieldAvailability {

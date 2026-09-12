@@ -29,30 +29,66 @@ struct AuthHeader: View {
     }
 }
 
-/// A form row with a leading glyph and an optional trailing status, so a field
-/// can report itself without pushing the form around with a footer line.
+/// A form row with a leading glyph, an optional trailing status, and its own
+/// message. Keeping the message in the row puts it against the field it
+/// describes, which a shared section footer cannot do once a form has more
+/// than one field.
 struct AuthField<Content: View, Accessory: View>: View {
     let icon: String
+    var message: String?
     @ViewBuilder let content: Content
     @ViewBuilder let accessory: Accessory
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(.secondary)
-                .frame(width: 22)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22)
+                    .accessibilityHidden(true)
 
-            content
+                content
 
-            accessory
+                accessory
+            }
+
+            if let message {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
 
 extension AuthField where Accessory == EmptyView {
-    init(icon: String, @ViewBuilder content: () -> Content) {
-        self.init(icon: icon, content: content) {
+    init(icon: String, message: String? = nil, @ViewBuilder content: () -> Content) {
+        self.init(icon: icon, message: message, content: content) {
+            EmptyView()
+        }
+    }
+}
+
+/// Mirrors a field's own status, so the icon and the message can never
+/// disagree about what is wrong.
+struct FieldStatusIndicator: View {
+    let status: FieldStatus
+
+    var body: some View {
+        switch status {
+        case .checking:
+            ProgressView()
+                .controlSize(.small)
+        case .ok:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .accessibilityLabel("Looks good")
+        case .problem:
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+                .accessibilityLabel("Needs attention")
+        case .idle:
             EmptyView()
         }
     }

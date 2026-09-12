@@ -10,17 +10,8 @@ struct SignInView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isPasswordVisible = false
-    @State private var validationMessage: String?
-    @FocusState private var focus: Field?
-
-    private enum Field {
-        case email
-        case password
-    }
-
-    private var footerMessage: String? {
-        validationMessage ?? session.signInFailure?.message
-    }
+    @State private var status: [SignUpField: FieldStatus] = [:]
+    @FocusState private var focus: SignUpField?
 
     var body: some View {
         Form {
@@ -34,7 +25,7 @@ struct SignInView: View {
             .listRowBackground(Color.clear)
 
             Section {
-                AuthField(icon: "envelope") {
+                AuthField(icon: "envelope", message: status[.email]?.message) {
                     TextField("Email", text: $email)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
@@ -45,7 +36,7 @@ struct SignInView: View {
                         .onSubmit { focus = .password }
                 }
 
-                AuthField(icon: "lock") {
+                AuthField(icon: "lock", message: status[.password]?.message) {
                     PasswordField(
                         title: "Password",
                         text: $password,
@@ -59,8 +50,8 @@ struct SignInView: View {
                     PasswordVisibilityToggle(isVisible: $isPasswordVisible)
                 }
             } footer: {
-                if let footerMessage {
-                    Text(footerMessage)
+                if let failure = session.signInFailure {
+                    Text(failure.message)
                         .foregroundStyle(.red)
                 }
             }
@@ -77,8 +68,13 @@ struct SignInView: View {
                 .font(.subheadline)
             }
         }
-        .onChange(of: email) { clearMessages() }
-        .onChange(of: password) { clearMessages() }
+        .onChange(of: focus) { previous, _ in
+            if let previous {
+                validate(previous)
+            }
+        }
+        .onChange(of: email) { clearMessage(.email) }
+        .onChange(of: password) { clearMessage(.password) }
         .onChange(of: session.state) { _, state in
             if case .signedIn = state {
                 dismiss()
@@ -91,27 +87,36 @@ struct SignInView: View {
             return
         }
 
-        if email.contains("@") == false {
-            validationMessage = "Enter the email address you signed up with."
-            focus = .email
+        validate(.email)
+        validate(.password)
+        if let unresolved = [SignUpField.email, .password].first(where: {
+            status[$0]?.isProblem == true
+        }) {
+            focus = unresolved
             return
         }
 
-        if password.isEmpty {
-            validationMessage = "Enter your password."
-            focus = .password
-            return
-        }
-
-        validationMessage = nil
         focus = nil
         Task {
             await session.signIn(email: email, password: password)
         }
     }
 
-    private func clearMessages() {
-        validationMessage = nil
+    private func validate(_ field: SignUpField) {
+        switch field {
+        case .email:
+            status[.email] =
+                email.contains("@")
+                ? .idle : .problem("Enter the email address you signed up with.")
+        case .password:
+            status[.password] = password.isEmpty ? .problem("Enter your password.") : .idle
+        case .username, .repeatedPassword:
+            break
+        }
+    }
+
+    private func clearMessage(_ field: SignUpField) {
+        status[field] = .idle
         session.clearSignInFailure()
     }
 }

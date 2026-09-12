@@ -6,21 +6,15 @@ struct SignUpView: View {
 
     @State private var model: SignUpModel
     @State private var isPasswordVisible = false
-    @State private var validationMessage: String?
-    @FocusState private var focus: Field?
-
-    private enum Field {
-        case email
-        case username
-        case password
-        case repeatedPassword
-    }
+    @FocusState private var focus: SignUpField?
 
     init(accounts: any AccountCreating) {
         _model = State(initialValue: SignUpModel(accounts: accounts))
     }
 
     var body: some View {
+        @Bindable var model = model
+
         Form {
             Section {
                 AuthHeader(
@@ -32,7 +26,7 @@ struct SignUpView: View {
             .listRowBackground(Color.clear)
 
             Section {
-                AuthField(icon: "envelope") {
+                AuthField(icon: "envelope", message: model[.email].message) {
                     TextField("Email", text: $model.email)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
@@ -42,10 +36,10 @@ struct SignUpView: View {
                         .submitLabel(.next)
                         .onSubmit { focus = .username }
                 } accessory: {
-                    AvailabilityIndicator(state: model.emailAvailability)
+                    FieldStatusIndicator(status: model[.email])
                 }
 
-                AuthField(icon: "at") {
+                AuthField(icon: "at", message: model[.username].message) {
                     TextField("Username", text: $model.username)
                         .textContentType(.username)
                         .textInputAutocapitalization(.never)
@@ -54,10 +48,10 @@ struct SignUpView: View {
                         .submitLabel(.next)
                         .onSubmit { focus = .password }
                 } accessory: {
-                    AvailabilityIndicator(state: usernameIndicatorState)
+                    FieldStatusIndicator(status: model[.username])
                 }
 
-                AuthField(icon: "lock") {
+                AuthField(icon: "lock", message: model[.password].message) {
                     PasswordField(
                         title: "Password",
                         text: $model.password,
@@ -71,7 +65,7 @@ struct SignUpView: View {
                     PasswordVisibilityToggle(isVisible: $isPasswordVisible)
                 }
 
-                AuthField(icon: "lock.rotation") {
+                AuthField(icon: "lock.rotation", message: model[.repeatedPassword].message) {
                     PasswordField(
                         title: "Repeat password",
                         text: $model.repeatedPassword,
@@ -82,15 +76,11 @@ struct SignUpView: View {
                     .submitLabel(.go)
                     .onSubmit(submit)
                 } accessory: {
-                    if model.repeatedPassword.isEmpty == false {
-                        AvailabilityIndicator(
-                            state: model.passwordsMatch ? .available : .taken("")
-                        )
-                    }
+                    FieldStatusIndicator(status: model[.repeatedPassword])
                 }
             } footer: {
-                if let message = footerMessage {
-                    Text(message)
+                if let failure = model.failure {
+                    Text(failure.message)
                         .foregroundStyle(.red)
                 } else {
                     Text("At least \(SignUpModel.minimumPasswordLength) characters.")
@@ -115,45 +105,15 @@ struct SignUpView: View {
         .task(id: model.username) {
             await model.checkUsername()
         }
-        .onChange(of: model.email) { clearMessages() }
-        .onChange(of: model.username) { clearMessages() }
-        .onChange(of: model.password) { validationMessage = nil }
-        .onChange(of: model.repeatedPassword) { validationMessage = nil }
-    }
-
-    private var footerMessage: String? {
-        if let validationMessage {
-            return validationMessage
+        .onChange(of: focus) { previous, _ in
+            if let previous {
+                model.validate(previous)
+            }
         }
-
-        if let failure = model.failure {
-            return failure.message
-        }
-
-        switch model.usernameProblem {
-        case .tooLong:
-            return "Usernames can be at most \(UsernameRule.maximumLength) characters."
-        case .malformed:
-            return "Usernames use letters, numbers, dots and underscores."
-        case .none:
-            break
-        }
-
-        if case let .taken(message) = model.usernameAvailability {
-            return message
-        }
-
-        if case let .taken(message) = model.emailAvailability {
-            return message
-        }
-
-        return nil
-    }
-
-    /// A locally rejected username never reaches the server, so the row shows
-    /// the local verdict rather than a stale check.
-    private var usernameIndicatorState: AvailabilityState {
-        model.usernameProblem == nil ? model.usernameAvailability : .taken("")
+        .onChange(of: model.email) { model.fieldChanged(.email) }
+        .onChange(of: model.username) { model.fieldChanged(.username) }
+        .onChange(of: model.password) { model.fieldChanged(.password) }
+        .onChange(of: model.repeatedPassword) { model.fieldChanged(.repeatedPassword) }
     }
 
     private func submit() {
@@ -161,66 +121,16 @@ struct SignUpView: View {
             return
         }
 
-        if model.email.contains("@") == false {
-            validationMessage = "Enter an email address you can receive mail at."
-            focus = .email
+        if let unresolved = model.validateAll() {
+            focus = unresolved
             return
         }
 
-        if model.usernameProblem != nil || model.username.isEmpty {
-            validationMessage = "Pick a username of letters, numbers, dots or underscores."
-            focus = .username
-            return
-        }
-
-        if model.password.count < SignUpModel.minimumPasswordLength {
-            validationMessage =
-                "Use at least \(SignUpModel.minimumPasswordLength) characters for your password."
-            focus = .password
-            return
-        }
-
-        if model.passwordsMatch == false || model.repeatedPassword.isEmpty {
-            validationMessage = "Those passwords don't match."
-            focus = .repeatedPassword
-            return
-        }
-
-        validationMessage = nil
         focus = nil
         Task {
             if await model.submit() {
                 await session.signIn(email: model.email, password: model.password)
             }
-        }
-    }
-
-    private func clearMessages() {
-        validationMessage = nil
-        model.clearFailure()
-    }
-}
-
-/// Reports a field's state inside its row, so a check does not reflow the form
-/// by appearing and disappearing underneath it.
-private struct AvailabilityIndicator: View {
-    let state: AvailabilityState
-
-    var body: some View {
-        switch state {
-        case .checking:
-            ProgressView()
-                .controlSize(.small)
-        case .available:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .accessibilityLabel("Available")
-        case .taken:
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.red)
-                .accessibilityLabel("Unavailable")
-        case .unchecked, .indeterminate:
-            EmptyView()
         }
     }
 }
