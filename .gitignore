@@ -41,3 +41,6 @@ xcuserdata/
 
 # iOS local configuration
 apps/ios/Configurations/Local.xcconfig
+
+# Rendered output written beside a reference when a snapshot test fails
+apps/ios/SoonrTests/**/__Snapshots__/*.actual.png

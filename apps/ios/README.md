@@ -80,6 +80,34 @@ xcodebuild \
   test
 ```
 
+### Snapshot tests
+
+`SoonrTests/Support/ViewSnapshot.swift` renders design-system views with
+`ImageRenderer` and compares them with PNG references committed in
+`__Snapshots__` beside each test. They exist because unit tests cannot see
+layout: a row whose artwork overflowed its frame once shipped past a green
+suite.
+
+References are valid on one iOS major version and in `en_US`, because release
+dates are formatted through the current locale. The suites skip themselves
+anywhere else, so the iOS 17 run above stays green.
+
+After a deliberate design change, re-record and review the result before
+committing it:
+
+```sh
+TEST_RUNNER_SOONR_RECORD_SNAPSHOTS=1 xcodebuild \
+  -project apps/ios/Soonr.xcodeproj \
+  -scheme Soonr \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+  -only-testing:SoonrTests/TitleRowSnapshotTests \
+  test
+```
+
+Recording always fails the run, so a branch left in recording mode cannot pass
+CI. When a comparison fails, the rendered output is written next to the
+reference as `<name>.actual.png` for side-by-side inspection; it is gitignored.
+
 ## Continuous integration
 
 `.github/workflows/ios-ci.yml` runs lint, the iOS 17 deployment build, and the

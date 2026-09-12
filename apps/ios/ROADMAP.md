@@ -69,22 +69,26 @@ Deferred:
 - `DesignSystem` folder owning `TitleArtwork`, `TitleRow`, `ReleaseBadge`, and
   `PlaceholderScreen`
 - result rows scale with Dynamic Type and stack at accessibility sizes
-- decide on view snapshot tests once these components stabilize
+- view snapshot tests for the row and card, added once the components settled
 
-**Snapshot testing, deferred here deliberately.** A search-row layout
-regression reached review past a green suite, because unit tests cannot see
-layout. A spike showed `ImageRenderer` can snapshot views inside the existing
-test target with no dependency: about 0.25s per view, byte-stable across runs
-on one runtime, and it distinguishes the broken layout from the fixed one.
-References differ per iOS version, so they must be pinned to one runtime, and
-they only cover SwiftUI content, not navigation or tab bar chrome.
+**Snapshot testing, adopted in-repo.** A search-row layout regression reached
+review past a green suite, because unit tests cannot see layout. The
+`ViewSnapshot` helper renders with `ImageRenderer` and compares against
+committed PNGs, with no third-party dependency: swift-snapshot-testing was
+skipped because it would be the project's first test dependency and carries an
+open crash on iOS 26 simulators (pointfreeco/swift-snapshot-testing#1089).
 
-Two options remain open: an in-repo helper of roughly 100 lines, or
-swift-snapshot-testing, which is currently blocked by an open crash on iOS 26
-simulators (pointfreeco/swift-snapshot-testing#1089) and would be the
-project's first third-party dependency. Snapshots are worth adopting only
-after the components they capture stop changing, otherwise every design change
-means re-recording.
+Four references cover the row at default, accessibility, and dark settings,
+plus a card rail. Verified: byte-identical across runs, unchanged between iOS
+26.2 and 26.5 so CI's dynamic simulator choice cannot flake, and a reverted
+artwork frame fails three of the four by 18-21% of pixels. Comparison allows
+1% of pixels to differ to absorb antialiasing; the gap between that and a real
+regression is two orders of magnitude.
+
+Limits: references hold on one iOS major version and in `en_US`, since release
+dates use the current locale, and the suites skip themselves elsewhere. They
+cover SwiftUI content only, not navigation or tab bar chrome, and `AsyncImage`
+never loads during a render, so fixtures carry no artwork.
 
 ### Slice 4: Home discovery
 
