@@ -21,10 +21,16 @@ struct TitleCard: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
-                Text(TitleRowText.metadata(for: title, daysUntilRelease: daysUntilRelease))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                Text(
+                    TitleRowText.metadata(
+                        for: title,
+                        daysUntilRelease: daysUntilRelease,
+                        showsPlatforms: false
+                    )
+                )
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
 
                 if let countdown = daysUntilRelease.flatMap(ReleaseDateText.countdown) {
                     ReleaseBadge(text: countdown)

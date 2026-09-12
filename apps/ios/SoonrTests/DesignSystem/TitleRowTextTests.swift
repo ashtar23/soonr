@@ -43,6 +43,25 @@ struct TitleRowTextTests {
     }
 
     @Test
+    func cardsOmitPlatformsSoTheLineDoesNotTruncate() {
+        let title = TitleSummary.fixture(
+            earliestReleaseDate: "2026-11-19",
+            platforms: [
+                TitlePlatform(id: "rawg-platform:187", name: "PlayStation 5"),
+                TitlePlatform(id: "rawg-platform:4", name: "PC"),
+            ]
+        )
+
+        let metadata = TitleRowText.metadata(
+            for: title,
+            daysUntilRelease: 60,
+            showsPlatforms: false
+        )
+
+        #expect(metadata == "Nov 19, 2026")
+    }
+
+    @Test
     func titlesWithoutPlatformsShowOnlyTheRelease() {
         let title = TitleSummary.fixture(earliestReleaseDate: "1994-01-01", platforms: [])
 

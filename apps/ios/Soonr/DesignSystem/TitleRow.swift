@@ -70,7 +70,14 @@ struct ReleaseBadge: View {
 
 enum TitleRowText {
     /// Upcoming releases show the full date; past releases show the year.
-    static func metadata(for title: TitleSummary, daysUntilRelease: Int?) -> String {
+    ///
+    /// Platforms disambiguate similarly named search results, but on a
+    /// discovery card they truncate to "PlayStation…", so cards omit them.
+    static func metadata(
+        for title: TitleSummary,
+        daysUntilRelease: Int?,
+        showsPlatforms: Bool = true
+    ) -> String {
         let releaseText =
             if let daysUntilRelease, daysUntilRelease >= 0 {
                 ReleaseDateText.format(title.earliestReleaseDate, precision: .day)
@@ -78,7 +85,7 @@ enum TitleRowText {
                 title.releaseYear ?? ReleaseDateText.unannounced
             }
 
-        return [releaseText, title.platformSummary]
+        return [releaseText, showsPlatforms ? title.platformSummary : nil]
             .compactMap { $0 }
             .joined(separator: " · ")
     }
