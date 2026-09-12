@@ -17,6 +17,8 @@ enum FailureReason: Equatable, Sendable {
             self = FailureReason(apiError)
         case let urlError as URLError:
             self = FailureReason(urlError)
+        case let signUpFailure as SignUpFailure:
+            self = .server(message: signUpFailure.message)
         default:
             let message = error.localizedDescription
             self = message.isEmpty ? .unreadable : .unknown(message: message)

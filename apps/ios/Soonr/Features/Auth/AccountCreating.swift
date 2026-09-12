@@ -25,11 +25,15 @@ enum SignUpFailure: Error, Equatable, LocalizedError {
     case conflict(String)
     case invalid(String)
 
-    var errorDescription: String? {
+    var message: String {
         switch self {
         case let .conflict(message), let .invalid(message):
             message
         }
+    }
+
+    var errorDescription: String? {
+        message
     }
 }
 

@@ -44,6 +44,13 @@ struct FailureReasonTests {
     }
 
     @Test
+    func aSignUpRejectionIsTreatedAsTheServersJudgement() {
+        let failure = SignUpFailure.conflict("This username is already taken.")
+
+        #expect(FailureReason(failure) == .server(message: "This username is already taken."))
+    }
+
+    @Test
     func anUnrecognisedErrorKeepsItsDescription() {
         #expect(FailureReason(SampleError.broken) == .unknown(message: "Something broke."))
     }
