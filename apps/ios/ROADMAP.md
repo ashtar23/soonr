@@ -153,6 +153,15 @@ Deferred:
 
 ## Planned
 
+### Comment cleanup
+
+Not a slice. The codebase carries an explanatory comment on nearly every
+property and modifier, which buries the few that matter. Comments stay only
+where the reason is non-obvious — platform behaviour that surprised us,
+`ImageRenderer` limits, API semantics the code depends on — and go everywhere
+they restate the code. Do this as its own pass, so it never hides inside a
+feature diff.
+
 ### Slice 7: Sign up
 
 - account creation with a username, mirroring the availability checks the

@@ -260,6 +260,101 @@ struct SoonrAPITests {
     }
 
     @Test
+    func emailAvailabilityAsksWithTheAddressAsAQuery() async throws {
+        let transport = StubTransport(.init(statusCode: 200, body: #"{"available":true}"#))
+
+        let availability = try await transport.api()
+            .emailAvailability(email: "someone@example.com")
+
+        let request = try #require(await transport.requests.first)
+        let url = try #require(request.url)
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(components.path == "/auth/email-availability")
+        #expect(
+            components.queryItems == [URLQueryItem(name: "email", value: "someone@example.com")])
+        #expect(availability == FieldAvailability(available: true, reason: nil))
+    }
+
+    @Test
+    func usernameAvailabilityAsksTheProfileResource() async throws {
+        let transport = StubTransport(
+            .init(statusCode: 200, body: #"{"available":false,"reason":"reserved"}"#)
+        )
+
+        let availability = try await transport.api().usernameAvailability(username: "admin")
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.url?.path(percentEncoded: false) == "/profile/username-availability")
+        #expect(availability == FieldAvailability(available: false, reason: .reserved))
+    }
+
+    @Test(arguments: [
+        ("taken", FieldAvailability.Reason.taken),
+        ("invalid", .invalid),
+        ("reserved", .reserved),
+        ("something-new", .unknown),
+    ])
+    func availabilityReasonsDecode(rawValue: String, expected: FieldAvailability.Reason)
+        async throws
+    {
+        let api = StubTransport(
+            .init(statusCode: 200, body: #"{"available":false,"reason":"\#(rawValue)"}"#)
+        ).api()
+
+        #expect(try await api.usernameAvailability(username: "a").reason == expected)
+    }
+
+    @Test
+    func signUpPostsTheCredentialsAndUsername() async throws {
+        let transport = StubTransport(.init(statusCode: 200, body: Self.signUpJSON))
+
+        try await transport.api().signUp(
+            email: "someone@example.com",
+            password: "hunter2hunter2",
+            username: "someone"
+        )
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path(percentEncoded: false) == "/auth/sign-up")
+
+        let body = try #require(request.httpBody)
+        let sent = try #require(
+            try JSONSerialization.jsonObject(with: body) as? [String: String]
+        )
+        #expect(sent["email"] == "someone@example.com")
+        #expect(sent["password"] == "hunter2hunter2")
+        #expect(sent["username"] == "someone")
+    }
+
+    @Test
+    func aTakenAccountIsAConflict() async {
+        let api = StubTransport(
+            .init(
+                statusCode: 409,
+                body: #"{"error":"An account with this email already exists."}"#
+            )
+        ).api()
+
+        await #expect(
+            throws: SignUpFailure.conflict("An account with this email already exists.")
+        ) {
+            try await api.signUp(email: "a@b.com", password: "hunter2hunter2", username: "a")
+        }
+    }
+
+    @Test
+    func aRejectedUsernameIsInvalid() async {
+        let api = StubTransport(
+            .init(statusCode: 400, body: #"{"error":"Username is reserved."}"#)
+        ).api()
+
+        await #expect(throws: SignUpFailure.invalid("Username is reserved.")) {
+            try await api.signUp(email: "a@b.com", password: "hunter2hunter2", username: "admin")
+        }
+    }
+
+    @Test
     func homeDiscoveryRequestTargetsTheDiscoveryResource() async throws {
         let transport = StubTransport(.init(statusCode: 200, body: Self.homeDiscoveryJSON))
 
@@ -535,6 +630,16 @@ private extension SoonrAPITests {
             }
           ],
           "nextCursor": null
+        }
+        """#
+
+    static let signUpJSON = #"""
+        {
+          "userId": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+          "email": "someone@example.com",
+          "username": "someone",
+          "displayName": null,
+          "nextStep": "sign-in"
         }
         """#
 
