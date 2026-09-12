@@ -9,7 +9,8 @@ extension TitleDetailsDependencies {
 }
 
 /// In-memory title data for SwiftUI previews. Performs no network requests.
-struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging
+struct PreviewTitleCatalog:
+    TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging, AccountCreating
 {
     var results: [TitleSummary] = [.previewUpcoming, .preview]
     var details: TitleDetails? = .preview
@@ -45,6 +46,16 @@ struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering
     func addToWatchlist(titleID: String) async throws {}
 
     func removeFromWatchlist(titleID: String) async throws {}
+
+    func emailAvailability(email: String) async throws -> FieldAvailability {
+        FieldAvailability(available: true, reason: nil)
+    }
+
+    func usernameAvailability(username: String) async throws -> FieldAvailability {
+        FieldAvailability(available: true, reason: nil)
+    }
+
+    func signUp(email: String, password: String, username: String) async throws {}
 }
 
 extension TitleSummary {

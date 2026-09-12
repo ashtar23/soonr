@@ -21,6 +21,7 @@ struct SoonrApp: App {
                 .environment(theme)
                 .environment(session)
                 .environment(watchlist)
+                .environment(\.accounts, dependencies.accounts)
                 .tint(theme.accent.color)
                 .preferredColorScheme(theme.appearance.colorScheme)
                 .task {

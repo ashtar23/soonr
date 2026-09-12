@@ -4,6 +4,7 @@ struct AppDependencies: Sendable {
     let titleDetails: TitleDetailsDependencies
     let homeDiscovery: any HomeDiscovering
     let watchlist: any WatchlistManaging
+    let accounts: any AccountCreating
     /// Shared with the session store, so requests and the signed-in state read
     /// the same session.
     let authentication: any Authenticating
@@ -26,6 +27,7 @@ struct AppDependencies: Sendable {
             titleDetails: TitleDetailsDependencies(titleDetails: api),
             homeDiscovery: api,
             watchlist: api,
+            accounts: api,
             authentication: authentication,
             rejectedSessions: rejectedSessions
         )
@@ -46,6 +48,7 @@ struct AppDependencies: Sendable {
         titleDetails: .preview,
         homeDiscovery: PreviewTitleCatalog(),
         watchlist: PreviewTitleCatalog(),
+        accounts: PreviewTitleCatalog(),
         authentication: PreviewAuthentication(),
         rejectedSessions: AsyncStream { _ in }
     )

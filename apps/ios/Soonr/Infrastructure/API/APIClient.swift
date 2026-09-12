@@ -169,6 +169,11 @@ struct APIClient: Sendable {
 
         if queryItems.isEmpty == false {
             components.queryItems = queryItems
+            // URLComponents leaves "+" unescaped, and a server reading query
+            // parameters as form data decodes it as a space: an email alias
+            // arrives without its "+" and a search for "C++" loses both.
+            components.percentEncodedQuery = components.percentEncodedQuery?
+                .replacingOccurrences(of: "+", with: "%2B")
         }
 
         guard let requestURL = components.url else {

@@ -8,6 +8,7 @@ struct SignInView: View {
     var onBeginEditing: () -> Void = {}
 
     @Environment(SessionStore.self) private var session
+    @Environment(\.accounts) private var accounts
     @Environment(\.dismiss) private var dismiss
 
     @State private var email = ""
@@ -74,7 +75,7 @@ struct SignInView: View {
 
             Section {
                 NavigationLink("Create account") {
-                    SignUpView()
+                    SignUpView(accounts: accounts, onBeginEditing: onBeginEditing)
                 }
             } footer: {
                 Text("New to Soonr? Creating an account takes a moment.")

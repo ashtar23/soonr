@@ -151,6 +151,34 @@ Deferred:
 - Sign in with Apple, and associated domains for password autofill
 - a retry for requests that time out against a sleeping staging container
 
+### Slice 7: Sign up
+
+- account creation from the sign-in sheet: email, username, password and a
+  repeated password
+- both availability checks debounced as the fields are typed, with the
+  server's username pattern mirrored locally so malformed input costs no
+  request
+- signs in on success, because sign-up issues no session of its own
+- `os.Logger` for requests, sessions and watchlist failures
+- typed failures: `FailureReason` replaces prose in every state, and one
+  `FailureView` replaces four hand-written ones
+
+**Repeated password is required.** Nothing in this stack can reset a password,
+so a typo would lock an account permanently. Until a reset flow exists,
+confirming is the only protection a new account has.
+
+**A "+" in a query was being sent as a space.** `URLComponents` leaves it
+unescaped and the server read it as form data, so an email alias lost its
+"+" and a search for "C++" lost both. Found by signing up with a real alias
+against staging.
+
+Deferred:
+
+- password reset, which the repeated field currently stands in for
+- `displayName`, which belongs with profile editing
+- attributing a 409 to the email or the username, which needs the API to send
+  the reason it already has
+
 ## Planned
 
 ### Comment cleanup
@@ -161,13 +189,6 @@ where the reason is non-obvious — platform behaviour that surprised us,
 `ImageRenderer` limits, API semantics the code depends on — and go everywhere
 they restate the code. Do this as its own pass, so it never hides inside a
 feature diff.
-
-### Slice 7: Sign up
-
-- account creation with a username, mirroring the availability checks the
-  React Native app already makes
-- replaces the placeholder the sign-in sheet pushes, which is today the only
-  thing stopping a new user from starting on iOS
 
 ### Slice 8: Notifications
 

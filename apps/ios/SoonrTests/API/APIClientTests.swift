@@ -50,6 +50,24 @@ struct APIClientTests {
         #expect(request.value(forHTTPHeaderField: "Content-Type") == nil)
     }
 
+    /// A server reading query parameters as form data turns an unescaped "+"
+    /// into a space, which loses an email alias and breaks a search for "C++".
+    @Test
+    func plusInAQueryValueIsEncoded() async throws {
+        let transport = StubTransport(.json(200, #"{"item":{"id":"1"}}"#))
+
+        let _: CreatedItem = try await transport.client()
+            .get(
+                ["auth", "email-availability"],
+                queryItems: [URLQueryItem(name: "email", value: "someone+tag@example.com")]
+            )
+
+        let request = try #require(await transport.requests.first)
+        let query = try #require(request.url?.query(percentEncoded: true))
+        #expect(query.contains("%2B"))
+        #expect(query.contains("+") == false)
+    }
+
     @Test
     func deleteTargetsTheResourceWithAnEncodedIdentifier() async throws {
         let transport = StubTransport(.json(200, #"{"removed":true}"#))
