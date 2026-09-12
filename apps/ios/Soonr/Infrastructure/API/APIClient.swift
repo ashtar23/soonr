@@ -69,6 +69,11 @@ struct APIClient: Sendable {
         return try decode(data)
     }
 
+    /// For a write whose response body the caller does not read.
+    func post<Body: Encodable>(_ pathComponents: [String], body: Body) async throws {
+        _ = try await send(.post, pathComponents, body: try encode(body))
+    }
+
     /// The response body is discarded: the endpoints we delete from report only
     /// that the resource is gone, which a 2xx status already tells us.
     func delete(_ pathComponents: [String]) async throws {

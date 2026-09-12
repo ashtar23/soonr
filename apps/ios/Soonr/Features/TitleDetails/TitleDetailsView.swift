@@ -1,13 +1,20 @@
 import SwiftUI
 
 struct TitleDetailsView: View {
-    @State private var model: TitleDetailsModel
+    @Environment(SessionStore.self) private var session
 
-    init(summary: TitleSummary, titleDetails: any TitleDetailsLoading) {
+    @State private var model: TitleDetailsModel
+    @State private var isPresentingSignIn = false
+    /// Set when the sheet was raised by the watchlist button, so signing in
+    /// finishes the save instead of just dismissing.
+    @State private var savesAfterSignIn = false
+
+    init(summary: TitleSummary, dependencies: TitleDetailsDependencies) {
         _model = State(
             initialValue: TitleDetailsModel(
                 summary: summary,
-                titleDetails: titleDetails
+                titleDetails: dependencies.titleDetails,
+                watchlist: dependencies.watchlist
             )
         )
     }
@@ -21,8 +28,72 @@ struct TitleDetailsView: View {
         )
         .navigationTitle(model.summary.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                watchlistButton
+            }
+        }
         .task {
             await model.load()
+        }
+        .sheet(isPresented: $isPresentingSignIn, onDismiss: finishSignIn) {
+            SignInSheet(prompt: "Sign in to add \(model.summary.name) to your watchlist.")
+        }
+        .alert(
+            "Watchlist unavailable",
+            isPresented: Binding(
+                get: { model.watchlistFailure != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        model.clearWatchlistFailure()
+                    }
+                }
+            )
+        ) {
+            Button("OK") {
+                model.clearWatchlistFailure()
+            }
+        } message: {
+            Text(model.watchlistFailure ?? "")
+        }
+    }
+
+    /// Looks the same signed in or out, so a guest browsing is never nagged;
+    /// the tap is what asks them to sign in.
+    private var watchlistButton: some View {
+        Button {
+            watchlistTapped()
+        } label: {
+            Label(
+                model.isInWatchlist ? "In your watchlist" : "Add to watchlist",
+                systemImage: model.isInWatchlist ? "bookmark.fill" : "bookmark"
+            )
+        }
+        // Only meaningful once the title is known to exist.
+        .disabled(model.state.isLoaded == false)
+    }
+
+    private func watchlistTapped() {
+        guard session.state.session != nil else {
+            savesAfterSignIn = true
+            isPresentingSignIn = true
+            return
+        }
+
+        Task {
+            await model.toggleWatchlist()
+        }
+    }
+
+    private func finishSignIn() {
+        let shouldSave = savesAfterSignIn && session.state.session != nil
+        savesAfterSignIn = false
+        guard shouldSave else {
+            return
+        }
+
+        Task {
+            await model.setInWatchlist(true)
         }
     }
 }
@@ -159,24 +230,35 @@ private struct TitleDetailsList: View {
 
 #Preview("Loaded") {
     NavigationStack {
-        TitleDetailsView(summary: .preview, titleDetails: PreviewTitleCatalog())
+        TitleDetailsView(summary: .preview, dependencies: .preview)
     }
+    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
 }
 
 #Preview("Sparse") {
     NavigationStack {
         TitleDetailsView(
             summary: .preview,
-            titleDetails: PreviewTitleCatalog(details: .previewSparse)
+            dependencies: .preview(PreviewTitleCatalog(details: .previewSparse))
         )
     }
+    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
 }
 
 #Preview("Not found") {
     NavigationStack {
         TitleDetailsView(
             summary: .preview,
-            titleDetails: PreviewTitleCatalog(details: nil)
+            dependencies: .preview(PreviewTitleCatalog(details: nil))
         )
     }
+    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
+}
+
+/// A guest, whose watchlist tap opens the sign-in sheet instead of saving.
+#Preview("Guest") {
+    NavigationStack {
+        TitleDetailsView(summary: .preview, dependencies: .preview)
+    }
+    .environment(SessionStore(authentication: PreviewAuthentication()))
 }

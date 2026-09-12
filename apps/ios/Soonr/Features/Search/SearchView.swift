@@ -3,11 +3,11 @@ import SwiftUI
 struct SearchView: View {
     @State private var model: SearchModel
 
-    private let titleDetails: any TitleDetailsLoading
+    private let details: TitleDetailsDependencies
 
     init(
         titleSearch: any TitleSearching,
-        titleDetails: any TitleDetailsLoading,
+        details: TitleDetailsDependencies,
         debounceDuration: Duration = .milliseconds(350)
     ) {
         _model = State(
@@ -16,7 +16,7 @@ struct SearchView: View {
                 debounceDuration: debounceDuration
             )
         )
-        self.titleDetails = titleDetails
+        self.details = details
     }
 
     var body: some View {
@@ -30,7 +30,7 @@ struct SearchView: View {
                     await model.search()
                 }
                 .navigationDestination(for: TitleSummary.self) { title in
-                    TitleDetailsView(summary: title, titleDetails: titleDetails)
+                    TitleDetailsView(summary: title, dependencies: details)
                 }
         }
     }
@@ -116,8 +116,9 @@ private struct SearchResultsList: View {
 #Preview("Search") {
     SearchView(
         titleSearch: PreviewTitleCatalog(),
-        titleDetails: PreviewTitleCatalog()
+        details: .preview
     )
+    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
 }
 
 #Preview("Results") {

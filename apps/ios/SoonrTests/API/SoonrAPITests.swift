@@ -188,6 +188,56 @@ struct SoonrAPITests {
     }
 
     @Test
+    func addingToTheWatchlistPostsTheTitleInTheBody() async throws {
+        let transport = StubTransport(.init(statusCode: 201, body: #"{"item":{}}"#))
+
+        try await transport.api(accessToken: "token")
+            .addToWatchlist(titleID: "rawg:274755")
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path(percentEncoded: false) == "/watchlist")
+        let body = try #require(request.httpBody)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"titleId":"rawg:274755"}"#)
+    }
+
+    @Test
+    func removingFromTheWatchlistDeletesTheTitleResource() async throws {
+        let transport = StubTransport(.init(statusCode: 200, body: #"{"removed":true}"#))
+
+        try await transport.api(accessToken: "token")
+            .removeFromWatchlist(titleID: "rawg:274755")
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.httpMethod == "DELETE")
+        #expect(request.url?.path(percentEncoded: false) == "/watchlist/rawg:274755")
+    }
+
+    @Test
+    func aWatchlistChangeWithoutASessionIsUnauthorized() async {
+        let api = StubTransport(
+            .init(statusCode: 401, body: #"{"error":"Authentication failed."}"#)
+        ).api()
+
+        await #expect(throws: APIError.unauthorized) {
+            try await api.addToWatchlist(titleID: "rawg:1")
+        }
+    }
+
+    @Test
+    func addingAnUnknownTitleSurfacesTheServerMessage() async {
+        let api = StubTransport(
+            .init(statusCode: 404, body: #"{"error":"Title not found."}"#)
+        ).api(accessToken: "token")
+
+        await #expect(
+            throws: APIError.requestFailed(statusCode: 404, message: "Title not found.")
+        ) {
+            try await api.addToWatchlist(titleID: "rawg:0")
+        }
+    }
+
+    @Test
     func homeDiscoveryRequestTargetsTheDiscoveryResource() async throws {
         let transport = StubTransport(.init(statusCode: 200, body: Self.homeDiscoveryJSON))
 

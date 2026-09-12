@@ -1,6 +1,6 @@
 import Foundation
 
-struct SoonrAPI: TitleSearching, TitleDetailsLoading, HomeDiscovering, Sendable {
+struct SoonrAPI: TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging, Sendable {
     private let client: APIClient
 
     init(client: APIClient) {
@@ -38,6 +38,24 @@ struct SoonrAPI: TitleSearching, TitleDetailsLoading, HomeDiscovering, Sendable 
         } catch APIError.requestFailed(404, _) {
             return nil
         }
+    }
+
+    func addToWatchlist(titleID: String) async throws {
+        try await client.post(["watchlist"], body: WatchlistMutationBody(titleID: titleID))
+    }
+
+    func removeFromWatchlist(titleID: String) async throws {
+        try await client.delete(["watchlist", titleID])
+    }
+}
+
+/// The title travels in the body on add, and in the path on remove, which is
+/// how `apps/api` defines the two routes.
+private struct WatchlistMutationBody: Encodable {
+    let titleID: String
+
+    enum CodingKeys: String, CodingKey {
+        case titleID = "titleId"
     }
 }
 

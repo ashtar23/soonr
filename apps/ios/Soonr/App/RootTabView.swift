@@ -83,14 +83,14 @@ struct RootTabView: View {
     private var homeView: some View {
         HomeView(
             homeDiscovery: dependencies.homeDiscovery,
-            titleDetails: dependencies.titleDetails
+            details: dependencies.titleDetails
         )
     }
 
     private var searchView: some View {
         SearchView(
             titleSearch: dependencies.titleSearch,
-            titleDetails: dependencies.titleDetails
+            details: dependencies.titleDetails
         )
     }
 }

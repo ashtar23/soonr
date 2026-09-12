@@ -1,7 +1,7 @@
 /// Live capabilities created once by the app and passed into feature roots.
 struct AppDependencies: Sendable {
     let titleSearch: any TitleSearching
-    let titleDetails: any TitleDetailsLoading
+    let titleDetails: TitleDetailsDependencies
     let homeDiscovery: any HomeDiscovering
     /// Shared with the session store, so requests and the signed-in state read
     /// the same session.
@@ -18,7 +18,7 @@ struct AppDependencies: Sendable {
 
         return AppDependencies(
             titleSearch: api,
-            titleDetails: api,
+            titleDetails: TitleDetailsDependencies(titleDetails: api, watchlist: api),
             homeDiscovery: api,
             authentication: authentication
         )
@@ -36,7 +36,7 @@ struct AppDependencies: Sendable {
 
     static let preview = AppDependencies(
         titleSearch: PreviewTitleCatalog(),
-        titleDetails: PreviewTitleCatalog(),
+        titleDetails: .preview,
         homeDiscovery: PreviewTitleCatalog(),
         authentication: PreviewAuthentication()
     )

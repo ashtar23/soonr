@@ -9,7 +9,8 @@ struct TitleDetailsModelTests {
     @Test
     func successfulLoadShowsDetailsForTheSelectedTitle() async {
         let loader = RecordingTitleDetails(results: [.success(.preview)])
-        let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
+        let model = TitleDetailsModel(
+            summary: .preview, titleDetails: loader, watchlist: RecordingWatchlist())
 
         await model.load()
 
@@ -21,7 +22,8 @@ struct TitleDetailsModelTests {
     func missingTitleShowsNotFound() async {
         let model = TitleDetailsModel(
             summary: .preview,
-            titleDetails: RecordingTitleDetails(results: [.success(nil)])
+            titleDetails: RecordingTitleDetails(results: [.success(nil)]),
+            watchlist: RecordingWatchlist()
         )
 
         await model.load()
@@ -35,7 +37,8 @@ struct TitleDetailsModelTests {
             .failure(DetailsFixtureError.offline),
             .success(.preview),
         ])
-        let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
+        let model = TitleDetailsModel(
+            summary: .preview, titleDetails: loader, watchlist: RecordingWatchlist())
 
         await model.load()
         #expect(model.state == .failed(message: "You're offline."))
@@ -49,7 +52,8 @@ struct TitleDetailsModelTests {
     func loadRecordsWatchlistMembership() async {
         let model = TitleDetailsModel(
             summary: .preview,
-            titleDetails: RecordingTitleDetails(results: [.success(.saved)])
+            titleDetails: RecordingTitleDetails(results: [.success(.saved)]),
+            watchlist: RecordingWatchlist()
         )
 
         await model.load()
@@ -62,7 +66,8 @@ struct TitleDetailsModelTests {
     func aTitleThatIsNotSavedLoadsAsNotInTheWatchlist() async {
         let model = TitleDetailsModel(
             summary: .preview,
-            titleDetails: RecordingTitleDetails(results: [.success(.preview)])
+            titleDetails: RecordingTitleDetails(results: [.success(.preview)]),
+            watchlist: RecordingWatchlist()
         )
 
         await model.load()
@@ -71,15 +76,142 @@ struct TitleDetailsModelTests {
     }
 
     @Test
+    func savingATitleSendsItAndFillsTheButton() async {
+        let watchlist = RecordingWatchlist()
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.preview)]),
+            watchlist: watchlist
+        )
+        await model.load()
+
+        await model.toggleWatchlist()
+
+        #expect(model.isInWatchlist)
+        #expect(model.watchlistFailure == nil)
+        #expect(await watchlist.changes == [.added(TitleSummary.preview.id)])
+    }
+
+    @Test
+    func removingATitleSendsTheRemoval() async {
+        let watchlist = RecordingWatchlist()
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.saved)]),
+            watchlist: watchlist
+        )
+        await model.load()
+
+        await model.toggleWatchlist()
+
+        #expect(model.isInWatchlist == false)
+        #expect(await watchlist.changes == [.removed(TitleSummary.preview.id)])
+    }
+
+    /// The button moves first, so a rejected change has to put it back rather
+    /// than leave the screen claiming something that was never saved.
+    @Test
+    func aRejectedSaveRollsTheButtonBackAndReportsWhy() async {
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.preview)]),
+            watchlist: RecordingWatchlist(failing: .offline)
+        )
+        await model.load()
+
+        await model.toggleWatchlist()
+
+        #expect(model.isInWatchlist == false)
+        #expect(model.watchlistFailure == "You're offline.")
+    }
+
+    @Test
+    func aRejectedRemovalRestoresTheSavedState() async {
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.saved)]),
+            watchlist: RecordingWatchlist(failing: .offline)
+        )
+        await model.load()
+
+        await model.toggleWatchlist()
+
+        #expect(model.isInWatchlist)
+        #expect(model.watchlistFailure == "You're offline.")
+    }
+
+    /// Signing in finishes an add a guest started, and it cannot know whether
+    /// the title was already saved on another device, so it adds regardless.
+    @Test
+    func savingAfterSignInAddsEvenWhenAlreadyMarkedSaved() async {
+        let watchlist = RecordingWatchlist()
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.saved)]),
+            watchlist: watchlist
+        )
+        await model.load()
+
+        await model.setInWatchlist(true)
+
+        #expect(model.isInWatchlist)
+        #expect(await watchlist.changes == [.added(TitleSummary.preview.id)])
+    }
+
+    @Test
+    func removingATitleThatIsNotSavedSendsNothing() async {
+        let watchlist = RecordingWatchlist()
+        let model = TitleDetailsModel(
+            summary: .preview,
+            titleDetails: RecordingTitleDetails(results: [.success(.preview)]),
+            watchlist: watchlist
+        )
+        await model.load()
+
+        await model.setInWatchlist(false)
+
+        #expect(await watchlist.changes.isEmpty)
+    }
+
+    @Test
     func loadingAgainAfterSuccessDoesNotRefetch() async {
         let loader = RecordingTitleDetails(results: [.success(.preview)])
-        let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
+        let model = TitleDetailsModel(
+            summary: .preview, titleDetails: loader, watchlist: RecordingWatchlist())
 
         await model.load()
         await model.load()
 
         #expect(model.state == .loaded(.preview))
         #expect(await loader.requestedIDs.count == 1)
+    }
+}
+
+private actor RecordingWatchlist: WatchlistManaging {
+    enum Change: Equatable {
+        case added(String)
+        case removed(String)
+    }
+
+    private(set) var changes: [Change] = []
+    private let failure: DetailsFixtureError?
+
+    init(failing failure: DetailsFixtureError? = nil) {
+        self.failure = failure
+    }
+
+    func addToWatchlist(titleID: String) async throws {
+        changes.append(.added(titleID))
+        if let failure {
+            throw failure
+        }
+    }
+
+    func removeFromWatchlist(titleID: String) async throws {
+        changes.append(.removed(titleID))
+        if let failure {
+            throw failure
+        }
     }
 }
 

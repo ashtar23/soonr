@@ -3,11 +3,11 @@ import SwiftUI
 struct HomeView: View {
     @State private var model: HomeModel
 
-    private let titleDetails: any TitleDetailsLoading
+    private let details: TitleDetailsDependencies
 
-    init(homeDiscovery: any HomeDiscovering, titleDetails: any TitleDetailsLoading) {
+    init(homeDiscovery: any HomeDiscovering, details: TitleDetailsDependencies) {
         _model = State(initialValue: HomeModel(homeDiscovery: homeDiscovery))
-        self.titleDetails = titleDetails
+        self.details = details
     }
 
     var body: some View {
@@ -26,7 +26,7 @@ struct HomeView: View {
                 await model.load()
             }
             .navigationDestination(for: TitleSummary.self) { title in
-                TitleDetailsView(summary: title, titleDetails: titleDetails)
+                TitleDetailsView(summary: title, dependencies: details)
             }
         }
     }
@@ -124,6 +124,7 @@ private struct HomeRailSection: View {
 #Preview {
     HomeView(
         homeDiscovery: PreviewTitleCatalog(),
-        titleDetails: PreviewTitleCatalog()
+        details: .preview
     )
+    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
 }

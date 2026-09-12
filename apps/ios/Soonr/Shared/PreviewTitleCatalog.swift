@@ -1,7 +1,16 @@
 import Foundation
 
+extension TitleDetailsDependencies {
+    static var preview: TitleDetailsDependencies { .preview(PreviewTitleCatalog()) }
+
+    static func preview(_ catalog: PreviewTitleCatalog) -> TitleDetailsDependencies {
+        TitleDetailsDependencies(titleDetails: catalog, watchlist: catalog)
+    }
+}
+
 /// In-memory title data for SwiftUI previews. Performs no network requests.
-struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering {
+struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging
+{
     var results: [TitleSummary] = [.previewUpcoming, .preview]
     var details: TitleDetails? = .preview
     var isInWatchlist = false
@@ -22,6 +31,12 @@ struct PreviewTitleCatalog: TitleSearching, TitleDetailsLoading, HomeDiscovering
     func homeDiscovery() async throws -> HomeDiscovery {
         discovery
     }
+
+    /// No-ops: the details model updates the button optimistically, so a
+    /// preview still shows the filled and empty states when tapped.
+    func addToWatchlist(titleID: String) async throws {}
+
+    func removeFromWatchlist(titleID: String) async throws {}
 }
 
 extension TitleSummary {
