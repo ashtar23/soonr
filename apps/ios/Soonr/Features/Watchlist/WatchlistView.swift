@@ -2,14 +2,13 @@ import SwiftUI
 
 struct WatchlistView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(WatchlistStore.self) private var watchlist
 
-    @State private var model: WatchlistModel
     @State private var isPresentingSignIn = false
 
     private let details: TitleDetailsDependencies
 
-    init(watchlist: any WatchlistManaging, details: TitleDetailsDependencies) {
-        _model = State(initialValue: WatchlistModel(watchlist: watchlist))
+    init(details: TitleDetailsDependencies) {
         self.details = details
     }
 
@@ -23,19 +22,6 @@ struct WatchlistView: View {
                 .sheet(isPresented: $isPresentingSignIn) {
                     SignInSheet(prompt: "Sign in to see the games you've saved.")
                 }
-        }
-        // Keyed on the session so signing in loads the list and signing out
-        // clears it, and so returning to the tab picks up titles saved from
-        // the details screen.
-        .task(id: session.state) {
-            switch session.state {
-            case .restoring:
-                return
-            case .signedOut:
-                model.clear()
-            case .signedIn:
-                await model.load()
-            }
         }
     }
 
@@ -65,7 +51,7 @@ struct WatchlistView: View {
 
     @ViewBuilder
     private var signedInContent: some View {
-        switch model.state {
+        switch watchlist.state {
         case .loading:
             ProgressView()
                 .controlSize(.large)
@@ -79,7 +65,7 @@ struct WatchlistView: View {
         case let .loaded(entries):
             WatchlistList(entries: entries)
                 .refreshable {
-                    await model.refresh()
+                    await watchlist.refresh()
                 }
         case let .failed(message):
             ContentUnavailableView {
@@ -89,7 +75,7 @@ struct WatchlistView: View {
             } actions: {
                 Button("Try Again", systemImage: "arrow.clockwise") {
                     Task {
-                        await model.retry()
+                        await watchlist.retry()
                     }
                 }
             }
@@ -116,16 +102,42 @@ private struct WatchlistList: View {
 }
 
 #Preview("Saved games") {
-    WatchlistView(watchlist: PreviewTitleCatalog(), details: .preview)
-        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
+    WatchlistPreview(catalog: PreviewTitleCatalog(), restored: .preview)
 }
 
 #Preview("Signed out") {
-    WatchlistView(watchlist: PreviewTitleCatalog(), details: .preview)
-        .environment(SessionStore(authentication: PreviewAuthentication()))
+    WatchlistPreview(catalog: PreviewTitleCatalog(), restored: nil)
 }
 
 #Preview("Nothing saved") {
-    WatchlistView(watchlist: PreviewTitleCatalog(saved: []), details: .preview)
-        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
+    WatchlistPreview(catalog: PreviewTitleCatalog(saved: []), restored: .preview)
+}
+
+/// Loads the store the way the app root does, so the previews show the states
+/// a signed-in viewer would actually see.
+private struct WatchlistPreview: View {
+    let catalog: PreviewTitleCatalog
+    let restored: UserSession?
+
+    @State private var watchlist: WatchlistStore
+    @State private var session: SessionStore
+
+    init(catalog: PreviewTitleCatalog, restored: UserSession?) {
+        self.catalog = catalog
+        self.restored = restored
+        _watchlist = State(initialValue: WatchlistStore(watchlist: catalog))
+        _session = State(
+            initialValue: SessionStore(authentication: PreviewAuthentication(restored: restored))
+        )
+    }
+
+    var body: some View {
+        WatchlistView(details: .preview)
+            .environment(session)
+            .environment(watchlist)
+            .task {
+                await session.restore()
+                await watchlist.load()
+            }
+    }
 }

@@ -4,7 +4,7 @@ extension TitleDetailsDependencies {
     static var preview: TitleDetailsDependencies { .preview(PreviewTitleCatalog()) }
 
     static func preview(_ catalog: PreviewTitleCatalog) -> TitleDetailsDependencies {
-        TitleDetailsDependencies(titleDetails: catalog, watchlist: catalog)
+        TitleDetailsDependencies(titleDetails: catalog)
     }
 }
 

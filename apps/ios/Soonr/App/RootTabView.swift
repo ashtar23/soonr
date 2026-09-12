@@ -88,10 +88,7 @@ struct RootTabView: View {
     }
 
     private var watchlistView: some View {
-        WatchlistView(
-            watchlist: dependencies.watchlist,
-            details: dependencies.titleDetails
-        )
+        WatchlistView(details: dependencies.titleDetails)
     }
 
     private var searchView: some View {

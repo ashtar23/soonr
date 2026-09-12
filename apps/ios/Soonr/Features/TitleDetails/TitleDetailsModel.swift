@@ -21,25 +21,17 @@ enum TitleDetailsState: Equatable {
 final class TitleDetailsModel {
     let summary: TitleSummary
     private(set) var state: TitleDetailsState = .loading
-    /// Kept beside `state` rather than inside it: the watchlist button toggles
-    /// membership on its own, without rebuilding the loaded details.
-    private(set) var isInWatchlist = false
-
-    /// Set when a watchlist change was rejected, so the screen can say why the
-    /// button sprang back.
-    private(set) var watchlistFailure: String?
+    /// What the server says about this title, which is authoritative even when
+    /// the watchlist list itself is stale or was never loaded. `nil` until a
+    /// load succeeds. The button reads the shared store instead, so the tab and
+    /// this screen cannot disagree.
+    private(set) var serverMembership: Bool?
 
     @ObservationIgnored private let titleDetails: any TitleDetailsLoading
-    @ObservationIgnored private let watchlist: any WatchlistManaging
 
-    init(
-        summary: TitleSummary,
-        titleDetails: any TitleDetailsLoading,
-        watchlist: any WatchlistManaging
-    ) {
+    init(summary: TitleSummary, titleDetails: any TitleDetailsLoading) {
         self.summary = summary
         self.titleDetails = titleDetails
-        self.watchlist = watchlist
     }
 
     /// Loads details once; repeated calls after a successful load are ignored
@@ -56,56 +48,13 @@ final class TitleDetailsModel {
         await fetch()
     }
 
-    func toggleWatchlist() async {
-        await setInWatchlist(isInWatchlist == false)
-    }
-
-    /// Moves the button immediately and puts it back if the server refuses,
-    /// because waiting on a round trip to fill a bookmark feels broken.
-    ///
-    /// Adding is safe to call without knowing the current state: the API
-    /// treats it as an upsert. That is what makes signing in able to finish an
-    /// add the user started as a guest.
-    func setInWatchlist(_ shouldSave: Bool) async {
-        // A redundant add is allowed, since the API upserts and that is how
-        // signing in finishes an add started as a guest. A redundant remove
-        // would be a request that changes nothing.
-        guard shouldSave || isInWatchlist else {
-            return
-        }
-
-        let previous = isInWatchlist
-        isInWatchlist = shouldSave
-        watchlistFailure = nil
-
-        do {
-            if shouldSave {
-                try await watchlist.addToWatchlist(titleID: summary.id)
-            } else {
-                try await watchlist.removeFromWatchlist(titleID: summary.id)
-            }
-        } catch is CancellationError {
-            isInWatchlist = previous
-        } catch {
-            isInWatchlist = previous
-            watchlistFailure =
-                error.localizedDescription.isEmpty
-                ? "That couldn't be saved. Please try again."
-                : error.localizedDescription
-        }
-    }
-
-    func clearWatchlistFailure() {
-        watchlistFailure = nil
-    }
-
     private func fetch() async {
         state = .loading
 
         do {
             let result = try await titleDetails.titleDetails(id: summary.id)
             try Task.checkCancellation()
-            isInWatchlist = result?.isInWatchlist ?? false
+            serverMembership = result?.isInWatchlist
             state = result.map { .loaded($0.details) } ?? .notFound
         } catch is CancellationError {
             return

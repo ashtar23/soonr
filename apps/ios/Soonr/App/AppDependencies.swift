@@ -19,7 +19,7 @@ struct AppDependencies: Sendable {
 
         return AppDependencies(
             titleSearch: api,
-            titleDetails: TitleDetailsDependencies(titleDetails: api, watchlist: api),
+            titleDetails: TitleDetailsDependencies(titleDetails: api),
             homeDiscovery: api,
             watchlist: api,
             authentication: authentication

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TitleDetailsView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(WatchlistStore.self) private var watchlist
 
     @State private var model: TitleDetailsModel
     @State private var isPresentingSignIn = false
@@ -13,10 +14,13 @@ struct TitleDetailsView: View {
         _model = State(
             initialValue: TitleDetailsModel(
                 summary: summary,
-                titleDetails: dependencies.titleDetails,
-                watchlist: dependencies.watchlist
+                titleDetails: dependencies.titleDetails
             )
         )
+    }
+
+    private var isSaved: Bool {
+        watchlist.contains(model.summary.id)
     }
 
     var body: some View {
@@ -36,37 +40,46 @@ struct TitleDetailsView: View {
         .task {
             await model.load()
         }
+        // The server is authoritative for this one title, so a load settles
+        // what the store believes, including when the list was never fetched.
+        .onChange(of: model.serverMembership) { _, membership in
+            if let membership {
+                watchlist.reconcile(titleID: model.summary.id, isSaved: membership)
+            }
+        }
         .sheet(isPresented: $isPresentingSignIn, onDismiss: finishSignIn) {
             SignInSheet(prompt: "Sign in to add \(model.summary.name) to your watchlist.")
         }
         .alert(
             "Watchlist unavailable",
             isPresented: Binding(
-                get: { model.watchlistFailure != nil },
+                get: { watchlist.mutationFailure != nil },
                 set: { isPresented in
                     if isPresented == false {
-                        model.clearWatchlistFailure()
+                        watchlist.clearMutationFailure()
                     }
                 }
             )
         ) {
             Button("OK") {
-                model.clearWatchlistFailure()
+                watchlist.clearMutationFailure()
             }
         } message: {
-            Text(model.watchlistFailure ?? "")
+            Text(watchlist.mutationFailure ?? "")
         }
     }
 
     /// Looks the same signed in or out, so a guest browsing is never nagged;
-    /// the tap is what asks them to sign in.
+    /// the tap is what asks them to sign in. Its state comes from the shared
+    /// store, so arriving from the watchlist shows a filled bookmark on the
+    /// first frame instead of after this screen's own request answers.
     private var watchlistButton: some View {
         Button {
             watchlistTapped()
         } label: {
             Label(
-                model.isInWatchlist ? "In your watchlist" : "Add to watchlist",
-                systemImage: model.isInWatchlist ? "bookmark.fill" : "bookmark"
+                isSaved ? "In your watchlist" : "Add to watchlist",
+                systemImage: isSaved ? "bookmark.fill" : "bookmark"
             )
         }
         // Only meaningful once the title is known to exist.
@@ -81,7 +94,7 @@ struct TitleDetailsView: View {
         }
 
         Task {
-            await model.toggleWatchlist()
+            await watchlist.setSaved(isSaved == false, title: model.summary)
         }
     }
 
@@ -93,7 +106,7 @@ struct TitleDetailsView: View {
         }
 
         Task {
-            await model.setInWatchlist(true)
+            await watchlist.setSaved(true, title: model.summary)
         }
     }
 }
