@@ -90,6 +90,17 @@ infrastructure that implements them.
 Small reusable row views may remain in their feature. They move to the design
 system only after reuse is demonstrated.
 
+### `DesignSystem`
+
+Owns reusable presentation: `TitleArtwork`, `TitleRow`, `ReleaseBadge`, and
+`PlaceholderScreen`. These views take values and closures, never models or
+capabilities, so any feature can use them. Pure text helpers that shape what a
+component renders, such as `TitleRowText`, live beside their component and are
+unit tested directly.
+
+A view earns a place here once a second feature needs it; until then it stays
+private to its feature.
+
 ### `Infrastructure`
 
 Owns technical integrations such as HTTP, Supabase Auth, secure persistence,
@@ -115,9 +126,11 @@ session management.
 
 ### `Shared`
 
-Contains types already used by multiple features, such as `TitleSummary`, plus
-small platform-neutral helpers. `Shared` is not a miscellaneous folder. A type
-stays inside its feature until a real second consumer needs it.
+Contains types already used by multiple features, such as `TitleSummary` and
+`ReleaseDateText`, plus small platform-neutral helpers. Views belong in
+`DesignSystem`; `Shared` holds models and logic. `Shared` is not a
+miscellaneous folder: a type stays inside its feature until a real second
+consumer needs it.
 
 API response types may initially double as application models when their shapes
 are identical. Introduce explicit DTO-to-domain mapping only when the API shape

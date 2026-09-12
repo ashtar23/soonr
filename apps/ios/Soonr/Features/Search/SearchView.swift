@@ -101,7 +101,7 @@ private struct SearchResultsList: View {
     var body: some View {
         List(titles) { title in
             NavigationLink(value: title) {
-                TitleResultRow(title: title)
+                TitleRow(title: title)
             }
             // Plain lists also draw separators above the first row and below
             // the last one; separators belong between results only.
@@ -110,61 +110,6 @@ private struct SearchResultsList: View {
         }
         .listStyle(.plain)
         .accessibilityLabel("Search results")
-    }
-}
-
-private struct TitleResultRow: View {
-    let title: TitleSummary
-
-    var body: some View {
-        let daysUntilRelease = ReleaseDateText.daysUntil(title.earliestReleaseDate)
-
-        HStack(spacing: 12) {
-            // RAWG artwork is landscape, so the thumbnail keeps a 16:9 shape.
-            TitleArtwork(url: title.coverImageURL, width: .thumbnail, cornerRadius: 8)
-                .frame(width: 104, height: 58)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title.name)
-                    .font(.headline)
-                    .lineLimit(2)
-
-                Text(metadata(daysUntilRelease: daysUntilRelease))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                if let countdown = daysUntilRelease.flatMap(ReleaseDateText.countdown) {
-                    Text(countdown)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tint)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(.tint.opacity(0.15), in: .capsule)
-                }
-            }
-            .alignmentGuide(.listRowSeparatorLeading) { dimensions in
-                dimensions[.leading]
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-    }
-
-    /// Upcoming releases show the full date; past releases show the year.
-    private func metadata(daysUntilRelease: Int?) -> String {
-        let releaseText =
-            if let daysUntilRelease, daysUntilRelease >= 0 {
-                ReleaseDateText.format(title.earliestReleaseDate, precision: .day)
-            } else {
-                title.releaseYear ?? ReleaseDateText.unannounced
-            }
-
-        return [releaseText, title.platformSummary]
-            .compactMap { $0 }
-            .joined(separator: " · ")
     }
 }
 
