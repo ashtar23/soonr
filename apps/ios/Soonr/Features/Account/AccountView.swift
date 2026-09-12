@@ -37,8 +37,8 @@ struct AccountView: View {
                 isPresentingSignIn = true
             }
         case let .signedIn(user):
-            SignedInAccount(user: user) {
-                session.signOut()
+            SignedInAccount(user: user, isSigningOut: session.isSigningOut) {
+                await session.signOut()
             }
         }
     }
@@ -123,7 +123,8 @@ struct SignedOutAccountContent: View {
 
 private struct SignedInAccount: View {
     let user: UserSession
-    let signOut: () -> Void
+    let isSigningOut: Bool
+    let signOut: () async -> Void
 
     var body: some View {
         List {
@@ -150,7 +151,18 @@ private struct SignedInAccount: View {
             }
 
             Section {
-                Button("Sign out", role: .destructive, action: signOut)
+                Button(role: .destructive) {
+                    Task { await signOut() }
+                } label: {
+                    HStack {
+                        Text("Sign out")
+                        if isSigningOut {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isSigningOut)
             }
         }
     }

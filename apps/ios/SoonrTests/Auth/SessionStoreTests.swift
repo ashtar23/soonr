@@ -52,23 +52,26 @@ struct SessionStoreTests {
         let store = SessionStore(authentication: PreviewAuthentication(restored: .preview))
         await store.restore()
 
-        store.signOut()
+        await store.signOut()
 
         #expect(store.state == .signedOut)
         #expect(store.signInFailure == nil)
     }
 
-    /// Leaving must not wait on the network. The result is discarded either
-    /// way, so a slow or unreachable server cannot hold someone signed in.
+    /// The wait is capped. A server that never answers must not hold someone
+    /// on a screen they asked to leave.
     @Test
-    func signingOutDoesNotWaitForTheServer() async {
-        let authentication = HangingSignOut(restored: .preview)
-        let store = SessionStore(authentication: authentication)
+    func signingOutGivesUpOnAServerThatNeverAnswers() async {
+        let store = SessionStore(
+            authentication: HangingSignOut(restored: .preview),
+            signOutTimeout: .milliseconds(10)
+        )
         await store.restore()
 
-        store.signOut()
+        await store.signOut()
 
         #expect(store.state == .signedOut)
+        #expect(store.isSigningOut == false)
     }
 
     @Test
@@ -76,7 +79,7 @@ struct SessionStoreTests {
         let store = SessionStore(authentication: PreviewAuthentication(restored: .preview))
 
         await store.restore()
-        store.signOut()
+        await store.signOut()
         // A second restore, such as the app returning to the foreground, must
         // not resurrect the session the user just left.
         await store.restore()
@@ -96,7 +99,9 @@ struct SessionStoreTests {
     }
 }
 
-/// Signing out never finishes, standing in for an unreachable server.
+/// Signing out takes far longer than the store is willing to wait, standing in
+/// for an unreachable server. Bounded, because the request outlives the wait by
+/// design and an unbounded one would hold the whole test run open.
 private struct HangingSignOut: Authenticating {
     let restored: UserSession?
 
@@ -113,6 +118,6 @@ private struct HangingSignOut: Authenticating {
     }
 
     func signOut() async throws {
-        try await Task.sleep(for: .seconds(60))
+        try await Task.sleep(for: .milliseconds(500))
     }
 }

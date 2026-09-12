@@ -25,11 +25,14 @@ final class SessionStore {
     private(set) var state: SessionState = .restoring
     private(set) var signInFailure: FailureReason?
     private(set) var isSigningIn = false
+    private(set) var isSigningOut = false
 
     @ObservationIgnored private let authentication: any Authenticating
+    @ObservationIgnored private let signOutTimeout: Duration
 
-    init(authentication: any Authenticating) {
+    init(authentication: any Authenticating, signOutTimeout: Duration = .seconds(2)) {
         self.authentication = authentication
+        self.signOutTimeout = signOutTimeout
     }
 
     func restore() async {
@@ -61,17 +64,28 @@ final class SessionStore {
         }
     }
 
-    /// Ends the session here first and tells the server after. The result was
-    /// always discarded — the app signs out either way — so waiting on it only
-    /// held the user on a screen they had asked to leave.
-    func signOut() {
+    /// Waits for the server so the tap is acknowledged, but only briefly: the
+    /// result is discarded either way, so a slow one must not hold the user on
+    /// a screen they asked to leave. The request carries on in the background
+    /// if it loses the race.
+    func signOut() async {
+        isSigningOut = true
+        defer { isSigningOut = false }
+
+        let serverSignOut = Task { [authentication] in
+            try? await authentication.signOut()
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { _ = await serverSignOut.value }
+            group.addTask { [signOutTimeout] in try? await Task.sleep(for: signOutTimeout) }
+            await group.next()
+            group.cancelAll()
+        }
+
         AppLog.auth.info("Signed out")
         state = .signedOut
         signInFailure = nil
-
-        Task { [authentication] in
-            try? await authentication.signOut()
-        }
     }
 
     func clearSignInFailure() {
