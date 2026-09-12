@@ -17,9 +17,11 @@ struct AccountView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $isPresentingSignIn) {
-                    SignInSheet()
-                }
+        }
+        // Attached to the stack, not to `content`: signing in switches that
+        // view, and a sheet attached to it is torn off without animating.
+        .sheet(isPresented: $isPresentingSignIn) {
+            SignInSheet()
         }
     }
 

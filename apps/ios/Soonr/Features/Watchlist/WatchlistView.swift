@@ -19,9 +19,11 @@ struct WatchlistView: View {
                 .navigationDestination(for: TitleSummary.self) { title in
                     TitleDetailsView(summary: title, dependencies: details)
                 }
-                .sheet(isPresented: $isPresentingSignIn) {
-                    SignInSheet(prompt: "Sign in to see the games you've saved.")
-                }
+        }
+        // Attached to the stack, not to `content`: signing in switches that
+        // view, and a sheet attached to it is torn off without animating.
+        .sheet(isPresented: $isPresentingSignIn) {
+            SignInSheet(prompt: "Sign in to see the games you've saved.")
         }
         // The root loads the store once so a bookmark is known before any
         // title is opened, but the root appears once and never again, which

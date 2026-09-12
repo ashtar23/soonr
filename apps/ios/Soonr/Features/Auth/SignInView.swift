@@ -1,11 +1,7 @@
 import SwiftUI
 
 struct SignInView: View {
-    /// Shown above the form when an action raised this screen.
     var prompt: String?
-    /// Called when the user starts filling the form, so a sheet can make room
-    /// for the keyboard.
-    var onBeginEditing: () -> Void = {}
 
     @Environment(SessionStore.self) private var session
     @Environment(\.accounts) private var accounts
@@ -13,6 +9,8 @@ struct SignInView: View {
 
     @State private var email = ""
     @State private var password = ""
+    @State private var isPasswordVisible = false
+    @State private var validationMessage: String?
     @FocusState private var focus: Field?
 
     private enum Field {
@@ -20,76 +18,67 @@ struct SignInView: View {
         case password
     }
 
-    private var canSubmit: Bool {
-        email.contains("@") && password.isEmpty == false && session.isSigningIn == false
+    private var footerMessage: String? {
+        validationMessage ?? session.signInFailure?.message
     }
 
     var body: some View {
         Form {
             Section {
-                TextField("Email", text: $email)
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focus, equals: .email)
-                    .submitLabel(.next)
-                    .onSubmit { focus = .password }
+                AuthHeader(
+                    icon: "person.crop.circle",
+                    title: "Welcome back",
+                    subtitle: prompt ?? "Sign in to keep your watchlist with you."
+                )
+            }
+            .listRowBackground(Color.clear)
 
-                SecureField("Password", text: $password)
-                    .textContentType(.password)
+            Section {
+                AuthField(icon: "envelope") {
+                    TextField("Email", text: $email)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focus, equals: .email)
+                        .submitLabel(.next)
+                        .onSubmit { focus = .password }
+                }
+
+                AuthField(icon: "lock") {
+                    PasswordField(
+                        title: "Password",
+                        text: $password,
+                        isVisible: isPasswordVisible,
+                        contentType: .password
+                    )
                     .focused($focus, equals: .password)
                     .submitLabel(.go)
                     .onSubmit(submit)
-            } header: {
-                if let prompt {
-                    Text(prompt)
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        // iOS 18 and earlier leave almost no gap under a
-                        // section header, which pressed a two-line sentence
-                        // against the first field. iOS 26 spaces it already and
-                        // absorbs the rest.
-                        .padding(.bottom, 6)
+                } accessory: {
+                    PasswordVisibilityToggle(isVisible: $isPasswordVisible)
                 }
             } footer: {
-                if let failure = session.signInFailure {
-                    Text(failure.message)
+                if let footerMessage {
+                    Text(footerMessage)
                         .foregroundStyle(.red)
                 }
             }
-
-            Section {
-                Button(action: submit) {
-                    HStack {
-                        Text("Sign in")
-                        if session.isSigningIn {
-                            Spacer()
-                            ProgressView()
-                        }
-                    }
-                }
-                .disabled(canSubmit == false)
-            }
-
-            Section {
-                NavigationLink("Create account") {
-                    SignUpView(accounts: accounts, onBeginEditing: onBeginEditing)
-                }
-            } footer: {
-                Text("New to Soonr? Creating an account takes a moment.")
-            }
         }
+        .listSectionSpacing(.compact)
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Sign in")
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: focus) { _, focus in
-            if focus != nil {
-                onBeginEditing()
+        .safeAreaInset(edge: .bottom) {
+            AuthActions(title: "Sign in", isBusy: session.isSigningIn, action: submit) {
+                NavigationLink("New to Soonr? Create an account") {
+                    SignUpView(accounts: accounts)
+                }
+                .font(.subheadline)
             }
         }
-        .onChange(of: email) { session.clearSignInFailure() }
-        .onChange(of: password) { session.clearSignInFailure() }
+        .onChange(of: email) { clearMessages() }
+        .onChange(of: password) { clearMessages() }
         .onChange(of: session.state) { _, state in
             if case .signedIn = state {
                 dismiss()
@@ -98,14 +87,32 @@ struct SignInView: View {
     }
 
     private func submit() {
-        guard canSubmit else {
+        guard session.isSigningIn == false else {
             return
         }
 
+        if email.contains("@") == false {
+            validationMessage = "Enter the email address you signed up with."
+            focus = .email
+            return
+        }
+
+        if password.isEmpty {
+            validationMessage = "Enter your password."
+            focus = .password
+            return
+        }
+
+        validationMessage = nil
         focus = nil
         Task {
             await session.signIn(email: email, password: password)
         }
+    }
+
+    private func clearMessages() {
+        validationMessage = nil
+        session.clearSignInFailure()
     }
 }
 
