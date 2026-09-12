@@ -8,6 +8,10 @@ struct UnconfiguredAuthentication: Authenticating {
         nil
     }
 
+    func accessToken() async -> String? {
+        nil
+    }
+
     func signIn(email: String, password: String) async throws -> UserSession {
         throw UnconfiguredAuthenticationError.missingConfiguration
     }

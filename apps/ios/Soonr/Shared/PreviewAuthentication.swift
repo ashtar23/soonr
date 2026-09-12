@@ -9,6 +9,10 @@ struct PreviewAuthentication: Authenticating {
         restored
     }
 
+    func accessToken() async -> String? {
+        restored?.accessToken
+    }
+
     func signIn(email: String, password: String) async throws -> UserSession {
         try signInResult.get()
     }

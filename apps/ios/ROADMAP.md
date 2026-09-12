@@ -100,15 +100,25 @@ Deferred:
 - personalised rails and watchlist state on cards
 - offline caching
 
-## Planned
-
 ### Slice 5: Authentication and session
 
-- Supabase Swift authentication
-- sign in, sign up, sign out, and session restoration
-- app-owned observable session state
-- authenticated bearer-token middleware for `apps/api`
-- explicit Debug, Staging, and Release configuration
+- Debug, Staging, and Release xcconfig files; Release refuses to fall back to
+  staging
+- Supabase authentication through supabase-swift's Auth product, the project's
+  first dependency
+- sign in, sign out, and session restoration from the Keychain
+- app-owned `SessionStore` injected through the environment
+- `APIClient` attaches the session per request; a 401 surfaces as
+  `APIError.unauthorized`
+
+Deferred:
+
+- sign up, which needs a username and availability checks (slice 6 sheet)
+- signing out automatically on a rejected session, once authenticated
+  endpoints exist to trigger it
+- Sign in with Apple, and associated domains for password autofill
+
+## Planned
 
 ### Slice 6: Watchlist
 

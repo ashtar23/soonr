@@ -112,7 +112,9 @@ Included:
 - Debounced guest title search with loading, empty, error, and result states
 - Title details from search results with loading, not-found, error, and retry
   states
-- Skeleton authentication and settings routes
+- Email and password sign-in through Supabase, with session restore and sign out
+- Authenticated requests to `apps/api`
+- Skeleton account creation and settings routes
 - Swift Testing coverage for tabs, search and details models, API requests,
   response decoding, and release-date formatting
 

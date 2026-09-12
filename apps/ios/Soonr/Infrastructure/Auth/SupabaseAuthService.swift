@@ -25,6 +25,10 @@ struct SupabaseAuthService: Authenticating {
         return UserSession(session)
     }
 
+    func accessToken() async -> String? {
+        try? await client.session.accessToken
+    }
+
     func signIn(email: String, password: String) async throws -> UserSession {
         UserSession(try await client.signIn(email: email, password: password))
     }

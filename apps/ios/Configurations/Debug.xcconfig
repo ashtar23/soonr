@@ -5,3 +5,8 @@
 
 SOONR_API_HOST = soonr-staging.up.railway.app
 SOONR_SUPABASE_HOST = ipgvxeutodkdxmdukkym.supabase.co
+
+// The project never defined DEBUG, so `#if DEBUG` code was compiled out of
+// every configuration, including the scheme's API override.
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) DEBUG=1

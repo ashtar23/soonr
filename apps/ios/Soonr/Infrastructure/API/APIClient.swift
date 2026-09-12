@@ -5,6 +5,9 @@ enum APIError: Error, Equatable, LocalizedError, Sendable {
     case invalidResponse
     case requestFailed(statusCode: Int, message: String)
     case invalidPayload
+    /// The session was rejected, so the caller should ask the user to sign in
+    /// again rather than showing a generic failure.
+    case unauthorized
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +19,8 @@ enum APIError: Error, Equatable, LocalizedError, Sendable {
             message
         case .invalidPayload:
             "Soonr couldn't read the response."
+        case .unauthorized:
+            "Your session has expired. Please sign in again."
         }
     }
 }
@@ -24,15 +29,21 @@ enum APIError: Error, Equatable, LocalizedError, Sendable {
 /// status validation, decoding, and transport error normalization.
 struct APIClient: Sendable {
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    /// Asked per request: the session refreshes in the background, so a token
+    /// captured once goes stale.
+    typealias AccessTokenProvider = @Sendable () async -> String?
 
     private let configuration: AppConfiguration
     private let transport: Transport
+    private let accessToken: AccessTokenProvider
 
     init(
         configuration: AppConfiguration,
+        accessToken: @escaping AccessTokenProvider = { nil },
         transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }
     ) {
         self.configuration = configuration
+        self.accessToken = accessToken
         self.transport = transport
     }
 
@@ -40,7 +51,10 @@ struct APIClient: Sendable {
         _ pathComponents: [String],
         queryItems: [URLQueryItem] = []
     ) async throws -> Response {
-        let request = try makeRequest(pathComponents: pathComponents, queryItems: queryItems)
+        var request = try makeRequest(pathComponents: pathComponents, queryItems: queryItems)
+        if let token = await accessToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let data: Data
         let response: URLResponse
@@ -52,6 +66,10 @@ struct APIClient: Sendable {
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
+        }
+
+        guard httpResponse.statusCode != 401 else {
+            throw APIError.unauthorized
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {

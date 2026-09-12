@@ -2,14 +2,15 @@ import SwiftUI
 
 @main
 struct SoonrApp: App {
-    private let dependencies = AppDependencies.live()
+    private let dependencies: AppDependencies
 
     @State private var theme = ThemeSettings()
     @State private var session: SessionStore
 
     init() {
-        _session = State(
-            initialValue: SessionStore(authentication: AppDependencies.liveAuthentication()))
+        let dependencies = AppDependencies.live()
+        self.dependencies = dependencies
+        _session = State(initialValue: SessionStore(authentication: dependencies.authentication))
     }
 
     var body: some Scene {

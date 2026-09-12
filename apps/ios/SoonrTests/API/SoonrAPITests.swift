@@ -52,10 +52,13 @@ struct SoonrAPITests {
 
     @Test
     func pathComponentsArePercentEncoded() throws {
-        let client = APIClient(configuration: .test) { _ in
-            Issue.record("Building a request must not send it.")
-            throw URLError(.badURL)
-        }
+        let client = APIClient(
+            configuration: .test,
+            transport: { _ in
+                Issue.record("Building a request must not send it.")
+                throw URLError(.badURL)
+            }
+        )
 
         let request = try client.makeRequest(pathComponents: ["titles", "rawg/1 2"])
 
@@ -185,11 +188,45 @@ struct SoonrAPITests {
     }
 
     @Test
+    func aSignedInRequestCarriesTheSession() async throws {
+        let transport = StubTransport(.init(statusCode: 200, body: Self.searchJSON))
+
+        _ = try await transport.api(accessToken: "session-token").searchTitles(query: "hades")
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer session-token")
+    }
+
+    @Test
+    func aGuestRequestCarriesNoAuthorizationHeader() async throws {
+        let transport = StubTransport(.init(statusCode: 200, body: Self.searchJSON))
+
+        _ = try await transport.api().searchTitles(query: "hades")
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    @Test
+    func aRejectedSessionIsReportedAsUnauthorized() async {
+        let api = StubTransport(
+            .init(statusCode: 401, body: #"{"error":"Authentication failed."}"#)
+        ).api(accessToken: "expired-token")
+
+        await #expect(throws: APIError.unauthorized) {
+            try await api.titleDetails(id: "rawg:891238")
+        }
+    }
+
+    @Test
     func cancelledTransportThrowsCancellationError() async {
         let api = SoonrAPI(
-            client: APIClient(configuration: .test) { _ in
-                throw URLError(.cancelled)
-            }
+            client: APIClient(
+                configuration: .test,
+                transport: { _ in
+                    throw URLError(.cancelled)
+                }
+            )
         )
 
         await #expect(throws: CancellationError.self) {
@@ -211,11 +248,15 @@ private actor StubTransport {
         self.response = response
     }
 
-    nonisolated func api() -> SoonrAPI {
+    nonisolated func api(accessToken: String? = nil) -> SoonrAPI {
         SoonrAPI(
-            client: APIClient(configuration: .test) { request in
-                try await self.send(request)
-            }
+            client: APIClient(
+                configuration: .test,
+                accessToken: { accessToken },
+                transport: { request in
+                    try await self.send(request)
+                }
+            )
         )
     }
 
