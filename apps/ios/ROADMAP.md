@@ -60,14 +60,15 @@ Deferred:
 - website link, sharing, and rich media
 - offline details caching
 
-## Planned
-
 ### Slice 3: Theme and design-system foundation
 
-- system, light, and dark preferences
-- semantic colors and adaptive brand assets
-- initial reusable title artwork and metadata components
-- light, dark, increased-contrast, and Dynamic Type checks
+- appearance preference (system, light, dark) and a choice of accent colour,
+  persisted and applied at the app root
+- brand accent asset with light and dark values; everything else stays on
+  Apple's semantic colours
+- `DesignSystem` folder owning `TitleArtwork`, `TitleRow`, `ReleaseBadge`, and
+  `PlaceholderScreen`
+- result rows scale with Dynamic Type and stack at accessibility sizes
 - decide on view snapshot tests once these components stabilize
 
 **Snapshot testing, deferred here deliberately.** A search-row layout
@@ -84,6 +85,8 @@ simulators (pointfreeco/swift-snapshot-testing#1089) and would be the
 project's first third-party dependency. Snapshots are worth adopting only
 after the components they capture stop changing, otherwise every design change
 means re-recording.
+
+## Planned
 
 ### Slice 4: Home discovery
 
