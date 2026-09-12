@@ -41,14 +41,16 @@ struct SignInView: View {
                     .submitLabel(.go)
                     .onSubmit(submit)
             } header: {
-                // A plain header rather than a section of its own: a boxed
-                // sentence pushed the form past the sheet's medium detent and
-                // clipped the last row.
                 if let prompt {
                     Text(prompt)
                         .textCase(nil)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        // iOS 18 and earlier leave almost no gap under a
+                        // section header, which pressed a two-line sentence
+                        // against the first field. iOS 26 spaces it already and
+                        // absorbs the rest.
+                        .padding(.bottom, 6)
                 }
             } footer: {
                 if let failure = session.signInFailure {
@@ -109,6 +111,13 @@ struct SignInView: View {
 #Preview {
     NavigationStack {
         SignInView()
+    }
+    .environment(SessionStore(authentication: PreviewAuthentication()))
+}
+
+#Preview("Raised by an action") {
+    NavigationStack {
+        SignInView(prompt: "Sign in to add Hades II to your watchlist.")
     }
     .environment(SessionStore(authentication: PreviewAuthentication()))
 }
