@@ -23,6 +23,18 @@ struct WatchlistView: View {
                     SignInSheet(prompt: "Sign in to see the games you've saved.")
                 }
         }
+        // The root loads the store once so a bookmark is known before any
+        // title is opened, but the root appears once and never again, which
+        // left a failed load with no way back except the retry button. Opening
+        // the tab tries again; an already-loaded list is left alone, so this
+        // costs nothing in the normal case.
+        .task {
+            guard case .signedIn = session.state, watchlist.state.entries == nil else {
+                return
+            }
+
+            await watchlist.load()
+        }
     }
 
     @ViewBuilder
