@@ -23,7 +23,7 @@ enum SessionState: Equatable {
 @Observable
 final class SessionStore {
     private(set) var state: SessionState = .restoring
-    private(set) var signInFailure: String?
+    private(set) var signInFailure: FailureReason?
     private(set) var isSigningIn = false
 
     @ObservationIgnored private let authentication: any Authenticating
@@ -57,10 +57,7 @@ final class SessionStore {
             return
         } catch {
             AppLog.auth.error("Sign in failed: \(error)")
-            signInFailure =
-                error.localizedDescription.isEmpty
-                ? "Sign in failed. Please try again."
-                : error.localizedDescription
+            signInFailure = FailureReason(error)
         }
     }
 

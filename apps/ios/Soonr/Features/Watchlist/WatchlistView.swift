@@ -79,17 +79,9 @@ struct WatchlistView: View {
                 .refreshable {
                     await watchlist.refresh()
                 }
-        case let .failed(message):
-            ContentUnavailableView {
-                Label("Watchlist unavailable", systemImage: "wifi.exclamationmark")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try Again", systemImage: "arrow.clockwise") {
-                    Task {
-                        await watchlist.retry()
-                    }
-                }
+        case let .failed(reason):
+            FailureView(title: "Watchlist unavailable", reason: reason) {
+                await watchlist.retry()
             }
         }
     }

@@ -5,7 +5,7 @@ enum HomeState: Equatable {
     case loading
     case loaded(HomeDiscovery)
     case empty
-    case failed(message: String)
+    case failed(FailureReason)
 }
 
 @MainActor
@@ -49,11 +49,7 @@ final class HomeModel {
         } catch is CancellationError {
             return
         } catch {
-            state = .failed(
-                message: error.localizedDescription.isEmpty
-                    ? "Discovery couldn't be loaded. Please try again."
-                    : error.localizedDescription
-            )
+            state = .failed(FailureReason(error))
         }
     }
 }

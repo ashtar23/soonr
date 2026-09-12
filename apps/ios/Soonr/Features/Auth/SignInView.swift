@@ -54,7 +54,7 @@ struct SignInView: View {
                 }
             } footer: {
                 if let failure = session.signInFailure {
-                    Text(failure)
+                    Text(failure.message)
                         .foregroundStyle(.red)
                 }
             }

@@ -6,7 +6,7 @@ enum SearchState: Equatable {
     case loading
     case loaded([TitleSummary])
     case empty
-    case failed(message: String)
+    case failed(FailureReason)
 }
 
 @MainActor
@@ -67,11 +67,7 @@ final class SearchModel {
         } catch is CancellationError {
             return
         } catch {
-            state = .failed(
-                message: error.localizedDescription.isEmpty
-                    ? "Search failed. Please try again."
-                    : error.localizedDescription
-            )
+            state = .failed(FailureReason(error))
         }
     }
 }

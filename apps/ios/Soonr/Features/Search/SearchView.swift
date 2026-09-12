@@ -79,17 +79,9 @@ private struct SearchContent: View {
             SearchResultsList(titles: titles)
         case .empty:
             ContentUnavailableView.search(text: query)
-        case let .failed(message):
-            ContentUnavailableView {
-                Label("Search unavailable", systemImage: "wifi.exclamationmark")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try Again", systemImage: "arrow.clockwise") {
-                    Task {
-                        await retry()
-                    }
-                }
+        case let .failed(reason):
+            FailureView(title: "Search unavailable", reason: reason) {
+                await retry()
             }
         }
     }

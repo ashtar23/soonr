@@ -5,7 +5,7 @@ enum TitleDetailsState: Equatable {
     case loading
     case loaded(TitleDetails)
     case notFound
-    case failed(message: String)
+    case failed(FailureReason)
 
     var isLoaded: Bool {
         if case .loaded = self {
@@ -59,11 +59,7 @@ final class TitleDetailsModel {
         } catch is CancellationError {
             return
         } catch {
-            state = .failed(
-                message: error.localizedDescription.isEmpty
-                    ? "Details couldn't be loaded. Please try again."
-                    : error.localizedDescription
-            )
+            state = .failed(FailureReason(error))
         }
     }
 }

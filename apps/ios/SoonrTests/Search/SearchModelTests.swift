@@ -57,7 +57,7 @@ struct SearchModelTests {
 
         await model.search()
 
-        #expect(model.state == .failed(message: "You're offline."))
+        #expect(model.state == .failed(.unknown(message: "You're offline.")))
     }
 
     @Test
@@ -94,7 +94,7 @@ struct SearchModelTests {
         model.query = "halo"
 
         await model.search()
-        #expect(model.state == .failed(message: "You're offline."))
+        #expect(model.state == .failed(.unknown(message: "You're offline.")))
 
         await model.search()
 

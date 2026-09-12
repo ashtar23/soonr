@@ -38,7 +38,7 @@ struct TitleDetailsModelTests {
         let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
 
         await model.load()
-        #expect(model.state == .failed(message: "You're offline."))
+        #expect(model.state == .failed(.unknown(message: "You're offline.")))
 
         await model.retry()
         #expect(model.state == .loaded(.preview))

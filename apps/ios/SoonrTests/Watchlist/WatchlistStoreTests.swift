@@ -33,7 +33,7 @@ struct WatchlistStoreTests {
         )
 
         await store.load()
-        #expect(store.state == .failed(message: "You're offline."))
+        #expect(store.state == .failed(.unknown(message: "You're offline.")))
 
         await store.retry()
         #expect(store.state == .loaded([.fixture]))
@@ -91,7 +91,7 @@ struct WatchlistStoreTests {
 
         #expect(store.state == .loaded([]))
         #expect(store.contains(TitleSummary.preview.id) == false)
-        #expect(store.mutationFailure == "You're offline.")
+        #expect(store.mutationFailure == .unknown(message: "You're offline."))
     }
 
     @Test
@@ -105,7 +105,7 @@ struct WatchlistStoreTests {
 
         #expect(store.state == .loaded([.fixture]))
         #expect(store.contains(TitleSummary.preview.id))
-        #expect(store.mutationFailure == "You're offline.")
+        #expect(store.mutationFailure == .unknown(message: "You're offline."))
     }
 
     @Test

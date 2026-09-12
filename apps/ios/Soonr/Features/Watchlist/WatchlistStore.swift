@@ -4,7 +4,7 @@ import Observation
 enum WatchlistState: Equatable {
     case loading
     case loaded([WatchlistEntry])
-    case failed(message: String)
+    case failed(FailureReason)
 
     var entries: [WatchlistEntry]? {
         if case let .loaded(entries) = self {
@@ -33,7 +33,7 @@ final class WatchlistStore {
     private(set) var savedIDs: Set<String> = []
     /// Set when a save or removal was rejected, so the screen that asked can
     /// say why the bookmark sprang back.
-    private(set) var mutationFailure: String?
+    private(set) var mutationFailure: FailureReason?
 
     @ObservationIgnored private let watchlist: any WatchlistManaging
 
@@ -118,10 +118,7 @@ final class WatchlistStore {
             )
             savedIDs = previousIDs
             state = previousState
-            mutationFailure =
-                error.localizedDescription.isEmpty
-                ? "That couldn't be saved. Please try again."
-                : error.localizedDescription
+            mutationFailure = FailureReason(error)
         }
     }
 
@@ -168,11 +165,7 @@ final class WatchlistStore {
             return
         } catch {
             AppLog.watchlist.error("Could not load the watchlist: \(error)")
-            state = .failed(
-                message: error.localizedDescription.isEmpty
-                    ? "Your watchlist couldn't be loaded. Please try again."
-                    : error.localizedDescription
-            )
+            state = .failed(FailureReason(error))
         }
     }
 }

@@ -44,7 +44,7 @@ struct SessionStoreTests {
         await store.signIn(email: "player@soonr.app", password: "wrong")
 
         #expect(store.state == .restoring)
-        #expect(store.signInFailure == "Those credentials didn't work.")
+        #expect(store.signInFailure?.message == "Those credentials didn't work.")
     }
 
     @Test
@@ -79,6 +79,6 @@ struct SessionStoreTests {
         await store.signIn(email: "player@soonr.app", password: "hunter2")
 
         #expect(store.state == .signedOut)
-        #expect(store.signInFailure?.contains("Local.xcconfig") == true)
+        #expect(store.signInFailure?.message.contains("Local.xcconfig") == true)
     }
 }

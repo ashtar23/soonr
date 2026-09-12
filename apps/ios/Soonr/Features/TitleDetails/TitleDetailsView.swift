@@ -65,7 +65,7 @@ struct TitleDetailsView: View {
                 watchlist.clearMutationFailure()
             }
         } message: {
-            Text(watchlist.mutationFailure ?? "")
+            Text(watchlist.mutationFailure?.message ?? "")
         }
     }
 
@@ -134,17 +134,9 @@ private struct TitleDetailsContent: View {
                 systemImage: "questionmark.square.dashed",
                 description: Text("This game isn't available on Soonr.")
             )
-        case let .failed(message):
-            ContentUnavailableView {
-                Label("Details unavailable", systemImage: "wifi.exclamationmark")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try Again", systemImage: "arrow.clockwise") {
-                    Task {
-                        await retry()
-                    }
-                }
+        case let .failed(reason):
+            FailureView(title: "Details unavailable", reason: reason) {
+                await retry()
             }
         }
     }
