@@ -115,7 +115,22 @@ Deferred:
 - authenticated watchlist loading
 - add and remove from details
 - optimistic state with rollback on failure
-- signed-out guidance
+- one sign-in sheet with two entry points
+
+**How authentication surfaces.** A sheet, opened only by a deliberate tap:
+the Account row, or a gated action such as the watchlist button. No persistent
+sign-up banner on browsing screens, and the watchlist button looks the same
+signed in or out, so nothing nags a guest.
+
+The sheet opens at a short detent, keeping the game visible behind it, and
+grows to large when the email form needs the keyboard. Sign-up pushes inside
+the same stack, and becomes a full-screen flow only if it grows past a couple
+of steps.
+
+The prompt carries the action that raised it, so signing in finishes what the
+user started: tapping watchlist, signing in, and dismissing must leave the
+title saved. Sign in with Apple joins the sheet once the capability and the
+Supabase provider are configured.
 
 ### Slice 7: Notifications
 
