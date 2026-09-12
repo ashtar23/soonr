@@ -24,8 +24,22 @@ Open `Soonr.xcodeproj`, select the `Soonr` scheme, and run it on a simulator.
 For compatibility checks, test the oldest supported iOS 17 runtime and the
 latest available iOS runtime.
 
-The app uses `https://soonr-staging.up.railway.app` by default. Override it in
-the Xcode scheme when needed:
+## Configurations
+
+`Configurations/` holds one `.xcconfig` per build configuration, feeding
+`Configurations/Info.plist`, which the app reads at runtime:
+
+| Configuration | Backend |
+| --- | --- |
+| `Debug` | staging, overridable from the Xcode scheme |
+| `Staging` | staging, optimized build for distribution |
+| `Release` | production; `SOONR_API_HOST` is empty until the production API exists, so a Release build fails fast instead of silently using staging |
+
+Values that must not be committed belong in `Configurations/Local.xcconfig`,
+which is gitignored; copy `Local.xcconfig.example` to start. This mirrors how
+`apps/mobile` keeps its `.env` files out of git.
+
+Debug builds still accept an Xcode scheme override:
 
 ```text
 SOONR_API_BASE_URL=http://127.0.0.1:3001

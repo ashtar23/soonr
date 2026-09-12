@@ -1,0 +1,6 @@
+// Builds distributed for testing. Same backend as Debug, but optimized and
+// without the development-only environment overrides.
+
+#include "Base.xcconfig"
+
+SOONR_API_HOST = soonr-staging.up.railway.app

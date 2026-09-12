@@ -1,0 +1,10 @@
+// Settings shared by every configuration.
+//
+// URLs are split into scheme and host because "//" starts a comment in an
+// xcconfig file; Info.plist joins them back together.
+
+SOONR_API_SCHEME = https
+
+// Values that must not be committed (for example the Supabase publishable key)
+// belong in Local.xcconfig, which is gitignored. See Local.xcconfig.example.
+#include? "Local.xcconfig"

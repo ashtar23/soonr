@@ -168,10 +168,14 @@ their lifetime. Avoid a single app-wide store containing every feature's state.
 
 ## Configuration and security
 
-The current development build defaults to the staging API and supports Xcode
-scheme environment overrides. Before production distribution, introduce explicit
-Debug, Staging, and Release `.xcconfig` files. A Release build must not silently
-fall back to staging.
+Debug, Staging, and Release each have an `.xcconfig` in `Configurations/`,
+which fills `Info.plist` keys the app reads at launch. Debug keeps the Xcode
+scheme environment override for pointing at a local API.
+
+A Release build must not silently fall back to staging, so `Release.xcconfig`
+carries no API host until production exists, and the app stops at launch with a
+message naming the setting to fix. Secrets never live in a committed
+`.xcconfig`: `Local.xcconfig` is gitignored and CI injects it.
 
 Only public configuration belongs in the application bundle. Supabase secret or
 service-role keys must never be added to the iOS target. Authentication tokens

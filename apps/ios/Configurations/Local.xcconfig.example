@@ -1,0 +1,9 @@
+// Copy to Local.xcconfig (gitignored) for values that must not be committed,
+// following the same convention as apps/mobile/.env.example.
+//
+// Nothing is required yet: the API host is public and lives in the per
+// configuration files. The Supabase publishable key lands here when iOS
+// authentication arrives.
+
+// SOONR_SUPABASE_PUBLISHABLE_KEY =
+// SOONR_API_HOST = 127.0.0.1:3001

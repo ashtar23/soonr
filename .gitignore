@@ -38,3 +38,6 @@ yarn-error.log*
 *.pem
 xcuserdata/
 *.xcuserstate
+
+# iOS local configuration
+apps/ios/Configurations/Local.xcconfig

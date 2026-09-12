@@ -1,0 +1,9 @@
+// App Store builds.
+//
+// SOONR_API_HOST is deliberately empty: production has a Supabase project but
+// no API host yet, and a Release build must fail loudly rather than quietly
+// talk to staging. Set it here, or in Local.xcconfig, once production exists.
+
+#include "Base.xcconfig"
+
+SOONR_API_HOST =

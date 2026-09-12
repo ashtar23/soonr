@@ -1,0 +1,6 @@
+// Local development. Points at staging, and the Xcode scheme can override the
+// API with the SOONR_API_BASE_URL environment variable.
+
+#include "Base.xcconfig"
+
+SOONR_API_HOST = soonr-staging.up.railway.app
