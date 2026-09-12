@@ -33,6 +33,12 @@ struct APIClient: Sendable {
     /// captured once goes stale.
     typealias AccessTokenProvider = @Sendable () async -> String?
 
+    enum Method: String, Sendable {
+        case get = "GET"
+        case post = "POST"
+        case delete = "DELETE"
+    }
+
     private let configuration: AppConfiguration
     private let transport: Transport
     private let accessToken: AccessTokenProvider
@@ -51,7 +57,36 @@ struct APIClient: Sendable {
         _ pathComponents: [String],
         queryItems: [URLQueryItem] = []
     ) async throws -> Response {
-        var request = try makeRequest(pathComponents: pathComponents, queryItems: queryItems)
+        let data = try await send(.get, pathComponents, queryItems: queryItems)
+        return try decode(data)
+    }
+
+    func post<Body: Encodable, Response: Decodable>(
+        _ pathComponents: [String],
+        body: Body
+    ) async throws -> Response {
+        let data = try await send(.post, pathComponents, body: try encode(body))
+        return try decode(data)
+    }
+
+    /// The response body is discarded: the endpoints we delete from report only
+    /// that the resource is gone, which a 2xx status already tells us.
+    func delete(_ pathComponents: [String]) async throws {
+        _ = try await send(.delete, pathComponents)
+    }
+
+    private func send(
+        _ method: Method,
+        _ pathComponents: [String],
+        queryItems: [URLQueryItem] = [],
+        body: Data? = nil
+    ) async throws -> Data {
+        var request = try makeRequest(
+            method: method,
+            pathComponents: pathComponents,
+            queryItems: queryItems,
+            body: body
+        )
         if let token = await accessToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -80,16 +115,14 @@ struct APIClient: Sendable {
             )
         }
 
-        do {
-            return try JSONDecoder().decode(Response.self, from: data)
-        } catch {
-            throw APIError.invalidPayload
-        }
+        return data
     }
 
     func makeRequest(
+        method: Method = .get,
         pathComponents: [String],
-        queryItems: [URLQueryItem] = []
+        queryItems: [URLQueryItem] = [],
+        body: Data? = nil
     ) throws -> URLRequest {
         let url = pathComponents.reduce(configuration.apiBaseURL) { url, component in
             url.appending(component: component)
@@ -108,13 +141,34 @@ struct APIClient: Sendable {
         }
 
         var request = URLRequest(url: requestURL, timeoutInterval: 8)
-        request.httpMethod = "GET"
+        request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let publishableKey = configuration.supabasePublishableKey {
             request.setValue(publishableKey, forHTTPHeaderField: "apikey")
         }
 
+        if let body {
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+
         return request
+    }
+
+    private func encode<Body: Encodable>(_ body: Body) throws -> Data {
+        do {
+            return try JSONEncoder().encode(body)
+        } catch {
+            throw APIError.invalidRequest
+        }
+    }
+
+    private func decode<Response: Decodable>(_ data: Data) throws -> Response {
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw APIError.invalidPayload
+        }
     }
 }
 
