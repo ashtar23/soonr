@@ -61,12 +61,17 @@ final class SessionStore {
         }
     }
 
-    func signOut() async {
-        // Whatever the server says, the app must end up signed out locally.
-        try? await authentication.signOut()
+    /// Ends the session here first and tells the server after. The result was
+    /// always discarded — the app signs out either way — so waiting on it only
+    /// held the user on a screen they had asked to leave.
+    func signOut() {
         AppLog.auth.info("Signed out")
         state = .signedOut
         signInFailure = nil
+
+        Task { [authentication] in
+            try? await authentication.signOut()
+        }
     }
 
     func clearSignInFailure() {

@@ -52,10 +52,23 @@ struct SessionStoreTests {
         let store = SessionStore(authentication: PreviewAuthentication(restored: .preview))
         await store.restore()
 
-        await store.signOut()
+        store.signOut()
 
         #expect(store.state == .signedOut)
         #expect(store.signInFailure == nil)
+    }
+
+    /// Leaving must not wait on the network. The result is discarded either
+    /// way, so a slow or unreachable server cannot hold someone signed in.
+    @Test
+    func signingOutDoesNotWaitForTheServer() async {
+        let authentication = HangingSignOut(restored: .preview)
+        let store = SessionStore(authentication: authentication)
+        await store.restore()
+
+        store.signOut()
+
+        #expect(store.state == .signedOut)
     }
 
     @Test
@@ -63,7 +76,7 @@ struct SessionStoreTests {
         let store = SessionStore(authentication: PreviewAuthentication(restored: .preview))
 
         await store.restore()
-        await store.signOut()
+        store.signOut()
         // A second restore, such as the app returning to the foreground, must
         // not resurrect the session the user just left.
         await store.restore()
@@ -80,5 +93,26 @@ struct SessionStoreTests {
 
         #expect(store.state == .signedOut)
         #expect(store.signInFailure?.message.contains("Local.xcconfig") == true)
+    }
+}
+
+/// Signing out never finishes, standing in for an unreachable server.
+private struct HangingSignOut: Authenticating {
+    let restored: UserSession?
+
+    func restoreSession() async -> UserSession? {
+        restored
+    }
+
+    func accessToken() async -> String? {
+        restored?.accessToken
+    }
+
+    func signIn(email: String, password: String) async throws -> UserSession {
+        throw CancellationError()
+    }
+
+    func signOut() async throws {
+        try await Task.sleep(for: .seconds(60))
     }
 }

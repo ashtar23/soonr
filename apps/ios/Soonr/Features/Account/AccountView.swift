@@ -38,7 +38,7 @@ struct AccountView: View {
             }
         case let .signedIn(user):
             SignedInAccount(user: user) {
-                await session.signOut()
+                session.signOut()
             }
         }
     }
@@ -123,7 +123,7 @@ struct SignedOutAccountContent: View {
 
 private struct SignedInAccount: View {
     let user: UserSession
-    let signOut: () async -> Void
+    let signOut: () -> Void
 
     var body: some View {
         List {
@@ -150,11 +150,7 @@ private struct SignedInAccount: View {
             }
 
             Section {
-                Button("Sign out", role: .destructive) {
-                    Task {
-                        await signOut()
-                    }
-                }
+                Button("Sign out", role: .destructive, action: signOut)
             }
         }
     }

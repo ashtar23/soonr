@@ -31,7 +31,7 @@ struct SoonrApp: App {
                 // offering a retry that can only fail again.
                 .task {
                     for await _ in dependencies.rejectedSessions {
-                        await session.signOut()
+                        session.signOut()
                     }
                 }
                 // Loaded as soon as there is a session, so a bookmark is
