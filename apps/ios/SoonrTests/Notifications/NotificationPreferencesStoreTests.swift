@@ -87,6 +87,37 @@ struct NotificationPreferencesStoreTests {
         #expect(await preferences.saved.isEmpty)
     }
 
+    @Test
+    func timingPresetsKeepTheirOrderHoweverTheyAreAdded() {
+        var preferences = NotificationPreferences.onlyOnTheDay
+
+        preferences.toggleTimingPreset(.days7Before)
+        preferences.toggleTimingPreset(.days30Before)
+
+        #expect(preferences.timingPresets == [.days30Before, .days7Before, .onDay])
+    }
+
+    /// An empty list is not a state the server keeps: it answers one with its
+    /// own default, so the checkmark came straight back.
+    @Test
+    func theLastTimingPresetCannotBeCleared() {
+        var preferences = NotificationPreferences.onlyOnTheDay
+
+        preferences.toggleTimingPreset(.onDay)
+
+        #expect(preferences.timingPresets == [.onDay])
+    }
+
+    @Test
+    func anyPresetCanBeTheLastOneStanding() {
+        var preferences = NotificationPreferences.everything
+
+        preferences.toggleTimingPreset(.onDay)
+        preferences.toggleTimingPreset(.days7Before)
+
+        #expect(preferences.timingPresets == [.days7Before])
+    }
+
     /// The store outlives the screen now, so signing out has to drop what it
     /// holds instead of showing it to the next account.
     @Test

@@ -69,15 +69,16 @@ struct NotificationPreferencesView: View {
                 ForEach(TimingPreset.inApproachOrder, id: \.self) { preset in
                     TimingRow(
                         preset: preset,
-                        isSelected: preferences.timingPresets.contains(preset)
+                        isSelected: preferences.timingPresets.contains(preset),
+                        isOnlyChoice: preferences.timingPresets == [preset]
                     ) {
-                        model.edit { $0.timingPresets.toggle(preset) }
+                        model.edit { $0.toggleTimingPreset(preset) }
                     }
                 }
             } header: {
                 Text("How far ahead")
             } footer: {
-                Text("Applies to upcoming releases. Pick as many as you like.")
+                Text("Applies to upcoming releases. At least one is needed.")
             }
             // Nothing here has an effect while the event itself is off.
             .disabled(preferences.events.releaseApproaching == false)
@@ -97,6 +98,10 @@ struct NotificationPreferencesView: View {
 private struct TimingRow: View {
     let preset: TimingPreset
     let isSelected: Bool
+    /// The last one standing. Clearing it would send an empty list, which the
+    /// server answers by handing back its own default — so the checkmark came
+    /// straight back and the tap looked broken.
+    let isOnlyChoice: Bool
     let select: () -> Void
 
     var body: some View {
@@ -116,37 +121,22 @@ private struct TimingRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .disabled(isOnlyChoice)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHint(isOnlyChoice ? "At least one is needed" : "")
     }
 }
 
 private typealias TimingPreset = NotificationPreferences.TimingPreset
 
 private extension TimingPreset {
-    /// Furthest ahead first, so the list reads as a release approaching.
-    static let inApproachOrder: [TimingPreset] = [
-        .days30Before, .days7Before, .hours24Before, .onDay,
-    ]
-
     var label: String {
         switch self {
         case .onDay: "On release day"
         case .hours24Before: "A day before"
         case .days7Before: "A week before"
         case .days30Before: "A month before"
-        }
-    }
-}
-
-private extension Array where Element == TimingPreset {
-    /// Kept in the order the screen lists them, so a saved copy coming back
-    /// from the server does not reorder the rows.
-    mutating func toggle(_ preset: TimingPreset) {
-        if contains(preset) {
-            removeAll { $0 == preset }
-        } else {
-            self = TimingPreset.inApproachOrder.filter { $0 == preset || contains($0) }
         }
     }
 }

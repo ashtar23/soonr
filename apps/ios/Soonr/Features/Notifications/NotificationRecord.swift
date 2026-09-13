@@ -73,6 +73,12 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
         case hours24Before = "hours_24_before"
         case days7Before = "days_7_before"
         case days30Before = "days_30_before"
+
+        /// Furthest ahead first: the order a release approaches in, which is
+        /// also the order the screen lists them in.
+        static let inApproachOrder: [Self] = [
+            .days30Before, .days7Before, .hours24Before, .onDay,
+        ]
     }
 
     struct Channels: Codable, Equatable, Sendable {
@@ -104,6 +110,26 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
         self.channels = channels
         self.events = events
         self.timingPresets = timingPresets
+    }
+
+    /// Adds or removes one timing preset, keeping the canonical order so a
+    /// saved copy coming back does not reshuffle the screen.
+    ///
+    /// The list never empties: the server replaces an empty one with its own
+    /// default, so clearing the last preset put the checkmark straight back
+    /// and made the tap look broken.
+    mutating func toggleTimingPreset(_ preset: TimingPreset) {
+        if timingPresets.contains(preset) {
+            guard timingPresets.count > 1 else {
+                return
+            }
+
+            timingPresets.removeAll { $0 == preset }
+        } else {
+            timingPresets = TimingPreset.inApproachOrder.filter {
+                $0 == preset || timingPresets.contains($0)
+            }
+        }
     }
 
     /// What the server assumes for an account that has never saved any: the
