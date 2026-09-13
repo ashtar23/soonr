@@ -120,6 +120,14 @@ struct NotificationPreferencesView: View {
             return
         }
 
+        // iOS shows its prompt once per install, so after a refusal Settings
+        // is the only way back and the switch takes you there. Springing back
+        // with nothing else happening left the tap achieving nothing.
+        guard push.authorization != .denied else {
+            openSettings()
+            return
+        }
+
         // Asking happens on the way on, so the prompt follows a request for
         // notifications rather than arriving unexplained at launch.
         guard await push.requestAuthorization() else {
@@ -127,6 +135,14 @@ struct NotificationPreferencesView: View {
         }
 
         model.edit { $0.channels.push = true }
+    }
+
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            return
+        }
+
+        openURL(url)
     }
 
     @ViewBuilder
@@ -140,11 +156,10 @@ struct NotificationPreferencesView: View {
             // iOS shows its prompt once ever, so Settings is the only way back.
             VStack(alignment: .leading, spacing: 8) {
                 Text("Notifications are turned off for Soonr in Settings.")
-                Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        openURL(url)
-                    }
-                }
+                // Kept beside the switch rather than replacing it: someone
+                // reading this should not have to guess that the switch above
+                // has quietly become a link.
+                Button("Open Settings", action: openSettings)
             }
         }
     }
