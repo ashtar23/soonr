@@ -151,30 +151,163 @@ struct NotificationsStoreTests {
         #expect(store.state == .loaded([]))
         #expect(store.unreadCount == 0)
     }
+
+    // MARK: - Answering the stream
+
+    /// The server notifies on every row it changes, including the one this
+    /// device just read, and the screen already shows that.
+    @Test
+    func aChangeThisDeviceMadeIsNotRefetched() async throws {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(notifications: notifications, refreshDelay: .zero)
+        await store.load()
+
+        await store.markRead(id: NotificationRecord.unread.id)
+        await store.changedRemotely()
+        await settle()
+
+        #expect(await notifications.loads == 1)
+    }
+
+    /// Marking everything read moves as many rows as were unread, and the
+    /// trigger fires once per row.
+    @Test
+    func markingEverythingReadAbsorbsOneEventPerRow() async throws {
+        let notifications = StubNotifications(
+            records: [.unread, .read],
+            unreadCount: 2,
+            markAllResult: 2
+        )
+        let store = NotificationsStore(notifications: notifications, refreshDelay: .zero)
+        await store.load()
+
+        await store.markAllRead()
+        await store.changedRemotely()
+        await store.changedRemotely()
+        await settle()
+
+        #expect(await notifications.loads == 1)
+    }
+
+    @Test
+    func aChangeFromElsewhereReloadsTheList() async throws {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(notifications: notifications, refreshDelay: .zero)
+        await store.load()
+
+        let loads = await notifications.loadEvents()
+        await store.changedRemotely()
+
+        for await _ in loads { break }
+        #expect(await notifications.loads == 2)
+    }
+
+    /// A single action on the other end can produce a dozen events with the
+    /// same answer, and that answer costs a round trip.
+    @Test
+    func aBurstOfChangesCostsOneRefetch() async throws {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(
+            notifications: notifications,
+            refreshDelay: .milliseconds(20)
+        )
+        await store.load()
+
+        let loads = await notifications.loadEvents()
+        for _ in 0..<5 {
+            await store.changedRemotely()
+        }
+
+        for await _ in loads { break }
+        await settle()
+        #expect(await notifications.loads == 2)
+    }
+
+    /// The counts balance: a change from elsewhere landing in the middle of
+    /// this device's own burst still costs exactly one refetch.
+    @Test
+    func aChangeArrivingDuringOurOwnBurstIsStillAnswered() async throws {
+        let notifications = StubNotifications(
+            records: [.unread],
+            unreadCount: 1,
+            markAllResult: 2
+        )
+        let store = NotificationsStore(notifications: notifications, refreshDelay: .zero)
+        await store.load()
+
+        await store.markAllRead()
+        let loads = await notifications.loadEvents()
+        // Two of ours, and one from somewhere else.
+        await store.changedRemotely()
+        await store.changedRemotely()
+        await store.changedRemotely()
+
+        for await _ in loads { break }
+        await settle()
+        #expect(await notifications.loads == 2)
+    }
+
+    @Test
+    func signingOutCancelsAPendingRefetch() async throws {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(
+            notifications: notifications,
+            refreshDelay: .milliseconds(50)
+        )
+        await store.load()
+
+        await store.changedRemotely()
+        store.clear()
+        await settle(for: .milliseconds(120))
+
+        #expect(await notifications.loads == 1)
+    }
+
+    /// Proving something does *not* happen needs a bounded wait; everything
+    /// else in this suite awaits the event itself.
+    private func settle(for duration: Duration = .milliseconds(60)) async {
+        try? await Task.sleep(for: duration)
+    }
 }
 
 private actor StubNotifications: NotificationsReading {
     private(set) var readIDs: [String] = []
     private(set) var markedAll = 0
+    private(set) var loads = 0
 
     private let records: [NotificationRecord]
     private let count: Int
     private let failingMutations: Bool
+    private let markAllResult: Int
     private var failingLoads: Int
+    private var loadSignal: AsyncStream<Void>.Continuation?
 
     init(
         records: [NotificationRecord] = [],
         unreadCount: Int = 0,
         failingLoads: Int = 0,
-        failingMutations: Bool = false
+        failingMutations: Bool = false,
+        markAllResult: Int = 0
     ) {
         self.records = records
         count = unreadCount
         self.failingLoads = failingLoads
         self.failingMutations = failingMutations
+        self.markAllResult = markAllResult
+    }
+
+    /// Yields once per list fetch, so a test can await the fetch it expects
+    /// instead of polling for it.
+    func loadEvents() -> AsyncStream<Void> {
+        let (stream, continuation) = AsyncStream<Void>.makeStream()
+        loadSignal = continuation
+        return stream
     }
 
     func notifications() async throws -> [NotificationRecord] {
+        loads += 1
+        loadSignal?.yield()
+
         if failingLoads > 0 {
             failingLoads -= 1
             throw URLError(.notConnectedToInternet)
@@ -202,7 +335,7 @@ private actor StubNotifications: NotificationsReading {
             throw URLError(.notConnectedToInternet)
         }
 
-        return readIDs.count
+        return markAllResult
     }
 
 }

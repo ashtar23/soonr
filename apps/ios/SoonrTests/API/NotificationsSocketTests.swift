@@ -13,7 +13,7 @@ struct NotificationsSocketTests {
         try await openOneConnection(to: socket, connector: connector)
 
         #expect(
-            await connector.urls.first?.absoluteString
+            connector.urls.first?.absoluteString
                 == "wss://api.example.com/notifications/stream"
         )
     }
@@ -29,7 +29,7 @@ struct NotificationsSocketTests {
         try await openOneConnection(to: socket, connector: connector)
 
         #expect(
-            await connector.urls.first?.absoluteString
+            connector.urls.first?.absoluteString
                 == "ws://localhost:3000/notifications/stream"
         )
     }
@@ -43,7 +43,7 @@ struct NotificationsSocketTests {
 
         _ = await firstEvents(1, from: socket, connector: connector)
 
-        let sent = try #require(await connector.sent.first)
+        let sent = try #require(connector.sent.first)
         let payload = try JSONDecoder().decode(
             AuthPayload.self,
             from: Data(sent.utf8)
@@ -123,7 +123,7 @@ struct NotificationsSocketTests {
         let events = await firstEvents(1, from: socket, connector: connector)
 
         #expect(events == [.recordsChanged])
-        #expect(await connector.urls.count == 1)
+        #expect(connector.urls.count == 1)
     }
 
     @Test
@@ -139,7 +139,7 @@ struct NotificationsSocketTests {
         let events = await firstEvents(1, from: socket, connector: connector)
 
         #expect(events == [.recordsChanged])
-        #expect(await connector.urls.count == 2)
+        #expect(connector.urls.count == 2)
     }
 
     /// A token that has gone away is a reason to wait, not to spin.
@@ -158,7 +158,7 @@ struct NotificationsSocketTests {
 
         #expect(events == [.recordsChanged])
         // The first attempt never reached the connector.
-        #expect(await connector.urls.count == 1)
+        #expect(connector.urls.count == 1)
     }
 
     /// A socket idling behind NAT is dropped without either end being told, so
@@ -179,7 +179,7 @@ struct NotificationsSocketTests {
         }
         defer { reader.cancel() }
 
-        try await waitUntil { await connector.sent.contains(#"{"type":"ping"}"#) }
+        try await waitUntil { connector.sent.contains(#"{"type":"ping"}"#) }
     }
 
     @Test
@@ -199,7 +199,7 @@ struct NotificationsSocketTests {
             break
         }
 
-        try await waitUntil { await connector.cancellations >= 1 }
+        try await waitUntil { connector.cancellations >= 1 }
     }
 
     // MARK: - Helpers
@@ -259,7 +259,7 @@ struct NotificationsSocketTests {
         }
         defer { reader.cancel() }
 
-        try await waitUntil { await connector.urls.isEmpty == false }
+        try await waitUntil { connector.urls.isEmpty == false }
     }
 
     private func waitUntil(
@@ -288,83 +288,76 @@ private enum StubFrame: Sendable {
 
 /// Hands out one scripted connection per `connect`, so a test can say what the
 /// second attempt sees as well as the first.
-private actor StubConnector: WebSocketConnecting {
-    private(set) var urls: [URL] = []
-    private(set) var sent: [String] = []
-    private(set) var cancellations = 0
-
+///
+/// Locked rather than an actor so that `connect` can take its script in the
+/// same step it is called: handing the channel back before it knows its frames
+/// would put a race in the scaffolding rather than in the code under test.
+private final class StubConnector: WebSocketConnecting, @unchecked Sendable {
+    private let lock = NSLock()
     private var script: [[StubFrame]]
+    private var openedURLs: [URL] = []
+    private var sentText: [String] = []
+    private var cancelCount = 0
 
     init(script: [[StubFrame]]) {
         self.script = script
     }
 
-    nonisolated func connect(to url: URL) -> any WebSocketChannel {
-        let frames = StubChannel(connector: self)
-        Task { await register(url: url, channel: frames) }
-        return frames
-    }
+    var urls: [URL] { lock.withLock { openedURLs } }
+    var sent: [String] { lock.withLock { sentText } }
+    var cancellations: Int { lock.withLock { cancelCount } }
 
-    private func register(url: URL, channel: StubChannel) async {
-        urls.append(url)
-        let frames = script.isEmpty ? [.hold] : script.removeFirst()
-        await channel.load(frames)
+    func connect(to url: URL) -> any WebSocketChannel {
+        let frames: [StubFrame] = lock.withLock {
+            openedURLs.append(url)
+            return script.isEmpty ? [.hold] : script.removeFirst()
+        }
+
+        return StubChannel(connector: self, frames: frames)
     }
 
     func record(sent text: String) {
-        self.sent.append(text)
+        lock.withLock { sentText.append(text) }
     }
 
     func recordCancellation() {
-        cancellations += 1
+        lock.withLock { cancelCount += 1 }
     }
 }
 
-private actor StubChannel: WebSocketChannel {
+private final class StubChannel: WebSocketChannel, @unchecked Sendable {
     private let connector: StubConnector
-    private var frames: [StubFrame] = []
-    private var isLoaded = false
+    private let lock = NSLock()
+    private var frames: [StubFrame]
 
-    init(connector: StubConnector) {
+    init(connector: StubConnector, frames: [StubFrame]) {
         self.connector = connector
-    }
-
-    func load(_ frames: [StubFrame]) {
         self.frames = frames
-        isLoaded = true
     }
 
-    nonisolated func send(_ text: String) async throws {
-        await connector.record(sent: text)
+    func send(_ text: String) async throws {
+        connector.record(sent: text)
     }
 
-    nonisolated func receive() async throws -> String {
-        try await next()
-    }
-
-    nonisolated func cancel() {
-        Task { await connector.recordCancellation() }
-    }
-
-    private func next() async throws -> String {
-        while isLoaded == false {
-            try await Task.sleep(for: .milliseconds(1))
+    func receive() async throws -> String {
+        let next: StubFrame? = lock.withLock {
+            frames.isEmpty ? nil : frames.removeFirst()
         }
 
-        guard frames.isEmpty == false else {
-            try await Task.sleep(for: .seconds(60))
-            throw CancellationError()
-        }
-
-        switch frames.removeFirst() {
+        switch next {
         case let .text(text):
             return text
         case .close:
             throw URLError(.networkConnectionLost)
-        case .hold:
+        case .hold, .none:
+            // Open with nothing to say, until the reader is cancelled.
             try await Task.sleep(for: .seconds(60))
             throw CancellationError()
         }
+    }
+
+    func cancel() {
+        connector.recordCancellation()
     }
 }
 

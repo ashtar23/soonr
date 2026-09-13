@@ -40,9 +40,10 @@ final class NotificationsRealtime {
             for await event in stream.notificationEvents() {
                 switch event {
                 case .recordsChanged:
-                    // The event carries no records, so the server is still the
-                    // one that says what the list holds.
-                    await records.refresh()
+                    // The event carries no records, so the store decides what
+                    // answering it costs: nothing for a change of its own, and
+                    // one refetch for a burst of anyone else's.
+                    await records.changedRemotely()
                 case let .preferencesChanged(pushed):
                     await preferences.apply(pushed)
                 }
