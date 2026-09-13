@@ -15,8 +15,10 @@ final class PushRegistrationStore {
 
     @ObservationIgnored private let notifications: any NotificationsProviding
     @ObservationIgnored private let system: any PushAuthorizing
-    @ObservationIgnored private let environment: PushEnvironment
-    @ObservationIgnored private var deviceToken: String?
+    let environment: PushEnvironment
+    /// Shown on the developer screen, which is the only way to see it on a
+    /// phone: a device build has no console to read.
+    private(set) var deviceToken: String?
     @ObservationIgnored private var isSignedIn = false
 
     init(

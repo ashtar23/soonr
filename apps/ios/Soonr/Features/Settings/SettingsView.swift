@@ -34,7 +34,7 @@ struct SettingsView: View {
 
             Section("Development") {
                 NavigationLink {
-                    SettingsPlaceholderView(title: "Developer", icon: "hammer")
+                    DeveloperSettingsView()
                 } label: {
                     Label("Developer", systemImage: "hammer")
                 }
