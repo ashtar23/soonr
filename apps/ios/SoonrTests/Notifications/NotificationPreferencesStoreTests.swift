@@ -55,6 +55,53 @@ struct NotificationPreferencesStoreTests {
     }
 
     @Test
+    func aPushedCopyIsAdoptedWhenNothingIsPending() async {
+        let preferences = StubPreferences(stored: .everything)
+        let model = await loaded(preferences)
+
+        await model.apply(.onlyOnTheDay)
+
+        #expect(model.state == .loaded(.onlyOnTheDay))
+    }
+
+    /// The pushed copy is usually the echo of this device's own save. Landing
+    /// it while a switch the viewer has just moved is still on its way would
+    /// flip that switch back under their finger.
+    @Test
+    func aPushedCopyIsDeclinedWhileALocalEditIsStillPending() async {
+        let preferences = StubPreferences(stored: .everything)
+        let model = await loaded(preferences)
+
+        model.edit { $0.channels.inApp = false }
+        await model.apply(.everything)
+
+        #expect(model.preferences?.channels.inApp == false)
+    }
+
+    /// An event without a readable copy says only that something moved.
+    @Test
+    func aPushedEventWithoutACopyRefetches() async {
+        let preferences = StubPreferences(stored: .everything)
+        let model = await loaded(preferences)
+
+        await model.apply(nil)
+
+        #expect(await preferences.loads == 2)
+    }
+
+    /// Refetching behind a screen that already shows preferences must not drop
+    /// it back to a spinner.
+    @Test
+    func refetchingDoesNotFlashTheLoadingState() async {
+        let preferences = StubPreferences(stored: .everything)
+        let model = await loaded(preferences)
+
+        async let applied: Void = model.apply(nil)
+        #expect(model.state == .loaded(.everything))
+        await applied
+    }
+
+    @Test
     func aRejectedSaveGoesBackToWhatTheServerConfirmed() async {
         let preferences = StubPreferences(stored: .everything, failingSaves: true)
         let model = await loaded(preferences)
@@ -151,6 +198,7 @@ struct NotificationPreferencesStoreTests {
 
 private actor StubPreferences: NotificationPreferencesProviding {
     private(set) var saved: [NotificationPreferences] = []
+    private(set) var loads = 0
 
     private let stored: NotificationPreferences
     private let acknowledging: NotificationPreferences?
@@ -170,6 +218,8 @@ private actor StubPreferences: NotificationPreferencesProviding {
     }
 
     func notificationPreferences() async throws -> NotificationPreferences {
+        loads += 1
+
         if failingLoads > 0 {
             failingLoads -= 1
             throw URLError(.notConnectedToInternet)
