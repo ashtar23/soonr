@@ -211,22 +211,70 @@ Deferred:
 - `release_date_changed` notifications, which nothing generates yet
 - `nextCursor` paging
 
+### Slice 10: Push delivery
+
+Its own slice rather than a leftover of Slice 8, and as much `apps/api` as iOS:
+APNs credentials, device-token storage, a send path, and the client half.
+
+- token-based APNs (ES256 over HTTP/2), sandbox and production chosen per
+  device rather than per build
+- device tokens stored with the token as the primary key, so a rotated token
+  replaces itself; 410 Unregistered and 400 BadDeviceToken delete the device
+- permission asked on the way _on_ — turning the switch on is what prompts, so
+  the system alert follows a request for notifications rather than arriving
+  unexplained at launch
+- a refused switch opens Soonr's own notification settings, because iOS shows
+  its prompt once per install and Settings is the only way back
+- the icon badge follows the unread count the list already owns
+
+**The build flag and the signature disagree.** A Staging build run from Xcode is
+development-signed, so it holds a sandbox token while `DEBUG` is undefined.
+Claiming production for it has APNs answer `BadDeviceToken`, which the delivery
+pass reads as a dead device and deletes. The environment is read from the signed
+provisioning profile instead.
+
+Five of the bugs this slice produced were only findable on a device or in
+production: a delegate isolated with `nonisolated` crashed on tap, a deep link
+never fired because `.onChange` does not run when a tab's content is first
+created, the badge stuck, and a notification opened from a push did not clear.
+
+### Slice 11: Notifications in realtime
+
+The list and the preferences screen follow the server without a refresh.
+
+- `NotificationStreaming` behind a `URLSessionWebSocketTask` transport, with
+  reconnect and backoff, and a heartbeat so a socket dropped behind NAT is
+  found on the next ping rather than at the next read
+- held only while signed in and the scene is active, from one predicate rather
+  than a call at each of sign-in, sign-out, and scene change
+- one connection fanned out to both stores, because a stream has one consumer
+
+**The server pushes invalidations, not records.** A change arrives as
+`{"type":"notifications.changed","scope":"records"}` with no payload, so the
+answer is a refetch. That is simpler than it sounds: no client-side merge, no
+dedupe against the push that may describe the same thing, and a missed event
+costs latency rather than correctness.
+
+**Which makes the echo the expensive part.** The trigger fires per row on insert
+or update, and an update to `read_at` counts, so this device's own read comes
+straight back as news it already acted on. The store counts the events its
+writes are owed — exactly, because marking everything read reports how many rows
+moved — and collapses bursts into one refetch. Without it, twenty unread
+notifications cost forty requests to mark read.
+
+Deferred:
+
+- a repeatedly rejected token reconnects rather than ending the session, unlike
+  the HTTP path; a background socket is a bad place to sign someone out from
+- `nextCursor` paging, now Slice 12
+
 ## Planned
 
-### Comment cleanup
+### Slice 12: Paging
 
-Not a slice. The codebase carries an explanatory comment on nearly every
-property and modifier, which buries the few that matter. Comments stay only
-where the reason is non-obvious — platform behaviour that surprised us,
-`ImageRenderer` limits, API semantics the code depends on — and go everywhere
-they restate the code. Do this as its own pass, so it never hides inside a
-feature diff.
-
-### Push and realtime delivery
-
-Its own slice, not a leftover of Slice 8. Nothing in the stack sends a push
-today: no APNs credentials, no device-token storage, no send path. It needs
-work in `apps/api` as much as here, which is why it was never in scope above.
+Both the notifications list and the watchlist fetch the first page and drop
+`nextCursor`. Realtime makes it sooner rather than later: the list now grows
+while it is on screen. One pattern, established once, used by both.
 
 ### Slice 9: Production hardening
 
