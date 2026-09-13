@@ -36,8 +36,8 @@ final class SignUpModel {
         status[field] ?? .idle
     }
 
-    /// Called when a field loses focus. Rules are checked on the way out, not
-    /// while a value is still being typed.
+    /// Rules are checked on the way out of a field, not while it is being
+    /// typed.
     func validate(_ field: SignUpField) {
         if let problem = problem(with: field) {
             status[field] = .problem(problem)
@@ -46,16 +46,14 @@ final class SignUpModel {
 
         switch field {
         case .email, .username:
-            // The availability check owns the verdict for these, so a passing
-            // rule must leave it alone. Anything it said about an older value
-            // was already retired by `fieldChanged`.
+            // The availability check owns the verdict here, so a passing
+            // rule must leave it alone.
             break
         case .password, .repeatedPassword:
             status[field] = .ok
         }
     }
 
-    /// Returns the first field the user still has to deal with.
     func validateAll() -> SignUpField? {
         SignUpField.allCases.forEach(validate)
         return SignUpField.allCases.first { self[$0].isProblem }
@@ -91,8 +89,8 @@ final class SignUpModel {
         }
     }
 
-    /// Returns whether the account was created, so the caller can sign in with
-    /// the same credentials; sign-up itself issues no session.
+    /// Sign-up issues no session, so the caller signs in with the same
+    /// credentials once this reports success.
     func submit() async -> Bool {
         guard isSubmitting == false else {
             return false

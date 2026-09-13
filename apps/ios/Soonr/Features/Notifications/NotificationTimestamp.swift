@@ -1,13 +1,10 @@
 import Foundation
 
-/// When a notification arrived, as a row caption.
-///
 /// Unlike a release date, this is an instant rather than a calendar day, so it
 /// is parsed as a full timestamp and shown in the viewer's own time zone.
 enum NotificationTimestamp {
-    /// Recent arrivals read better as an age ("2 hours ago") and older ones as
-    /// a date, which is the point where the age stops being easier to picture
-    /// than the day itself.
+    /// An age up to a week ("2 hours ago"), a date after that, where the age
+    /// stops being easier to picture than the day.
     static func text(
         _ timestamp: String,
         now: Date = .now,
@@ -38,8 +35,8 @@ enum NotificationTimestamp {
 
     private static let sevenDays: TimeInterval = 7 * 24 * 60 * 60
 
-    /// The API sends fractional seconds; accepting a timestamp without them
-    /// costs one line and outlives any change to how it is serialized.
+    /// The API sends fractional seconds; accepting one without them costs a
+    /// line and outlives a change to how it is serialized.
     private static func date(from timestamp: String) -> Date? {
         if let date = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true)
             .parse(timestamp)

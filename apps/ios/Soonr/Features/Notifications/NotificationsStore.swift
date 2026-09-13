@@ -46,7 +46,7 @@ final class NotificationsStore {
         unreadCount = 0
     }
 
-    /// Moves the row and the badge first, then puts both back if the server
+    /// Moves the row and the badge first, putting both back if the server
     /// refuses.
     func markRead(id: String) async {
         guard let records = state.records,

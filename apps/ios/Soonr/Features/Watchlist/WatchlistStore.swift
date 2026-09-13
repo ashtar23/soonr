@@ -15,15 +15,10 @@ enum WatchlistState: Equatable {
     }
 }
 
-/// The app's single source of truth for saved titles, created once at the root
-/// and injected through the environment beside the session.
-///
-/// Screens used to keep their own copy: details held a flag and the tab held a
-/// list, so unsaving a title left it on the tab until a manual refresh, and
-/// opening a title from the tab showed an empty bookmark until its own request
-/// answered a question the tab had already answered. One store means a change
-/// is visible everywhere that reads it, with no refetch and nothing to
-/// broadcast.
+/// One store for saved titles, because screens each keeping a copy meant
+/// unsaving a title left it on the tab until a refresh, and opening one from
+/// the tab showed an empty bookmark until its own request answered a question
+/// the tab had already answered.
 @MainActor
 @Observable
 final class WatchlistStore {
@@ -59,8 +54,7 @@ final class WatchlistStore {
         await fetch(showingLoadingState: false)
     }
 
-    /// Signing out drops another account's titles rather than leaving them on
-    /// screen until the next load.
+    /// Drops another account's titles rather than leaving them on screen.
     func clear() {
         state = .loaded([])
         savedIDs = []
@@ -82,10 +76,9 @@ final class WatchlistStore {
         }
     }
 
-    /// Moves the bookmark and the list first, then puts both back if the
-    /// server refuses. Adding is safe without knowing the current state: the
-    /// API upserts, which is how signing in finishes an add started as a
-    /// guest.
+    /// Moves the bookmark and the list first, putting both back if the server
+    /// refuses. Adding without knowing the current state is safe: the API
+    /// upserts, which is how signing in finishes an add started as a guest.
     func setSaved(_ shouldSave: Bool, title: TitleSummary) async {
         guard shouldSave || contains(title.id) else {
             return

@@ -17,8 +17,6 @@ struct NotificationRecord: Decodable, Hashable, Sendable, Identifiable {
     let titleArtworkURL: URL?
     let message: String
     let subtitle: String?
-    /// What the event was about, in data. The server also writes a sentence
-    /// about it, but that sentence is frozen at the moment it was generated.
     let payload: NotificationPayload
     let createdAt: String
     let readAt: String?
@@ -42,7 +40,6 @@ struct NotificationRecord: Decodable, Hashable, Sendable, Identifiable {
 }
 
 extension NotificationRecord {
-    /// The same notification with a different read state.
     init(_ other: NotificationRecord, readAt: String?) {
         self.init(
             id: other.id,
@@ -95,9 +92,8 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
     var events: Events
     var timingPresets: [TimingPreset]
 
-    /// Presets the client does not know are dropped rather than failing the
-    /// payload: it cannot offer a switch for something it cannot name, but it
-    /// can still show the rest.
+    /// A preset this build cannot name is dropped rather than failing the
+    /// payload, so the rest still show.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         channels = try container.decode(Channels.self, forKey: .channels)
@@ -112,11 +108,9 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
         self.timingPresets = timingPresets
     }
 
-    /// Adds or removes one timing preset, keeping the canonical order so a
-    /// saved copy coming back does not reshuffle the screen.
-    ///
-    /// The list never empties: the server replaces an empty one with its own
-    /// default, so clearing the last preset put the checkmark straight back
+    /// Keeps the canonical order, so a saved copy coming back does not
+    /// reshuffle the screen, and never empties the list: the server replaces an
+    /// empty one with its own default, which put the checkmark straight back
     /// and made the tap look broken.
     mutating func toggleTimingPreset(_ preset: TimingPreset) {
         if timingPresets.contains(preset) {
@@ -132,8 +126,8 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
         }
     }
 
-    /// What the server assumes for an account that has never saved any: the
-    /// same values `notification-generation` falls back to.
+    /// What `notification-generation` falls back to for an account that has
+    /// never saved any.
     static let `default` = NotificationPreferences(
         channels: Channels(inApp: true, push: false),
         events: Events(releaseDateChanged: true, releaseApproaching: true),

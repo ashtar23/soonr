@@ -25,11 +25,9 @@ struct WatchlistView: View {
         .sheet(isPresented: $isPresentingSignIn) {
             SignInSheet(prompt: "Sign in to see the games you've saved.")
         }
-        // The root loads the store once so a bookmark is known before any
-        // title is opened, but the root appears once and never again, which
-        // left a failed load with no way back except the retry button. Opening
-        // the tab tries again; an already-loaded list is left alone, so this
-        // costs nothing in the normal case.
+        // The root loads the store once and never again, which left a failed
+        // load with no way back except the retry button. An already-loaded
+        // list is left alone, so this costs nothing in the normal case.
         .task {
             guard case .signedIn = session.state, watchlist.state.entries == nil else {
                 return
@@ -117,8 +115,8 @@ private struct WatchlistList: View {
     WatchlistPreview(catalog: PreviewTitleCatalog(saved: []), restored: .preview)
 }
 
-/// Loads the store the way the app root does, so the previews show the states
-/// a signed-in viewer would actually see.
+/// Loads the store the way the app root does, so previews show the states a
+/// signed-in viewer would see.
 private struct WatchlistPreview: View {
     let catalog: PreviewTitleCatalog
     let restored: UserSession?

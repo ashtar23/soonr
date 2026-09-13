@@ -1,10 +1,8 @@
 import SwiftUI
 
-/// The fill behind an unread row.
-///
 /// Subtle on purpose: iOS paints a row fill to mean *selected*, so a stronger
-/// tint reads as a row you are holding rather than one you have not read. Dark
-/// mode needs more of it to register against the darker ground.
+/// tint reads as a row being held rather than one not yet read. Dark mode needs
+/// more of it to register against the darker ground.
 struct UnreadRowBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 

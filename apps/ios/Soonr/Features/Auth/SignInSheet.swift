@@ -1,13 +1,11 @@
 import SwiftUI
 
-/// The app's one sign-in surface, opened only by a deliberate tap: the Account
-/// screen, or an action that needs an account. Nothing nags a guest.
+/// Opened only by a deliberate tap, so nothing nags a guest.
 ///
-/// Full height, not a medium detent. Apple reserves the medium detent for
-/// progressive disclosure and says to omit it when content needs full
-/// visibility; a credential form with a keyboard is a workspace, and every
-/// layout fault this sheet has had came from trying to fit one into half a
-/// screen.
+/// Full height, not a medium detent: Apple reserves that for progressive
+/// disclosure and says to omit it when content needs full visibility. Every
+/// layout fault this sheet has had came from fitting a keyboard and a
+/// credential form into half a screen.
 struct SignInSheet: View {
     var prompt: String?
 

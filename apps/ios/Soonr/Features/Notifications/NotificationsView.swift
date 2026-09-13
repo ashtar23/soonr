@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Where this tab can go besides a title.
 enum NotificationsRoute: Hashable {
     case preferences
 }
@@ -22,9 +21,8 @@ struct NotificationsView: View {
             content
                 .navigationTitle("Notifications")
                 .toolbar {
-                    // Always present once signed in, with the action dimmed
-                    // rather than gone, so the bar does not rearrange itself
-                    // as the last notification is read.
+                    // Dimmed rather than gone, so the bar does not
+                    // rearrange itself as the last notification is read.
                     if case .signedIn = session.state {
                         ToolbarItem(placement: .topBarTrailing) {
                             menu
@@ -39,9 +37,8 @@ struct NotificationsView: View {
                 }
                 .navigationDestination(for: NotificationRecord.self) { record in
                     TitleDetailsView(destination: record.destination, dependencies: details)
-                        // Opening it is what reads it, as in Mail. Doing this
-                        // on the destination rather than in the row's action
-                        // keeps it true however the screen was reached.
+                        // On the destination rather than the row's action,
+                        // so it holds however the screen was reached.
                         .task {
                             await notifications.markRead(id: record.id)
                         }
@@ -51,8 +48,8 @@ struct NotificationsView: View {
         .sheet(isPresented: $isPresentingSignIn) {
             SignInSheet(prompt: "Sign in to hear when the games you follow arrive.")
         }
-        // The root loads once per session, and never again; opening the tab is
-        // the way back from a failed load. An already-loaded list is left alone.
+        // The root loads once per session, so opening the tab is the way back
+        // from a failed load. An already-loaded list is left alone.
         .task {
             guard case .signedIn = session.state, notifications.state.records == nil else {
                 return
@@ -112,8 +109,8 @@ struct NotificationsView: View {
                 title: "No notifications yet",
                 description: "Save a game to your watchlist and we'll tell you when it's close."
             )
-            // An empty inbox is the state most likely to be pulled on, and the
-            // one with no list to pull.
+            // The state most likely to be pulled on, and the one with no
+            // list to pull.
             .refreshable {
                 await notifications.refresh()
             }
@@ -138,8 +135,8 @@ private struct NotificationsList: View {
     var body: some View {
         List {
             ForEach(records) { record in
-                // The record, not its title: opening one is what marks it
-                // read, and the destination needs to know which it was.
+                // The record, not its title: the destination marks it read
+                // and needs to know which it was.
                 NavigationLink(value: record) {
                     NotificationRow(record: record)
                 }
@@ -167,8 +164,6 @@ private struct NotificationsList: View {
 }
 
 private extension NotificationRecord {
-    /// The notification points at a title by id; the name is what the details
-    /// screen shows until its own request answers.
     var destination: TitleDestination {
         TitleDestination(id: destinationTitleID, name: titleName)
     }

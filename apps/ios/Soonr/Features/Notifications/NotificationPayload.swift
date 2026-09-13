@@ -39,12 +39,10 @@ extension NotificationPayload: Decodable {
     }
 }
 
-/// How a notification reads today, rather than on the day it was generated.
-///
-/// The server writes the sentence once and stores it: a row generated on
-/// release day still says "Releases today" a week later. Everything needed to
-/// say it correctly is in the payload, so the row says it itself and the
-/// server's copy is the fallback.
+/// The server writes its sentence once and stores it, so a row generated on
+/// release day still says "Releases today" a week later. The payload carries
+/// everything needed to say it correctly, and the server's copy is the
+/// fallback for a payload this build cannot read.
 enum NotificationCaption {
     static func text(
         for record: NotificationRecord,

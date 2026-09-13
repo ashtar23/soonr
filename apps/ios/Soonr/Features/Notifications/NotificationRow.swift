@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// One notification as a list row.
 struct NotificationRow: View {
     let record: NotificationRecord
     var now: Date = .now
@@ -18,9 +17,8 @@ struct NotificationRow: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                // The game, not the event: the server writes a category label
-                // ("Release approaching") into `message`, which would read the
-                // same on every row and never say which game it is about.
+                // The game, not the event: `message` is a category label
+                // ("Release approaching") that reads the same on every row.
                 Text(record.titleName)
                     .font(.subheadline)
                     .fontWeight(record.isRead ? .regular : .semibold)
@@ -39,7 +37,6 @@ struct NotificationRow: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
-    /// What the notification is about, then when it arrived.
     private var caption: String? {
         [
             NotificationCaption.text(for: record, now: now),

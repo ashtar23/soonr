@@ -17,8 +17,6 @@ enum SessionState: Equatable {
     }
 }
 
-/// App-wide session, created once at the app root and injected through the
-/// environment.
 @MainActor
 @Observable
 final class SessionStore {
@@ -64,10 +62,9 @@ final class SessionStore {
         }
     }
 
-    /// Waits for the server so the tap is acknowledged, but only briefly: the
-    /// result is discarded either way, so a slow one must not hold the user on
-    /// a screen they asked to leave. The request carries on in the background
-    /// if it loses the race.
+    /// Waits for the server only briefly: the result is discarded either way,
+    /// so a slow one must not hold the user on a screen they asked to leave.
+    /// The request carries on if it loses the race.
     func signOut() async {
         isSigningOut = true
         defer { isSigningOut = false }
