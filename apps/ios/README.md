@@ -157,7 +157,8 @@ Included:
   states
 - Email and password sign-in through Supabase, with session restore and sign out
 - Authenticated requests to `apps/api`
-- Skeleton account creation and settings routes
+- Notifications with read state, an unread badge, and delivery preferences
+- Skeleton settings routes
 - Swift Testing coverage for tabs, search and details models, API requests,
   response decoding, and release-date formatting
 

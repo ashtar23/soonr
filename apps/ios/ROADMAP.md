@@ -179,6 +179,38 @@ Deferred:
 - attributing a 409 to the email or the username, which needs the API to send
   the reason it already has
 
+### Slice 8: Notifications
+
+- the list, with signed-out, loading, empty, failure and refresh states
+- opening one marks it read; swiping a row does too; the bell carries what is
+  left, from the store that owns the list, so the two cannot disagree
+- unread is a faint tint of the accent across the row, plus a semibold title,
+  rather than a dot in a reserved column that indented every read row
+- preferences: delivery, which events, and how far ahead, saved as they are
+  changed
+- `TitleDestination` so a notification can open a game it only knows the id
+  and name of
+
+**The server writes the copy, and it writes a label.** `message` is a category
+("Release approaching") that reads the same on every row; the detail lives in
+`subtitle` and the game in `titleName`. A row leading with `message` never says
+which game it is about.
+
+**That copy is frozen at generation time.** A row generated on release day
+still says "Releases today" a week later; only the timestamp caption tells the
+reader otherwise. The generator already stores the target date and preset in
+`payload`, so rendering the sentence client-side would fix it — an API-side
+decision, not taken here.
+
+Deferred:
+
+- marking something unread: the API has five notification endpoints and none
+  of them can clear `read_at`
+- push, which no part of the stack can deliver, so the screen does not offer
+  the switch
+- `release_date_changed` notifications, which nothing generates yet
+- `nextCursor` paging
+
 ## Planned
 
 ### Comment cleanup
@@ -190,12 +222,11 @@ where the reason is non-obvious — platform behaviour that surprised us,
 they restate the code. Do this as its own pass, so it never hides inside a
 feature diff.
 
-### Slice 8: Notifications
+### Push and realtime delivery
 
-- notification list and unread state
-- mark-as-read behavior
-- preferences
-- realtime or push delivery only after the HTTP flow is stable
+Its own slice, not a leftover of Slice 8. Nothing in the stack sends a push
+today: no APNs credentials, no device-token storage, no send path. It needs
+work in `apps/api` as much as here, which is why it was never in scope above.
 
 ### Slice 9: Production hardening
 
