@@ -23,13 +23,12 @@ enum PushEnvironment: String, Codable, Sendable {
     case sandbox
     case production
 
-    /// `aps-environment` is `development` in a debug build and `production`
-    /// in any distributed one, and `DEBUG` tracks the same split.
+    /// Read from the signed entitlement rather than inferred from a build
+    /// flag, because the two disagree: a Staging build run from Xcode is still
+    /// development-signed, so it holds a sandbox token while `DEBUG` is
+    /// undefined. Claiming production for it would have APNs answer
+    /// `BadDeviceToken`, which delivery treats as a dead device and deletes.
     static var current: PushEnvironment {
-        #if DEBUG
-            .sandbox
-        #else
-            .production
-        #endif
+        ProvisioningProfile.apsEnvironment() ?? .sandbox
     }
 }
