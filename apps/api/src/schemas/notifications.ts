@@ -101,3 +101,30 @@ export const UpdateNotificationPreferencesBodySchema = Type.Object({
   }),
   timingPresets: Type.Array(NotificationTimingPresetSchema),
 });
+
+const DevicePlatformSchema = Type.Literal("ios");
+
+const DeviceEnvironmentSchema = Type.Union([
+  Type.Literal("sandbox"),
+  Type.Literal("production"),
+]);
+
+export const DeviceSchema = Type.Object({
+  token: Type.String(),
+  platform: DevicePlatformSchema,
+  environment: DeviceEnvironmentSchema,
+});
+
+export const DeviceRegistrationBodySchema = DeviceSchema;
+
+export const DeviceParamsSchema = Type.Object({
+  token: Type.String(),
+});
+
+export const DeviceRegistrationResultSchema = Type.Object({
+  device: DeviceSchema,
+});
+
+export const DeviceRemovedResultSchema = Type.Object({
+  removed: Type.Boolean(),
+});

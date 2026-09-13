@@ -6,6 +6,11 @@ import type {
 } from "@repo/types";
 
 import {
+  DeviceTokenValidationError,
+  registerDeviceToken,
+  unregisterDeviceToken,
+} from "../lib/push-devices";
+import {
   getNotificationPreferences,
   getNotificationUnreadCount,
   listNotificationRecords,
@@ -15,6 +20,10 @@ import {
 } from "../lib/notifications";
 import { ErrorResponseSchema } from "../schemas/common";
 import {
+  DeviceParamsSchema,
+  DeviceRegistrationBodySchema,
+  DeviceRegistrationResultSchema,
+  DeviceRemovedResultSchema,
   MarkAllNotificationsReadResultSchema,
   MarkNotificationReadResultSchema,
   NotificationPreferencesResultSchema,
@@ -249,6 +258,98 @@ export function registerNotificationRoutes(server: FastifyInstance) {
       try {
         return await updateNotificationPreferences(user.id, payload);
       } catch (error) {
+        return sendInternalServerError(server, reply, error);
+      }
+    },
+  );
+
+  server.put<{
+    Body: Static<typeof DeviceRegistrationBodySchema>;
+  }>(
+    "/notifications/devices",
+    {
+      schema: {
+        tags: ["notifications"],
+        summary: "Register a device for push notifications",
+        security: [{ bearerAuth: [] }],
+        body: DeviceRegistrationBodySchema,
+        response: {
+          200: DeviceRegistrationResultSchema,
+          400: ErrorResponseSchema,
+          401: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const user = await authenticateRouteRequest(
+        server,
+        reply,
+        request.headers.authorization,
+      );
+      if (!user) {
+        return;
+      }
+
+      try {
+        const device = await registerDeviceToken({
+          userId: user.id,
+          token: request.body.token,
+          platform: request.body.platform,
+          environment: request.body.environment,
+        });
+
+        return { device };
+      } catch (error) {
+        if (error instanceof DeviceTokenValidationError) {
+          return reply.status(400).send({ error: error.message });
+        }
+
+        return sendInternalServerError(server, reply, error);
+      }
+    },
+  );
+
+  server.delete<{
+    Params: Static<typeof DeviceParamsSchema>;
+  }>(
+    "/notifications/devices/:token",
+    {
+      schema: {
+        tags: ["notifications"],
+        summary: "Stop sending push notifications to a device",
+        security: [{ bearerAuth: [] }],
+        params: DeviceParamsSchema,
+        response: {
+          200: DeviceRemovedResultSchema,
+          400: ErrorResponseSchema,
+          401: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const user = await authenticateRouteRequest(
+        server,
+        reply,
+        request.headers.authorization,
+      );
+      if (!user) {
+        return;
+      }
+
+      try {
+        const removed = await unregisterDeviceToken({
+          userId: user.id,
+          token: request.params.token,
+        });
+
+        return { removed };
+      } catch (error) {
+        if (error instanceof DeviceTokenValidationError) {
+          return reply.status(400).send({ error: error.message });
+        }
+
         return sendInternalServerError(server, reply, error);
       }
     },

@@ -252,6 +252,12 @@ psql "<railway-postgres-connection-string>" -f apps/api/sql/phase1-notifications
 That schema file now also installs the notifications realtime trigger functions
 and triggers required by the hosted websocket stream.
 
+4. apply the push device schema SQL before registering devices for push
+
+```bash
+psql "<railway-postgres-connection-string>" -f apps/api/sql/phase2-push-device-tokens-schema.sql
+```
+
 If you want hosted notification generation to run against real watchlist data,
 also apply the watchlists schema bootstrap first:
 
