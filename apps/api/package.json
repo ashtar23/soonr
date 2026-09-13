@@ -12,6 +12,7 @@
     "sync:catalog": "tsx src/sync-catalog.ts",
     "evaluate:search": "tsx src/evaluate-search.ts",
     "lint": "eslint . --max-warnings 0",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {

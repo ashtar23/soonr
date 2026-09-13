@@ -1,0 +1,57 @@
+name: API CI
+run-name: API CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "packages/**"
+      - ".github/workflows/api-ci.yml"
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "apps/api/**"
+      - "packages/**"
+      - ".github/workflows/api-ci.yml"
+
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # src/lib/env.ts validates at import time, so the suite needs a value to
+      # load at all. Nothing here connects: every test injects its own data.
+      DATABASE_URL: postgres://api:api@localhost:5432/soonr_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter api check-types
+
+      - name: Lint
+        run: pnpm --filter api lint
+
+      - name: Test
+        run: pnpm --filter api test
