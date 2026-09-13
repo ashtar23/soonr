@@ -263,6 +263,124 @@ struct NotificationsStoreTests {
         #expect(await notifications.loads == 1)
     }
 
+    // MARK: - Paging
+
+    @Test
+    func theSecondPageIsAppendedBelowTheFirst() async {
+        let second = NotificationRecord.unread(id: "notification-9")
+        let notifications = StubNotifications(
+            records: [.unread],
+            unreadCount: 1,
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [second], nextCursor: nil)]
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        #expect(store.hasMore)
+
+        await store.loadMore()
+
+        #expect(store.state.records?.map(\.id) == ["notification-1", "notification-9"])
+        #expect(await notifications.cursorsAsked == [nil, "cursor-2"])
+    }
+
+    /// The end of the list is what takes the trigger off screen.
+    @Test
+    func thereIsNoMoreToLoadOnceTheServerSaysSo() async {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(notifications: notifications)
+
+        await store.load()
+
+        #expect(store.hasMore == false)
+        await store.loadMore()
+        #expect(await notifications.loads == 1)
+    }
+
+    @Test
+    func nothingIsLoadedBeforeTheFirstPageHasArrived() async {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(notifications: notifications)
+
+        #expect(store.hasMore == false)
+        await store.loadMore()
+
+        #expect(await notifications.loads == 0)
+    }
+
+    /// A fast scroll asks repeatedly; the server should hear it once.
+    @Test
+    func overlappingRequestsForTheSamePageAreOne() async {
+        let notifications = StubNotifications(
+            records: [.unread],
+            unreadCount: 1,
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [], nextCursor: "cursor-3")]
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+
+        // Both start before either finishes, which is what a fast scroll does.
+        async let first: Void = store.loadMore()
+        async let second: Void = store.loadMore()
+        async let third: Void = store.loadMore()
+        _ = await (first, second, third)
+
+        // One first page, one second page.
+        #expect(await notifications.loads == 2)
+    }
+
+    /// A page that fails leaves the rows already on screen alone: reaching the
+    /// bottom again is the retry.
+    @Test
+    func afailedPageKeepsWhatIsAlreadyLoaded() async {
+        let notifications = StubNotifications(
+            records: [.unread],
+            unreadCount: 1,
+            failingLoads: 0,
+            firstPageCursor: "cursor-2"
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.failNextLoad()
+
+        await store.loadMore()
+
+        #expect(store.state.records?.map(\.id) == ["notification-1"])
+        #expect(store.hasMore)
+    }
+
+    /// The reason paging and realtime had to be designed together: answering a
+    /// change must not discard the pages already scrolled through.
+    @Test
+    func achangeFromElsewhereKeepsLoadedPagesAndPutsTheNewRowOnTop() async throws {
+        let older = NotificationRecord.unread(id: "notification-0")
+        let notifications = StubNotifications(
+            records: [.unread],
+            unreadCount: 1,
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [older], nextCursor: nil)]
+        )
+        let store = NotificationsStore(notifications: notifications, refreshDelay: .zero)
+        await store.load()
+        await store.loadMore()
+        #expect(store.state.records?.map(\.id) == ["notification-1", "notification-0"])
+
+        // The server now reports a change, and its first page leads with a new row.
+        let arrived = NotificationRecord.unread(id: "notification-2")
+        await notifications.setFirstPage([arrived, .unread])
+        let loads = await notifications.loadEvents()
+        await store.changedRemotely()
+
+        for await _ in loads { break }
+        await settle()
+        #expect(
+            store.state.records?.map(\.id) == [
+                "notification-2", "notification-1", "notification-0",
+            ]
+        )
+    }
+
     /// Proving something does *not* happen needs a bounded wait; everything
     /// else in this suite awaits the event itself.
     private func settle(for duration: Duration = .milliseconds(60)) async {
@@ -275,10 +393,15 @@ private actor StubNotifications: NotificationsReading {
     private(set) var markedAll = 0
     private(set) var loads = 0
 
-    private let records: [NotificationRecord]
+    private var records: [NotificationRecord]
     private let count: Int
     private let failingMutations: Bool
     private let markAllResult: Int
+    /// Pages served in order for cursored requests; the first page still comes
+    /// from `records`.
+    private var laterPages: [Page<NotificationRecord>]
+    private(set) var cursorsAsked: [String?] = []
+    private var firstPageCursor: String?
     private var failingLoads: Int
     private var loadSignal: AsyncStream<Void>.Continuation?
 
@@ -287,8 +410,12 @@ private actor StubNotifications: NotificationsReading {
         unreadCount: Int = 0,
         failingLoads: Int = 0,
         failingMutations: Bool = false,
-        markAllResult: Int = 0
+        markAllResult: Int = 0,
+        firstPageCursor: String? = nil,
+        laterPages: [Page<NotificationRecord>] = []
     ) {
+        self.firstPageCursor = firstPageCursor
+        self.laterPages = laterPages
         self.records = records
         count = unreadCount
         self.failingLoads = failingLoads
@@ -304,8 +431,9 @@ private actor StubNotifications: NotificationsReading {
         return stream
     }
 
-    func notifications(after _: String?) async throws -> Page<NotificationRecord> {
+    func notifications(after cursor: String?) async throws -> Page<NotificationRecord> {
         loads += 1
+        cursorsAsked.append(cursor)
         loadSignal?.yield()
 
         if failingLoads > 0 {
@@ -313,7 +441,23 @@ private actor StubNotifications: NotificationsReading {
             throw URLError(.notConnectedToInternet)
         }
 
-        return Page(items: records)
+        if cursor != nil, laterPages.isEmpty == false {
+            return laterPages.removeFirst()
+        }
+
+        return Page(items: records, nextCursor: firstPageCursor)
+    }
+
+    func serveNext(_ page: Page<NotificationRecord>) {
+        laterPages.append(page)
+    }
+
+    func failNextLoad() {
+        failingLoads += 1
+    }
+
+    func setFirstPage(_ replacement: [NotificationRecord]) {
+        records = replacement
     }
 
     func unreadNotificationCount() async throws -> Int {
@@ -341,6 +485,22 @@ private actor StubNotifications: NotificationsReading {
 }
 
 extension NotificationRecord {
+    /// The same row under another id, for tests about order and identity.
+    static func unread(id: String) -> NotificationRecord {
+        NotificationRecord(
+            id: id,
+            eventType: unread.eventType,
+            destinationTitleID: unread.destinationTitleID,
+            titleName: unread.titleName,
+            titleArtworkURL: unread.titleArtworkURL,
+            message: unread.message,
+            subtitle: unread.subtitle,
+            payload: unread.payload,
+            createdAt: unread.createdAt,
+            readAt: nil
+        )
+    }
+
     static let unread = NotificationRecord(
         id: "notification-1",
         eventType: .releaseApproaching,

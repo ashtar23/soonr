@@ -163,9 +163,36 @@ private struct NotificationsList: View {
                     }
                 }
             }
+
+            // A row of its own rather than an `.onAppear` on the last record:
+            // the trigger then does not depend on which record happens to be
+            // last, and it survives the list changing underneath it.
+            //
+            // Deliberately no `.id()` anywhere in this List: an explicit
+            // identifier on a ForEach child makes List build every row eagerly
+            // instead of lazily, which is the one thing that would undo paging.
+            if notifications.hasMore {
+                LoadingMoreRow()
+                    .task {
+                        await notifications.loadMore()
+                    }
+            }
         }
         .listStyle(.plain)
         .accessibilityLabel("Notifications")
+    }
+}
+
+/// The last row, which asks for the next page by appearing.
+private struct LoadingMoreRow: View {
+    var body: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+            Spacer()
+        }
+        .listRowSeparator(.hidden)
+        .accessibilityLabel("Loading more notifications")
     }
 }
 
