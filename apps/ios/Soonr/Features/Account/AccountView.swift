@@ -44,9 +44,8 @@ struct AccountView: View {
     }
 }
 
-/// Says what an account is for, rather than presenting bare buttons on an
-/// empty screen. Creating an account lives inside the sign-in sheet, so this
-/// screen carries a single action.
+/// Creating an account lives inside the sign-in sheet, so this screen carries
+/// a single action.
 private struct SignedOutAccount: View {
     let signIn: () -> Void
 

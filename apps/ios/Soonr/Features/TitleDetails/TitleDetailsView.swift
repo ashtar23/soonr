@@ -69,10 +69,9 @@ struct TitleDetailsView: View {
         }
     }
 
-    /// Looks the same signed in or out, so a guest browsing is never nagged;
-    /// the tap is what asks them to sign in. Its state comes from the shared
-    /// store, so arriving from the watchlist shows a filled bookmark on the
-    /// first frame instead of after this screen's own request answers.
+    /// Looks the same signed in or out, so a guest is never nagged; the tap
+    /// is what asks them to sign in. Its state comes from the shared store, so
+    /// arriving from the watchlist shows a filled bookmark on the first frame.
     private var watchlistButton: some View {
         Button {
             watchlistTapped()

@@ -21,10 +21,8 @@ enum TitleDetailsState: Equatable {
 final class TitleDetailsModel {
     let destination: TitleDestination
     private(set) var state: TitleDetailsState = .loading
-    /// What the server says about this title, which is authoritative even when
-    /// the watchlist list itself is stale or was never loaded. `nil` until a
-    /// load succeeds. The button reads the shared store instead, so the tab and
-    /// this screen cannot disagree.
+    /// Authoritative for this one title even when the list is stale or was
+    /// never loaded. `nil` until a load succeeds.
     private(set) var serverMembership: Bool?
 
     @ObservationIgnored private let titleDetails: any TitleDetailsLoading
@@ -34,15 +32,14 @@ final class TitleDetailsModel {
         self.titleDetails = titleDetails
     }
 
-    /// The full title, known only once the server answers. The watchlist needs
-    /// it to show a row for a game the list has never seen, which is why saving
-    /// waits for a successful load.
+    /// Known only once the server answers. The watchlist needs it to show a
+    /// row for a game the list has never seen, so saving waits for a load.
     var summary: TitleSummary? {
         state.details?.summary
     }
 
-    /// Loads details once; repeated calls after a successful load are ignored
-    /// so returning to the screen does not refetch.
+    /// Ignores repeated calls after a successful load, so returning to the
+    /// screen does not refetch.
     func load() async {
         if case .loaded = state {
             return

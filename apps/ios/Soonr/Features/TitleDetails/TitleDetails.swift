@@ -1,8 +1,7 @@
 import Foundation
 
-/// A title's details together with the viewer's relationship to it. The API
-/// returns `isInWatchlist` beside `details`, so the watchlist button costs no
-/// second request.
+/// The API returns `isInWatchlist` beside `details`, so the watchlist button
+/// costs no second request.
 struct TitleDetailsResult: Decodable, Equatable, Sendable {
     let details: TitleDetails
     /// Decided by the server from the bearer token, so always `false` for a

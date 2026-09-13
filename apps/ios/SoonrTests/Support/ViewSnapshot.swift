@@ -4,35 +4,30 @@ import SwiftUI
 import Testing
 import UIKit
 
-/// Renders a SwiftUI view to an image and compares it with a committed
-/// reference, which catches layout regressions that assertions on model state
-/// cannot see: a row whose artwork overflows its frame still passes every
-/// deterministic test we have.
+/// Catches layout regressions that assertions on model state cannot see: a row
+/// whose artwork overflows its frame passes every other test we have.
 ///
-/// References live in `__Snapshots__` next to the test that records them, found
+/// References live in `__Snapshots__` beside the test that records them, found
 /// through `#filePath` rather than the test bundle, so recording writes where
 /// git can see it.
 enum ViewSnapshot {
-    /// References are recorded on one iOS major version. Text metrics, system
-    /// colours, and corner rendering all change between versions, so a
-    /// reference recorded elsewhere would fail for reasons that have nothing to
-    /// do with our layout. The iOS 17 compatibility run skips these suites.
+    /// Text metrics, system colours and corner rendering all change between
+    /// iOS versions, so a reference recorded elsewhere fails for reasons that
+    /// have nothing to do with our layout.
     static let pinnedMajorVersion = 26
 
     static var isPinnedRuntime: Bool {
         ProcessInfo.processInfo.operatingSystemVersion.majorVersion == pinnedMajorVersion
     }
 
-    /// Release dates are formatted through `Locale.autoupdatingCurrent`, which
-    /// the view gives us no way to override, so "Jan 5, 2026" only holds in one
-    /// locale. Simulators default to en_US, which is also what CI runs, but a
-    /// simulator set to another region skips these suites rather than failing
-    /// on a date format that is correct.
+    /// Release dates format through `Locale.autoupdatingCurrent`, which the
+    /// view gives no way to override, so "Jan 5, 2026" holds in one locale
+    /// only. Another region skips these suites rather than failing on a date
+    /// format that is correct.
     static var isPinnedLocale: Bool {
         Locale.current.identifier.hasPrefix("en_US")
     }
 
-    /// Snapshot suites run only where their references are valid.
     static var isSupported: Bool {
         isPinnedRuntime && isPinnedLocale
     }
@@ -44,15 +39,11 @@ enum ViewSnapshot {
         ProcessInfo.processInfo.environment["SOONR_RECORD_SNAPSHOTS"] == "1"
     }
 
-    /// A pixel counts as different when any channel moves by more than this.
     /// Antialiasing along glyph edges shifts a channel by a few units between
     /// minor iOS releases; a layout change moves whole blocks of pixels.
     private static let channelTolerance = 16
-    /// The share of pixels allowed to differ before the snapshot fails.
     private static let differingPixelTolerance = 0.01
 
-    /// Renders `view` at a fixed size and scale and compares it with the
-    /// reference named `name`.
     @MainActor
     static func expect<V: View>(
         _ view: V,
@@ -160,9 +151,8 @@ enum ViewSnapshot {
         return data
     }
 
-    /// Compares two images pixel by pixel after drawing both into the same
-    /// bitmap layout, so the comparison never depends on how either image
-    /// happens to be stored.
+    /// Draws both into the same bitmap layout first, so the comparison never
+    /// depends on how either image happens to be stored.
     private static func compare(_ image: CGImage, _ reference: CGImage) throws -> Difference {
         guard image.width == reference.width, image.height == reference.height else {
             return Difference(

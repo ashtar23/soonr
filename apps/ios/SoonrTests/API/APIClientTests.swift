@@ -36,8 +36,8 @@ struct APIClientTests {
         #expect(created.item.id == "watchlist-1")
     }
 
-    /// A GET must not acquire a body or a content type from the refactor that
-    /// introduced writes.
+    /// A GET must not have picked up a body or a content type from the
+    /// refactor that introduced writes.
     @Test
     func getStillSendsNoBody() async throws {
         let transport = StubTransport(.json(200, #"{"item":{"id":"1"}}"#))
