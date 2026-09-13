@@ -240,10 +240,12 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = C10000000000000000000031 /* Debug.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Soonr/Soonr.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = ZP5VQ274FF;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -275,9 +277,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = C10000000000000000000033 /* Release.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Soonr/Soonr.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = ZP5VQ274FF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Configurations/Info.plist;
@@ -365,9 +369,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = C10000000000000000000032 /* Staging.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Soonr/Soonr.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = ZP5VQ274FF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Configurations/Info.plist;
