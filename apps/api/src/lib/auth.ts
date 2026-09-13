@@ -1,3 +1,6 @@
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
+import type { AuthError, UserResponse } from "@supabase/supabase-js";
+
 import { getPostgresPool } from "./postgres";
 import { getSupabaseAdmin } from "./supabase";
 import { normalizeAuthEmail } from "./auth-service";
@@ -22,30 +25,69 @@ export function extractAccessToken(
   return token ? token : null;
 }
 
-export async function authenticateAccessToken(accessToken: string) {
-  const {
-    data: { user },
-    error,
-  } = await getSupabaseAdmin().auth.getUser(accessToken);
-
-  if (error || !user) {
-    return null;
-  }
-
-  return user;
+/**
+ * Tells "this token is not valid" apart from "the auth service could not be
+ * asked". Only the first says anything about the caller, and answering the
+ * second with a 401 signs people out over someone else's outage.
+ *
+ * auth-js raises a retryable fetch error for network failures and for 502, 503
+ * and 504; a plain 500 arrives as an ordinary API error, so status is checked
+ * as well.
+ */
+export function isAuthServiceUnavailable(error: AuthError) {
+  return isAuthRetryableFetchError(error) || (error.status ?? 0) >= 500;
 }
 
-export async function fetchAuthUserById(userId: string) {
+export interface AccessTokenVerifier {
+  getUser: (accessToken: string) => Promise<UserResponse>;
+}
+
+export async function authenticateAccessToken(
+  accessToken: string,
+  verifier: AccessTokenVerifier = {
+    getUser: (token) => getSupabaseAdmin().auth.getUser(token),
+  },
+) {
   const {
     data: { user },
     error,
-  } = await getSupabaseAdmin().auth.admin.getUserById(userId);
+  } = await verifier.getUser(accessToken);
 
-  if (error || !user) {
+  if (error) {
+    if (isAuthServiceUnavailable(error)) {
+      throw error;
+    }
+
     return null;
   }
 
-  return user;
+  return user ?? null;
+}
+
+export interface AuthUserLookup {
+  getUserById: (userId: string) => Promise<UserResponse>;
+}
+
+export async function fetchAuthUserById(
+  userId: string,
+  lookup: AuthUserLookup = {
+    getUserById: (id) => getSupabaseAdmin().auth.admin.getUserById(id),
+  },
+) {
+  const {
+    data: { user },
+    error,
+  } = await lookup.getUserById(userId);
+
+  if (error) {
+    if (isAuthServiceUnavailable(error)) {
+      throw error;
+    }
+
+    return null;
+  }
+
+  return user ?? null;
 }
 
 export async function createAuthUser(params: {
