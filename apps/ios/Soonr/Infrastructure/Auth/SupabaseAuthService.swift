@@ -25,8 +25,15 @@ struct SupabaseAuthService: Authenticating {
         return UserSession(session)
     }
 
+    /// A missing session here is why an authenticated request goes out without
+    /// a token, so it is worth saying out loud rather than swallowing.
     func accessToken() async -> String? {
-        try? await client.session.accessToken
+        do {
+            return try await client.session.accessToken
+        } catch {
+            AppLog.auth.error("No access token: \(error)")
+            return nil
+        }
     }
 
     func signIn(email: String, password: String) async throws -> UserSession {

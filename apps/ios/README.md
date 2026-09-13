@@ -80,6 +80,14 @@ xcodebuild \
   test
 ```
 
+**Do not install a `CODE_SIGNING_ALLOWED=NO` build to try the app.** It is fine
+for checking that the code compiles, which is all CI uses it for, but the
+resulting app has no Keychain entitlement. Supabase stores the session in the
+Keychain, so signing in appears to work while nothing is saved: every
+authenticated request then goes out with no token and comes back 401, and the
+session is gone on the next launch. Build without that flag before installing
+to a simulator, or run from Xcode.
+
 ### Snapshot tests
 
 `SoonrTests/Support/ViewSnapshot.swift` renders design-system views with
