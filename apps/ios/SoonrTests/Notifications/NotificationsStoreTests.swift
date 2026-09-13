@@ -216,6 +216,7 @@ extension NotificationRecord {
         titleArtworkURL: nil,
         message: "Hades arrives in 7 days.",
         subtitle: "Coming soon",
+        payload: .releaseApproaching(targetReleaseDate: "2026-01-10"),
         createdAt: "2026-01-03T10:00:00.000Z",
         readAt: nil
     )
@@ -228,6 +229,7 @@ extension NotificationRecord {
         titleArtworkURL: nil,
         message: "Grand Theft Auto VI moved to Nov 19, 2026.",
         subtitle: nil,
+        payload: .releaseDateChanged(nextReleaseDate: "2026-11-19"),
         createdAt: "2026-01-02T10:00:00.000Z",
         readAt: "2026-01-02T12:00:00.000Z"
     )

@@ -53,6 +53,9 @@ extension NotificationRecord {
         titleArtworkURL: nil,
         message: "Release approaching",
         subtitle: "Releases in 7 days on January 5, 2026",
+        payload: .releaseApproaching(
+            targetReleaseDate: TitleSummary.previewUpcoming.earliestReleaseDate
+        ),
         createdAt: ISO8601DateFormatter().string(from: .now.addingTimeInterval(-2 * 60 * 60)),
         readAt: nil
     )
@@ -65,6 +68,7 @@ extension NotificationRecord {
         titleArtworkURL: nil,
         message: "Release date changed",
         subtitle: "Now releases Nov 19, 2026",
+        payload: .releaseDateChanged(nextReleaseDate: "2026-11-19"),
         createdAt: ISO8601DateFormatter().string(from: .now.addingTimeInterval(-3 * 24 * 60 * 60)),
         readAt: ISO8601DateFormatter().string(from: .now.addingTimeInterval(-2 * 24 * 60 * 60))
     )

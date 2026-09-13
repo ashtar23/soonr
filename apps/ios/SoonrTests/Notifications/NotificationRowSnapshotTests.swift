@@ -71,6 +71,7 @@ private extension NotificationRecord {
         titleArtworkURL: nil,
         message: "Release approaching",
         subtitle: "Releases in 7 days on September 15, 2026",
+        payload: .releaseApproaching(targetReleaseDate: "2026-01-08"),
         createdAt: "2026-01-01T10:00:00.000Z",
         readAt: nil
     )
@@ -84,6 +85,7 @@ private extension NotificationRecord {
         titleArtworkURL: nil,
         message: "Release date changed",
         subtitle: nil,
+        payload: .releaseDateChanged(nextReleaseDate: "2026-11-19"),
         createdAt: "2025-12-20T12:00:00.000Z",
         readAt: "2025-12-20T14:00:00.000Z"
     )

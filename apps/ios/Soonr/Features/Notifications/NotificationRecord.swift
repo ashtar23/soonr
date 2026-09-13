@@ -17,6 +17,9 @@ struct NotificationRecord: Decodable, Hashable, Sendable, Identifiable {
     let titleArtworkURL: URL?
     let message: String
     let subtitle: String?
+    /// What the event was about, in data. The server also writes a sentence
+    /// about it, but that sentence is frozen at the moment it was generated.
+    let payload: NotificationPayload
     let createdAt: String
     let readAt: String?
 
@@ -32,6 +35,7 @@ struct NotificationRecord: Decodable, Hashable, Sendable, Identifiable {
         case titleArtworkURL = "titleArtworkUrl"
         case message
         case subtitle
+        case payload
         case createdAt
         case readAt
     }
@@ -48,6 +52,7 @@ extension NotificationRecord {
             titleArtworkURL: other.titleArtworkURL,
             message: other.message,
             subtitle: other.subtitle,
+            payload: other.payload,
             createdAt: other.createdAt,
             readAt: readAt
         )

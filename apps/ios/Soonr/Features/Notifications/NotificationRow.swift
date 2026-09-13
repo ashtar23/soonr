@@ -39,13 +39,15 @@ struct NotificationRow: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
-    /// What happened and when. `subtitle` carries the detail ("Releases
-    /// today"); `message` is the fallback for an event that has none.
+    /// What the notification is about, then when it arrived.
     private var caption: String? {
-        [record.subtitle ?? record.message, NotificationTimestamp.text(record.createdAt, now: now)]
-            .compactMap { $0 }
-            .joined(separator: " · ")
-            .nilWhenEmpty
+        [
+            NotificationCaption.text(for: record, now: now),
+            NotificationTimestamp.text(record.createdAt, now: now),
+        ]
+        .compactMap { $0 }
+        .joined(separator: " · ")
+        .nilWhenEmpty
     }
 
     private var accessibilityLabel: String {
