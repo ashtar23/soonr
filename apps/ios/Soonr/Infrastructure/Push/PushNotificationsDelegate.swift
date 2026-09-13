@@ -86,8 +86,13 @@ final class PushNotificationsDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
-extension PushNotificationsDelegate: UNUserNotificationCenterDelegate {
-    nonisolated func userNotificationCenter(
+// `@preconcurrency`, not `nonisolated`: UIKit finishes this delegate's work
+// inside a CATransaction commit and asserts if that happens off the main
+// thread. Marking the methods nonisolated to satisfy Swift 6's Sendable
+// checking moved them to a background executor, and tapping a notification
+// crashed the app.
+extension PushNotificationsDelegate: @preconcurrency UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
@@ -97,7 +102,7 @@ extension PushNotificationsDelegate: UNUserNotificationCenterDelegate {
     /// Shown even with Soonr open. The list behind it is not necessarily on
     /// screen, so suppressing it would drop the only sign that anything
     /// arrived.
-    nonisolated func userNotificationCenter(
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
