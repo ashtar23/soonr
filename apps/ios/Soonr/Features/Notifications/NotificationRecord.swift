@@ -36,6 +36,23 @@ struct NotificationRecord: Decodable, Equatable, Sendable, Identifiable {
     }
 }
 
+extension NotificationRecord {
+    /// The same notification with a different read state.
+    init(_ other: NotificationRecord, readAt: String?) {
+        self.init(
+            id: other.id,
+            eventType: other.eventType,
+            destinationTitleID: other.destinationTitleID,
+            titleName: other.titleName,
+            titleArtworkURL: other.titleArtworkURL,
+            message: other.message,
+            subtitle: other.subtitle,
+            createdAt: other.createdAt,
+            readAt: readAt
+        )
+    }
+}
+
 extension NotificationRecord.EventType: Decodable {
     /// A new event type must not fail the whole list.
     init(from decoder: any Decoder) throws {
