@@ -273,6 +273,36 @@ alternative is a drift check that decodes spec examples in tests.
 Feature models keep depending on narrow protocols even if their live
 implementation later uses a generated client.
 
+## Paging
+
+`Page` is one response's worth; `PagedList` is the accumulated pages, as a
+plain value with no notion of any feature. Both lists use it, and the rules
+that matter are cost rules:
+
+- membership is a `Set`, so loading page *n* does not cost *n* passes over what
+  is already held
+- nothing rebuilds the array wholesale — `List` diffs on identity, so appending
+  costs work for new rows only, while a freshly built array is a full diff and
+  a lost scroll position
+- no `.id()` on a `ForEach` child, ever: it makes `List` build every row
+  eagerly, which is the entire cost of paging paid at once
+
+**Identity is the list's, not the domain's.** `PagedList` dedupes on
+`Identifiable`. A watchlist entry is identified by the entry but removed by the
+title it holds, and a title saved locally carries a stand-in id until the
+server answers — so the store bridges that gap rather than the value type
+guessing at it. Removal takes a predicate for the same reason.
+
+**Cursors are anchored to a row's own values, not to an offset.** Deleting the
+row a cursor was made from does not move where the next page starts, and rows
+arriving at the top do not shift a deeper cursor. That is what lets a realtime
+change reload only the first page and leave `nextCursor` alone.
+
+**Ordering is an assumption, not a given.** Putting new rows on top is correct
+only while the server's order is newest-first, which it is for both lists
+today. A sort option would invalidate it — see the roadmap, which records what
+breaks before anyone builds it.
+
 ## Decision record: counting realtime echoes
 
 **Context.** `notification_records_realtime_trigger` is an `after insert or

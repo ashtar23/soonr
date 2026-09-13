@@ -268,13 +268,83 @@ Deferred:
   the HTTP path; a background socket is a bad place to sign someone out from
 - `nextCursor` paging, now Slice 12
 
-## Planned
-
 ### Slice 12: Paging
 
-Both the notifications list and the watchlist fetch the first page and drop
-`nextCursor`. Realtime makes it sooner rather than later: the list now grows
-while it is on screen. One pattern, established once, used by both.
+Both lists fetch a page at a time and load the next when the last row comes
+into view. On staging that was 20 of 84 notifications and 20 of 48 saved
+titles reachable.
+
+- `Page` and `PagedList`: the accumulated pages as a plain value, with
+  membership held as a set so loading page _n_ does not cost _n_ passes over
+  what is already held
+- a realtime change reloads the first page and merges it — rows still present
+  are updated where they stand, new ones go on top, deeper pages and the
+  reader's place in them are untouched
+- a request in flight blocks a second, so a fast scroll asks once
+- a failed page is silent: the rows on screen are still good and reaching the
+  bottom again retries
+
+**Cursors are anchored to a row's own values rather than to an offset.** That
+is what lets a reloaded first page leave `nextCursor` alone, and what makes
+removing a row safe: deleting the row a cursor was made from does not move
+where the next page starts. Offset paging would break on both.
+
+**Identity is the list's, not the domain's.** `PagedList` dedupes on
+`Identifiable`, which is correct generically and blind to the watchlist, where
+an entry is identified by the entry and removed by the title it holds — and
+where a title saved locally carries a stand-in id until the server answers.
+That showed a title twice in two different ways, both caught by tests rather
+than by use.
+
+**A page cap was planned and then dropped.** Trimming loaded pages would need
+the cursor of each to restore them, plus placeholders and a fetch on scrolling
+back. Measured against it: a notification record averages 399 bytes, so 20,000
+of them is 7.6 MB and anything realistic is well under one. `List` recycles
+row views and artwork is already requested at a row-sized resize, so neither
+grows with the array. The complexity bought nothing.
+
+### Slice 12.5: Back to the top in one tap
+
+Tapping the tab already showing scrolls its list to the top. iOS does this
+itself, but by animating towards an offset it estimates, and lazily laid out
+rows correct those estimates mid-animation — so a long list stopped short and
+took several taps. Scrolling to a view instead needs no height known ahead.
+
+The anchor sits above the rows rather than on one: an identifier on a `ForEach`
+child makes `List` build every row eagerly, which on a paged list is the whole
+cost of paging paid at once.
+
+The re-tap only scrolls, and deliberately does not also pop the navigation
+stack the way the system apps do: selecting a tab cannot be told apart from a
+push notification setting the selection in code, one line after putting its
+destination on the path, so popping would open the list and nothing else.
+
+## Planned
+
+### Slice 13: Sorting and searching the watchlist
+
+`GET /watchlist` already accepts `sort` (added, release date, name) and a
+`query` filter, and the client passes neither. Sorting by release date is
+arguably what a watchlist is for.
+
+It is not additive, because paging and local edits both assume the server's
+default order:
+
+- **Changing sort or query starts a new list.** The cursor encodes the sort it
+  was made under, so pages already held cannot be continued into a different
+  one. The paged list is reset, not appended to.
+- **A saved title can no longer go on top.** `prepend` is right only while
+  newest-first means new things belong at the top. Sorted by release date, a
+  saved title belongs wherever its date puts it, and under a query it may not
+  belong on screen at all. Either the store inserts at the sorted position, or
+  a local add reloads the first page instead of guessing — the second is
+  duller and harder to get wrong.
+- **Removal is unaffected**, because taking a row out does not depend on where
+  rows go.
+- **Reconciling is unaffected here**, because only notifications have a stream.
+  If notifications ever gain a sort, `reconcileFirstPage` inherits the same
+  problem: it puts new rows on top because newest-first is the only order it
+  is correct for.
 
 ### Slice 9: Production hardening
 

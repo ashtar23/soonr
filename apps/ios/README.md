@@ -157,6 +157,7 @@ Included:
   states
 - Email and password sign-in through Supabase, with session restore and sign out
 - Authenticated requests to `apps/api`
+- Paged notifications and watchlist, loading the next page at the last row
 - Notifications with read state, an unread badge, and delivery preferences
 - Push notifications over APNs, with the environment read from the signed
   provisioning profile rather than the build flag
@@ -168,7 +169,8 @@ Included:
 
 Deferred:
 
-- `nextCursor` paging for the notifications list and the watchlist
+- Sorting and searching the watchlist, which the API supports and the client
+  does not ask for
 - Marking a notification unread, which no API endpoint can do
 - Offline and cache policy
 - Localization and a complete accessibility audit
