@@ -161,6 +161,27 @@ struct NotificationsSocketTests {
         #expect(await connector.urls.count == 1)
     }
 
+    /// A socket idling behind NAT is dropped without either end being told, so
+    /// something has to write to find out.
+    @Test
+    func aQuietConnectionIsPinged() async throws {
+        let connector = StubConnector(script: [[.text(ready), .hold]])
+        let socket = NotificationsSocket(
+            configuration: configuration(),
+            accessToken: { "token-1" },
+            connector: connector,
+            backoff: { _ in .zero },
+            pingInterval: .milliseconds(5)
+        )
+
+        let reader = Task {
+            for await _ in socket.notificationEvents() {}
+        }
+        defer { reader.cancel() }
+
+        try await waitUntil { await connector.sent.contains(#"{"type":"ping"}"#) }
+    }
+
     @Test
     func backoffGrowsAndThenHoldsAtThirtySeconds() {
         #expect(NotificationsSocket.exponentialBackoff(failures: 1) == .seconds(1))

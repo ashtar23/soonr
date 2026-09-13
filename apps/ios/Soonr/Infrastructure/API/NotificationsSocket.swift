@@ -16,17 +16,20 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
     private let connector: any WebSocketConnecting
     private let accessToken: AccessTokenProvider
     private let backoff: Backoff
+    private let pingInterval: Duration
 
     init(
         configuration: AppConfiguration,
         accessToken: @escaping AccessTokenProvider,
         connector: any WebSocketConnecting = URLSessionWebSocketConnector(),
-        backoff: @escaping Backoff = NotificationsSocket.exponentialBackoff
+        backoff: @escaping Backoff = NotificationsSocket.exponentialBackoff,
+        pingInterval: Duration = .seconds(30)
     ) {
         self.configuration = configuration
         self.accessToken = accessToken
         self.connector = connector
         self.backoff = backoff
+        self.pingInterval = pingInterval
     }
 
     func notificationEvents() -> AsyncStream<NotificationStreamEvent> {
@@ -52,17 +55,21 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
         var failures = 0
 
         while Task.isCancelled == false {
+            let readiness = Readiness()
+
             do {
-                try await readUntilClosed(yielding: continuation) {
-                    // Reached only once the server accepts the token, so a
-                    // connection that fails the handshake every time keeps
-                    // backing off instead of retrying in a tight loop.
-                    failures = 0
-                }
+                try await readUntilClosed(yielding: continuation, readiness: readiness)
             } catch is CancellationError {
                 return
             } catch {
                 AppLog.notifications.error("Notifications stream dropped: \(error)")
+            }
+
+            // Only a connection the server accepted earns a fresh start, so one
+            // failing the handshake every time keeps backing off rather than
+            // retrying in a tight loop.
+            if await readiness.isReady {
+                failures = 0
             }
 
             failures += 1
@@ -75,10 +82,11 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
         }
     }
 
-    /// One connection: authenticate, then yield events until it ends.
+    /// One connection: authenticate, then yield events until it ends, with a
+    /// heartbeat running alongside the reader.
     private func readUntilClosed(
         yielding continuation: AsyncStream<NotificationStreamEvent>.Continuation,
-        onReady: () -> Void
+        readiness: Readiness
     ) async throws {
         guard let token = await accessToken() else {
             throw APIError.unauthorized
@@ -87,15 +95,36 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
         let channel = connector.connect(to: try streamURL())
         defer { channel.cancel() }
 
-        try await channel.send(
-            String(decoding: JSONEncoder().encode(AuthMessage(accessToken: token)), as: UTF8.self))
+        let auth = try JSONEncoder().encode(AuthMessage(accessToken: token))
+        try await channel.send(String(decoding: auth, as: UTF8.self))
 
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await keepAlive(on: channel)
+            }
+
+            group.addTask {
+                try await read(from: channel, yielding: continuation, readiness: readiness)
+            }
+
+            defer { group.cancelAll() }
+            // Either one finishing ends this connection: the reader only stops
+            // when the socket does, and the heartbeat only when a send fails.
+            try await group.next()
+        }
+    }
+
+    private func read(
+        from channel: any WebSocketChannel,
+        yielding continuation: AsyncStream<NotificationStreamEvent>.Continuation,
+        readiness: Readiness
+    ) async throws {
         while true {
             try Task.checkCancellation()
 
             switch try decode(try await channel.receive()) {
             case .ready:
-                onReady()
+                await readiness.markReady()
             case .pong:
                 continue
             case let .changed(event):
@@ -107,6 +136,17 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
                 // drop a working connection.
                 continue
             }
+        }
+    }
+
+    /// A socket idling behind NAT is dropped without either end being told, and
+    /// the app would only find out at the next read — which, on a stream that
+    /// is quiet by nature, could be hours. Writing on a timer surfaces a dead
+    /// connection as a failed send instead.
+    private func keepAlive(on channel: any WebSocketChannel) async throws {
+        while true {
+            try await Task.sleep(for: pingInterval)
+            try await channel.send(#"{"type":"ping"}"#)
         }
     }
 
@@ -128,6 +168,16 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
     /// a rate that does not matter, and one that blinked is back quickly.
     static func exponentialBackoff(failures: Int) -> Duration {
         .seconds(min(30, 1 << min(failures - 1, 5)))
+    }
+}
+
+/// Whether the server accepted this connection, which decides if the next
+/// failure starts the backoff over.
+private actor Readiness {
+    private(set) var isReady = false
+
+    func markReady() {
+        isReady = true
     }
 }
 

@@ -15,6 +15,7 @@ struct SoonrApp: App {
     @State private var notificationPreferences: NotificationPreferencesStore
     @State private var pushRegistration: PushRegistrationStore
     @State private var router = AppRouter()
+    @State private var realtime: NotificationsRealtime
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -23,15 +24,34 @@ struct SoonrApp: App {
         self.dependencies = dependencies
         _session = State(initialValue: SessionStore(authentication: dependencies.authentication))
         _watchlist = State(initialValue: WatchlistStore(watchlist: dependencies.watchlist))
-        _notifications = State(
-            initialValue: NotificationsStore(notifications: dependencies.notifications)
-        )
-        _notificationPreferences = State(
-            initialValue: NotificationPreferencesStore(notifications: dependencies.notifications)
-        )
         _pushRegistration = State(
             initialValue: PushRegistrationStore(notifications: dependencies.notifications)
         )
+
+        let notifications = NotificationsStore(notifications: dependencies.notifications)
+        let preferences = NotificationPreferencesStore(notifications: dependencies.notifications)
+        _notifications = State(initialValue: notifications)
+        _notificationPreferences = State(initialValue: preferences)
+        _realtime = State(
+            initialValue: NotificationsRealtime(
+                stream: dependencies.notificationStream,
+                records: notifications,
+                preferences: preferences
+            )
+        )
+    }
+
+    /// The stream is worth holding open only while someone is signed in and
+    /// looking at the app. iOS suspends a backgrounded app anyway, so keeping
+    /// it would leave the server holding a connection that cannot be read —
+    /// push is what covers that stretch, and the refresh on the way back covers
+    /// whatever both missed.
+    private var isStreamWanted: Bool {
+        guard case .signedIn = session.state else {
+            return false
+        }
+
+        return scenePhase == .active
     }
 
     var body: some Scene {
@@ -96,6 +116,13 @@ struct SoonrApp: App {
                 // Loaded as soon as there is a session, so a bookmark is
                 // already known by the time any title is opened, and dropped on
                 // sign out rather than left for the next account.
+                .onChange(of: isStreamWanted, initial: true) { _, wanted in
+                    if wanted {
+                        realtime.start()
+                    } else {
+                        realtime.stop()
+                    }
+                }
                 .task(id: session.state) {
                     switch session.state {
                     case .restoring:
