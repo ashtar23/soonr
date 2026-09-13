@@ -189,6 +189,10 @@ private actor StubPreferences: NotificationsProviding {
         return acknowledging ?? preferences
     }
 
+    func registerDevice(token: String, environment: PushEnvironment) async throws {}
+
+    func unregisterDevice(token: String) async throws {}
+
     func notifications() async throws -> [NotificationRecord] {
         []
     }

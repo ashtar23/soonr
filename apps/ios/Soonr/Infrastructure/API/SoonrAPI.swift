@@ -97,6 +97,21 @@ struct SoonrAPI:
         return response.preferences
     }
 
+    func registerDevice(token: String, environment: PushEnvironment) async throws {
+        let _: DeviceResponse = try await client.put(
+            ["notifications", "devices"],
+            body: DeviceRegistrationBody(
+                token: token,
+                platform: "ios",
+                environment: environment
+            )
+        )
+    }
+
+    func unregisterDevice(token: String) async throws {
+        try await client.delete(["notifications", "devices", token])
+    }
+
     func emailAvailability(email: String) async throws -> FieldAvailability {
         try await client.get(
             ["auth", "email-availability"],
@@ -180,3 +195,17 @@ private struct NotificationReadBody: Encodable {
 
 /// The route takes no body, but a POST still sends one.
 private struct EmptyBody: Encodable {}
+
+private struct DeviceRegistrationBody: Encodable {
+    let token: String
+    let platform: String
+    let environment: PushEnvironment
+}
+
+private struct DeviceResponse: Decodable {
+    struct Device: Decodable {
+        let token: String
+    }
+
+    let device: Device
+}

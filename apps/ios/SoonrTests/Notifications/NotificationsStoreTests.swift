@@ -192,6 +192,10 @@ private actor StubNotifications: NotificationsProviding {
         return readIDs.count
     }
 
+    func registerDevice(token: String, environment: PushEnvironment) async throws {}
+
+    func unregisterDevice(token: String) async throws {}
+
     func notificationPreferences() async throws -> NotificationPreferences {
         .init(
             channels: .init(inApp: true, push: false),

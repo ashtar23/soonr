@@ -33,6 +33,10 @@ struct PreviewNotifications: NotificationsProviding {
         preferences
     }
 
+    func registerDevice(token: String, environment: PushEnvironment) async throws {}
+
+    func unregisterDevice(token: String) async throws {}
+
     func updateNotificationPreferences(
         _ preferences: NotificationPreferences
     ) async throws -> NotificationPreferences {
