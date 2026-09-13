@@ -4,6 +4,10 @@ struct SoonrAPI:
     TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging, AccountCreating,
     NotificationsReading, NotificationPreferencesProviding, DeviceRegistering, Sendable
 {
+    /// Matches the server's own default. Its maximum is 50; asking for more
+    /// is silently clamped, so a larger number here would be a lie.
+    static let pageSize = 20
+
     private let client: APIClient
 
     init(client: APIClient) {
@@ -43,9 +47,8 @@ struct SoonrAPI:
         }
     }
 
-    func watchlist() async throws -> [WatchlistEntry] {
-        let response: WatchlistResponse = try await client.get(["watchlist"])
-        return response.items
+    func watchlist(after cursor: String?) async throws -> Page<WatchlistEntry> {
+        try await client.get(["watchlist"], queryItems: pageQuery(after: cursor))
     }
 
     func addToWatchlist(titleID: String) async throws {
@@ -56,9 +59,20 @@ struct SoonrAPI:
         try await client.delete(["watchlist", titleID])
     }
 
-    func notifications() async throws -> [NotificationRecord] {
-        let response: NotificationListResponse = try await client.get(["notifications"])
-        return response.items
+    func notifications(after cursor: String?) async throws -> Page<NotificationRecord> {
+        try await client.get(["notifications"], queryItems: pageQuery(after: cursor))
+    }
+
+    /// The first page carries no cursor. The size is asked for explicitly
+    /// rather than left to the server's default, so a change there cannot
+    /// quietly resize every list in the app.
+    private func pageQuery(after cursor: String?) -> [URLQueryItem] {
+        var items = [URLQueryItem(name: "limit", value: String(Self.pageSize))]
+        if let cursor {
+            items.append(URLQueryItem(name: "cursor", value: cursor))
+        }
+
+        return items
     }
 
     func unreadNotificationCount() async throws -> Int {
@@ -158,15 +172,6 @@ private struct WatchlistMutationBody: Encodable {
 
 private struct TitleSearchResponse: Decodable {
     let results: [TitleSummary]
-}
-
-/// `nextCursor` is ignored while the screen shows a single page.
-private struct WatchlistResponse: Decodable {
-    let items: [WatchlistEntry]
-}
-
-private struct NotificationListResponse: Decodable {
-    let items: [NotificationRecord]
 }
 
 private struct UnreadCountResponse: Decodable {

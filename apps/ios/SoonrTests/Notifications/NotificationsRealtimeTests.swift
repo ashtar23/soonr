@@ -150,9 +150,9 @@ private actor StubNotificationsService: NotificationsReading, NotificationPrefer
     private(set) var loads = 0
     private(set) var preferenceLoads = 0
 
-    func notifications() async throws -> [NotificationRecord] {
+    func notifications(after _: String?) async throws -> Page<NotificationRecord> {
         loads += 1
-        return [.realtimeSample]
+        return Page(items: [.realtimeSample])
     }
 
     func unreadNotificationCount() async throws -> Int { 1 }

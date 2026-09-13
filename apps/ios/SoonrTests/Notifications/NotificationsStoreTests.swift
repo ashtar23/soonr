@@ -304,7 +304,7 @@ private actor StubNotifications: NotificationsReading {
         return stream
     }
 
-    func notifications() async throws -> [NotificationRecord] {
+    func notifications(after _: String?) async throws -> Page<NotificationRecord> {
         loads += 1
         loadSignal?.yield()
 
@@ -313,7 +313,7 @@ private actor StubNotifications: NotificationsReading {
             throw URLError(.notConnectedToInternet)
         }
 
-        return records
+        return Page(items: records)
     }
 
     func unreadNotificationCount() async throws -> Int {

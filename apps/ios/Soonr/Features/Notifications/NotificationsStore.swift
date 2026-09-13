@@ -190,7 +190,7 @@ final class NotificationsStore {
         }
 
         do {
-            async let records = notifications.notifications()
+            async let records = notifications.notifications(after: nil).items
             async let count = notifications.unreadNotificationCount()
             let (loaded, unread) = try await (records, count)
             try Task.checkCancellation()

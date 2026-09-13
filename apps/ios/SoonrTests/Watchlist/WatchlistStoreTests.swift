@@ -185,8 +185,8 @@ private actor StubWatchlist: WatchlistManaging {
         self.failingMutations = failingMutations
     }
 
-    func watchlist() async throws -> [WatchlistEntry] {
-        try results.removeFirst().get()
+    func watchlist(after _: String?) async throws -> Page<WatchlistEntry> {
+        Page(items: try results.removeFirst().get())
     }
 
     func addToWatchlist(titleID: String) async throws {

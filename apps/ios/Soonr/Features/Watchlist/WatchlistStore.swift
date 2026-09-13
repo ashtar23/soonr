@@ -150,7 +150,7 @@ final class WatchlistStore {
         }
 
         do {
-            let entries = try await watchlist.watchlist()
+            let entries = try await watchlist.watchlist(after: nil).items
             try Task.checkCancellation()
             state = .loaded(entries)
             savedIDs = Set(entries.map(\.title.id))

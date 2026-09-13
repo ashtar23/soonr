@@ -39,8 +39,8 @@ import Foundation
             discovery
         }
 
-        func watchlist() async throws -> [WatchlistEntry] {
-            saved
+        func watchlist(after _: String?) async throws -> Page<WatchlistEntry> {
+            Page(items: saved)
         }
 
         /// No-ops: the details model updates the button optimistically, so a
