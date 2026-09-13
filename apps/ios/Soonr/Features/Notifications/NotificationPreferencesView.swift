@@ -217,41 +217,45 @@ private extension TimingPreset {
     }
 }
 
-#Preview("Preferences") {
-    PreferencesPreview(authorization: .authorized)
-}
+#if DEBUG
 
-#Preview("Push not yet asked for") {
-    PreferencesPreview(authorization: .undetermined)
-}
+    #Preview("Preferences") {
+        PreferencesPreview(authorization: .authorized)
+    }
 
-#Preview("Push refused") {
-    PreferencesPreview(authorization: .denied)
-}
+    #Preview("Push not yet asked for") {
+        PreferencesPreview(authorization: .undetermined)
+    }
 
-private struct PreferencesPreview: View {
-    @State private var preferences = NotificationPreferencesStore(
-        notifications: PreviewNotifications()
-    )
-    @State private var push: PushRegistrationStore
+    #Preview("Push refused") {
+        PreferencesPreview(authorization: .denied)
+    }
 
-    init(authorization: PushAuthorization) {
-        _push = State(
-            initialValue: PushRegistrationStore(
-                notifications: PreviewNotifications(),
-                system: PreviewPushAuthorization(authorization: authorization)
-            )
+    private struct PreferencesPreview: View {
+        @State private var preferences = NotificationPreferencesStore(
+            notifications: PreviewNotifications()
         )
+        @State private var push: PushRegistrationStore
+
+        init(authorization: PushAuthorization) {
+            _push = State(
+                initialValue: PushRegistrationStore(
+                    notifications: PreviewNotifications(),
+                    system: PreviewPushAuthorization(authorization: authorization)
+                )
+            )
+        }
+
+        var body: some View {
+            NavigationStack {
+                NotificationPreferencesView()
+            }
+            .environment(preferences)
+            .environment(push)
+            .task {
+                await push.restore()
+            }
+        }
     }
 
-    var body: some View {
-        NavigationStack {
-            NotificationPreferencesView()
-        }
-        .environment(preferences)
-        .environment(push)
-        .task {
-            await push.restore()
-        }
-    }
-}
+#endif

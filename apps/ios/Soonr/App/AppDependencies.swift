@@ -3,7 +3,12 @@ struct AppDependencies: Sendable {
     let titleDetails: TitleDetailsDependencies
     let homeDiscovery: any HomeDiscovering
     let watchlist: any WatchlistManaging
-    let notifications: any NotificationsProviding
+    /// One value carrying three capabilities, because the root is the one
+    /// place that legitimately knows a single service answers all of them.
+    /// Each store still asks for only the part it uses.
+    let notifications:
+        any NotificationsReading & NotificationPreferencesProviding
+            & DeviceRegistering
     let accounts: any AccountCreating
     /// Shared with the session store, so requests and the signed-in state read
     /// the same session.
@@ -45,14 +50,16 @@ struct AppDependencies: Sendable {
         return SupabaseAuthService(configuration: supabase)
     }
 
-    static let preview = AppDependencies(
-        titleSearch: PreviewTitleCatalog(),
-        titleDetails: .preview,
-        homeDiscovery: PreviewTitleCatalog(),
-        watchlist: PreviewTitleCatalog(),
-        notifications: PreviewNotifications(),
-        accounts: PreviewTitleCatalog(),
-        authentication: PreviewAuthentication(),
-        rejectedSessions: AsyncStream { _ in }
-    )
+    #if DEBUG
+        static let preview = AppDependencies(
+            titleSearch: PreviewTitleCatalog(),
+            titleDetails: .preview,
+            homeDiscovery: PreviewTitleCatalog(),
+            watchlist: PreviewTitleCatalog(),
+            notifications: PreviewNotifications(),
+            accounts: PreviewTitleCatalog(),
+            authentication: PreviewAuthentication(),
+            rejectedSessions: AsyncStream { _ in }
+        )
+    #endif
 }

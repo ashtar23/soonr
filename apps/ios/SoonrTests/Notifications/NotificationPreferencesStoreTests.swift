@@ -149,7 +149,7 @@ struct NotificationPreferencesStoreTests {
     }
 }
 
-private actor StubPreferences: NotificationsProviding {
+private actor StubPreferences: NotificationPreferencesProviding {
     private(set) var saved: [NotificationPreferences] = []
 
     private let stored: NotificationPreferences
@@ -189,25 +189,6 @@ private actor StubPreferences: NotificationsProviding {
         return acknowledging ?? preferences
     }
 
-    func registerDevice(token: String, environment: PushEnvironment) async throws {}
-
-    func unregisterDevice(token: String) async throws {}
-
-    func notifications() async throws -> [NotificationRecord] {
-        []
-    }
-
-    func unreadNotificationCount() async throws -> Int {
-        0
-    }
-
-    func markNotificationRead(id: String) async throws -> NotificationRecord {
-        .previewUnread
-    }
-
-    func markAllNotificationsRead() async throws -> Int {
-        0
-    }
 }
 
 private extension NotificationPreferences {

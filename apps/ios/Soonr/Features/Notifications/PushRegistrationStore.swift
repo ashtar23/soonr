@@ -13,7 +13,7 @@ final class PushRegistrationStore {
     /// True once the server holds this device's current token.
     private(set) var isRegistered = false
 
-    @ObservationIgnored private let notifications: any NotificationsProviding
+    @ObservationIgnored private let notifications: any DeviceRegistering
     @ObservationIgnored private let system: any PushAuthorizing
     let environment: PushEnvironment
     /// Shown on the developer screen, which is the only way to see it on a
@@ -22,7 +22,7 @@ final class PushRegistrationStore {
     @ObservationIgnored private var isSignedIn = false
 
     init(
-        notifications: any NotificationsProviding,
+        notifications: any DeviceRegistering,
         system: any PushAuthorizing = SystemPushAuthorization(),
         environment: PushEnvironment = .current
     ) {

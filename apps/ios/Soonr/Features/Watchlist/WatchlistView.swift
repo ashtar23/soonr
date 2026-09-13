@@ -103,43 +103,48 @@ private struct WatchlistList: View {
     }
 }
 
-#Preview("Saved games") {
-    WatchlistPreview(catalog: PreviewTitleCatalog(), restored: .preview)
-}
+#if DEBUG
 
-#Preview("Signed out") {
-    WatchlistPreview(catalog: PreviewTitleCatalog(), restored: nil)
-}
-
-#Preview("Nothing saved") {
-    WatchlistPreview(catalog: PreviewTitleCatalog(saved: []), restored: .preview)
-}
-
-/// Loads the store the way the app root does, so previews show the states a
-/// signed-in viewer would see.
-private struct WatchlistPreview: View {
-    let catalog: PreviewTitleCatalog
-    let restored: UserSession?
-
-    @State private var watchlist: WatchlistStore
-    @State private var session: SessionStore
-
-    init(catalog: PreviewTitleCatalog, restored: UserSession?) {
-        self.catalog = catalog
-        self.restored = restored
-        _watchlist = State(initialValue: WatchlistStore(watchlist: catalog))
-        _session = State(
-            initialValue: SessionStore(authentication: PreviewAuthentication(restored: restored))
-        )
+    #Preview("Saved games") {
+        WatchlistPreview(catalog: PreviewTitleCatalog(), restored: .preview)
     }
 
-    var body: some View {
-        WatchlistView(details: .preview)
-            .environment(session)
-            .environment(watchlist)
-            .task {
-                await session.restore()
-                await watchlist.load()
-            }
+    #Preview("Signed out") {
+        WatchlistPreview(catalog: PreviewTitleCatalog(), restored: nil)
     }
-}
+
+    #Preview("Nothing saved") {
+        WatchlistPreview(catalog: PreviewTitleCatalog(saved: []), restored: .preview)
+    }
+
+    /// Loads the store the way the app root does, so previews show the states a
+    /// signed-in viewer would see.
+    private struct WatchlistPreview: View {
+        let catalog: PreviewTitleCatalog
+        let restored: UserSession?
+
+        @State private var watchlist: WatchlistStore
+        @State private var session: SessionStore
+
+        init(catalog: PreviewTitleCatalog, restored: UserSession?) {
+            self.catalog = catalog
+            self.restored = restored
+            _watchlist = State(initialValue: WatchlistStore(watchlist: catalog))
+            _session = State(
+                initialValue: SessionStore(
+                    authentication: PreviewAuthentication(restored: restored))
+            )
+        }
+
+        var body: some View {
+            WatchlistView(details: .preview)
+                .environment(session)
+                .environment(watchlist)
+                .task {
+                    await session.restore()
+                    await watchlist.load()
+                }
+        }
+    }
+
+#endif

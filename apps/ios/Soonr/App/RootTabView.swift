@@ -113,8 +113,12 @@ struct RootTabView: View {
     }
 }
 
-#Preview {
-    RootTabView(dependencies: .preview)
-        .environment(ThemeSettings(defaults: .previewDefaults))
-        .environment(NotificationsStore(notifications: PreviewNotifications()))
-}
+#if DEBUG
+
+    #Preview {
+        RootTabView(dependencies: .preview)
+            .environment(ThemeSettings(defaults: .previewDefaults))
+            .environment(NotificationsStore(notifications: PreviewNotifications()))
+    }
+
+#endif

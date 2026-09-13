@@ -60,9 +60,13 @@ private struct SettingsPlaceholderView: View {
     }
 }
 
-#Preview("Settings") {
-    NavigationStack {
-        SettingsView()
+#if DEBUG
+
+    #Preview("Settings") {
+        NavigationStack {
+            SettingsView()
+        }
+        .environment(ThemeSettings(defaults: .previewDefaults))
     }
-    .environment(ThemeSettings(defaults: .previewDefaults))
-}
+
+#endif

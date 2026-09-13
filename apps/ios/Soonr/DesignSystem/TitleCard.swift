@@ -45,12 +45,16 @@ struct TitleCard: View {
     @ScaledMetric(relativeTo: .headline) private var cardTextHeight: CGFloat = 84
 }
 
-#Preview("Cards") {
-    ScrollView(.horizontal) {
-        HStack(alignment: .top, spacing: 16) {
-            TitleCard(title: .previewUpcoming)
-            TitleCard(title: .preview)
+#if DEBUG
+
+    #Preview("Cards") {
+        ScrollView(.horizontal) {
+            HStack(alignment: .top, spacing: 16) {
+                TitleCard(title: .previewUpcoming)
+                TitleCard(title: .preview)
+            }
+            .padding()
         }
-        .padding()
     }
-}
+
+#endif

@@ -24,7 +24,7 @@ final class NotificationPreferencesStore {
     private(set) var state: NotificationPreferencesState = .loading
     private(set) var saveFailure: FailureReason?
 
-    @ObservationIgnored private let notifications: any NotificationsProviding
+    @ObservationIgnored private let notifications: any NotificationPreferencesProviding
     @ObservationIgnored private let saveDelay: Duration
     /// The last copy the server acknowledged, which is where a failed save
     /// returns to.
@@ -32,7 +32,7 @@ final class NotificationPreferencesStore {
     @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     init(
-        notifications: any NotificationsProviding,
+        notifications: any NotificationPreferencesProviding,
         saveDelay: Duration = .milliseconds(400)
     ) {
         self.notifications = notifications

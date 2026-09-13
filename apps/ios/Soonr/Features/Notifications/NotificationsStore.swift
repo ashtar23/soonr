@@ -23,9 +23,9 @@ final class NotificationsStore {
     private(set) var state: NotificationsState = .loading
     private(set) var unreadCount = 0
 
-    @ObservationIgnored private let notifications: any NotificationsProviding
+    @ObservationIgnored private let notifications: any NotificationsReading
 
-    init(notifications: any NotificationsProviding) {
+    init(notifications: any NotificationsReading) {
         self.notifications = notifications
     }
 

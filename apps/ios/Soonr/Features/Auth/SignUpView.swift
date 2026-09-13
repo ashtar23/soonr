@@ -135,9 +135,13 @@ struct SignUpView: View {
     }
 }
 
-#Preview {
-    NavigationStack {
-        SignUpView(accounts: PreviewTitleCatalog())
+#if DEBUG
+
+    #Preview {
+        NavigationStack {
+            SignUpView(accounts: PreviewTitleCatalog())
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication()))
     }
-    .environment(SessionStore(authentication: PreviewAuthentication()))
-}
+
+#endif

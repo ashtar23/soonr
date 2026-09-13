@@ -175,36 +175,41 @@ private extension NotificationRecord {
     }
 }
 
-#Preview("Notifications") {
-    NotificationsPreview(notifications: PreviewNotifications(), restored: .preview)
-}
+#if DEBUG
 
-#Preview("Nothing yet") {
-    NotificationsPreview(notifications: PreviewNotifications(records: []), restored: .preview)
-}
-
-#Preview("Signed out") {
-    NotificationsPreview(notifications: PreviewNotifications(), restored: nil)
-}
-
-private struct NotificationsPreview: View {
-    @State private var notifications: NotificationsStore
-    @State private var session: SessionStore
-
-    init(notifications: PreviewNotifications, restored: UserSession?) {
-        _notifications = State(initialValue: NotificationsStore(notifications: notifications))
-        _session = State(
-            initialValue: SessionStore(authentication: PreviewAuthentication(restored: restored))
-        )
+    #Preview("Notifications") {
+        NotificationsPreview(notifications: PreviewNotifications(), restored: .preview)
     }
 
-    var body: some View {
-        NotificationsView(details: .preview)
-            .environment(session)
-            .environment(notifications)
-            .task {
-                await session.restore()
-                await notifications.load()
-            }
+    #Preview("Nothing yet") {
+        NotificationsPreview(notifications: PreviewNotifications(records: []), restored: .preview)
     }
-}
+
+    #Preview("Signed out") {
+        NotificationsPreview(notifications: PreviewNotifications(), restored: nil)
+    }
+
+    private struct NotificationsPreview: View {
+        @State private var notifications: NotificationsStore
+        @State private var session: SessionStore
+
+        init(notifications: PreviewNotifications, restored: UserSession?) {
+            _notifications = State(initialValue: NotificationsStore(notifications: notifications))
+            _session = State(
+                initialValue: SessionStore(
+                    authentication: PreviewAuthentication(restored: restored))
+            )
+        }
+
+        var body: some View {
+            NotificationsView(details: .preview)
+                .environment(session)
+                .environment(notifications)
+                .task {
+                    await session.restore()
+                    await notifications.load()
+                }
+        }
+    }
+
+#endif

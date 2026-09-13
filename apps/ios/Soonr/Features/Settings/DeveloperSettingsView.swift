@@ -69,15 +69,19 @@ struct DeveloperSettingsView: View {
     }
 }
 
-#Preview("Developer") {
-    NavigationStack {
-        DeveloperSettingsView()
-    }
-    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
-    .environment(
-        PushRegistrationStore(
-            notifications: PreviewNotifications(),
-            system: PreviewPushAuthorization()
+#if DEBUG
+
+    #Preview("Developer") {
+        NavigationStack {
+            DeveloperSettingsView()
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
+        .environment(
+            PushRegistrationStore(
+                notifications: PreviewNotifications(),
+                system: PreviewPushAuthorization()
+            )
         )
-    )
-}
+    }
+
+#endif

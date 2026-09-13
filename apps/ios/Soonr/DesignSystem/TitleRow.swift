@@ -87,19 +87,23 @@ enum TitleRowText {
     }
 }
 
-#Preview("Default type size") {
-    List {
-        TitleRow(title: .previewUpcoming)
-        TitleRow(title: .preview)
-    }
-    .listStyle(.plain)
-}
+#if DEBUG
 
-#Preview("Accessibility type size") {
-    List {
-        TitleRow(title: .previewUpcoming)
-        TitleRow(title: .preview)
+    #Preview("Default type size") {
+        List {
+            TitleRow(title: .previewUpcoming)
+            TitleRow(title: .preview)
+        }
+        .listStyle(.plain)
     }
-    .listStyle(.plain)
-    .dynamicTypeSize(.accessibility3)
-}
+
+    #Preview("Accessibility type size") {
+        List {
+            TitleRow(title: .previewUpcoming)
+            TitleRow(title: .preview)
+        }
+        .listStyle(.plain)
+        .dynamicTypeSize(.accessibility3)
+    }
+
+#endif

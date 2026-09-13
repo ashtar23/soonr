@@ -105,17 +105,21 @@ private struct SearchResultsList: View {
     }
 }
 
-#Preview("Search") {
-    SearchView(
-        titleSearch: PreviewTitleCatalog(),
-        details: .preview
-    )
-    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
-}
+#if DEBUG
 
-#Preview("Results") {
-    NavigationStack {
-        SearchResultsList(titles: PreviewTitleCatalog().results)
-            .navigationTitle("Search")
+    #Preview("Search") {
+        SearchView(
+            titleSearch: PreviewTitleCatalog(),
+            details: .preview
+        )
+        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
     }
-}
+
+    #Preview("Results") {
+        NavigationStack {
+            SearchResultsList(titles: PreviewTitleCatalog().results)
+                .navigationTitle("Search")
+        }
+    }
+
+#endif

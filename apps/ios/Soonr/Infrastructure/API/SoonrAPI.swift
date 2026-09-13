@@ -2,7 +2,7 @@ import Foundation
 
 struct SoonrAPI:
     TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging, AccountCreating,
-    NotificationsProviding, Sendable
+    NotificationsReading, NotificationPreferencesProviding, DeviceRegistering, Sendable
 {
     private let client: APIClient
 

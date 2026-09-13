@@ -153,7 +153,7 @@ struct NotificationsStoreTests {
     }
 }
 
-private actor StubNotifications: NotificationsProviding {
+private actor StubNotifications: NotificationsReading {
     private(set) var readIDs: [String] = []
     private(set) var markedAll = 0
 
@@ -205,23 +205,6 @@ private actor StubNotifications: NotificationsProviding {
         return readIDs.count
     }
 
-    func registerDevice(token: String, environment: PushEnvironment) async throws {}
-
-    func unregisterDevice(token: String) async throws {}
-
-    func notificationPreferences() async throws -> NotificationPreferences {
-        .init(
-            channels: .init(inApp: true, push: false),
-            events: .init(releaseDateChanged: true, releaseApproaching: true),
-            timingPresets: [.onDay]
-        )
-    }
-
-    func updateNotificationPreferences(
-        _ preferences: NotificationPreferences
-    ) async throws -> NotificationPreferences {
-        preferences
-    }
 }
 
 extension NotificationRecord {
