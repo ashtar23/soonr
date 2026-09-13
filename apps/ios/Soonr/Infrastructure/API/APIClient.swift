@@ -47,16 +47,21 @@ struct APIClient: Sendable {
     private let configuration: AppConfiguration
     private let transport: Transport
     private let accessToken: AccessTokenProvider
+    /// Forces a new token rather than returning the one already held, which is
+    /// the only way to tell a stale token apart from a finished session.
+    private let refreshedAccessToken: AccessTokenProvider
     private let onUnauthorized: UnauthorizedHandler
 
     init(
         configuration: AppConfiguration,
         accessToken: @escaping AccessTokenProvider = { nil },
+        refreshedAccessToken: @escaping AccessTokenProvider = { nil },
         onUnauthorized: @escaping UnauthorizedHandler = {},
         transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }
     ) {
         self.configuration = configuration
         self.accessToken = accessToken
+        self.refreshedAccessToken = refreshedAccessToken
         self.onUnauthorized = onUnauthorized
         self.transport = transport
     }
@@ -96,6 +101,29 @@ struct APIClient: Sendable {
         _ = try await send(.delete, pathComponents)
     }
 
+    private func perform(
+        _ request: URLRequest,
+        route: String
+    ) async throws -> (Data, HTTPURLResponse) {
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await transport(request)
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch let error as URLError {
+            AppLog.api.error("\(route, privacy: .public) failed: \(error.code.rawValue)")
+            throw error
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            AppLog.api.error("\(route, privacy: .public) returned a non-HTTP response")
+            throw APIError.invalidResponse
+        }
+
+        return (data, httpResponse)
+    }
+
     private func send(
         _ method: Method,
         _ pathComponents: [String],
@@ -113,35 +141,29 @@ struct APIClient: Sendable {
         }
 
         let route = "\(method.rawValue) /\(pathComponents.joined(separator: "/"))"
+        var (data, httpResponse) = try await perform(request, route: route)
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await transport(request)
-        } catch let error as URLError where error.code == .cancelled {
-            throw CancellationError()
-        } catch let error as URLError {
-            AppLog.api.error("\(route, privacy: .public) failed: \(error.code.rawValue)")
-            throw error
-        }
+        // A 401 is not proof that the session is over. The token may have gone
+        // stale in flight, and the server answers its own failure to reach
+        // Supabase with a 401 too, so one of those would sign a viewer out for
+        // an outage that had nothing to do with them. Ask for a fresh token and
+        // try once more; only a second refusal settles it.
+        if httpResponse.statusCode == 401,
+            request.value(forHTTPHeaderField: "Authorization") != nil
+        {
+            AppLog.api.error("\(route, privacy: .public) rejected the session; refreshing")
+            if let refreshed = await refreshedAccessToken() {
+                request.setValue("Bearer \(refreshed)", forHTTPHeaderField: "Authorization")
+                (data, httpResponse) = try await perform(request, route: route)
+            }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            AppLog.api.error("\(route, privacy: .public) returned a non-HTTP response")
-            throw APIError.invalidResponse
+            if httpResponse.statusCode == 401 {
+                AppLog.api.error("\(route, privacy: .public) rejected the session after a refresh")
+                onUnauthorized()
+            }
         }
 
         guard httpResponse.statusCode != 401 else {
-            // Only a request that carried a session says anything about that
-            // session; a guest hitting an authenticated route is simply not
-            // signed in and has nothing to sign out of.
-            let carriedSession = request.value(forHTTPHeaderField: "Authorization") != nil
-            AppLog.api.error(
-                "\(route, privacy: .public) rejected the session (carried: \(carriedSession))"
-            )
-            if carriedSession {
-                onUnauthorized()
-            }
-
             throw APIError.unauthorized
         }
 

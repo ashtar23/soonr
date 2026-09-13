@@ -19,6 +19,7 @@ struct AppDependencies: Sendable {
             client: APIClient(
                 configuration: .live,
                 accessToken: { await authentication.accessToken() },
+                refreshedAccessToken: { await authentication.refreshedAccessToken() },
                 onUnauthorized: { rejected.yield() }
             )
         )

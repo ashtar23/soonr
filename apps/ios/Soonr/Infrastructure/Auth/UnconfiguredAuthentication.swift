@@ -12,6 +12,10 @@ struct UnconfiguredAuthentication: Authenticating {
         nil
     }
 
+    func refreshedAccessToken() async -> String? {
+        nil
+    }
+
     func signIn(email: String, password: String) async throws -> UserSession {
         throw UnconfiguredAuthenticationError.missingConfiguration
     }

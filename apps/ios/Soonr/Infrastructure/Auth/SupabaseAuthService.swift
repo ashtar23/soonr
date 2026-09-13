@@ -36,6 +36,19 @@ struct SupabaseAuthService: Authenticating {
         }
     }
 
+    /// `refreshSession` mints a new token from the refresh token instead of
+    /// returning the stored one, which `session` would while it still looks
+    /// unexpired. A failure here means the refresh token is gone too, and the
+    /// session really is over.
+    func refreshedAccessToken() async -> String? {
+        do {
+            return try await client.refreshSession().accessToken
+        } catch {
+            AppLog.auth.error("Could not refresh the session: \(error)")
+            return nil
+        }
+    }
+
     func signIn(email: String, password: String) async throws -> UserSession {
         UserSession(try await client.signIn(email: email, password: password))
     }

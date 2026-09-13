@@ -113,6 +113,10 @@ private struct HangingSignOut: Authenticating {
         restored?.accessToken
     }
 
+    func refreshedAccessToken() async -> String? {
+        restored?.accessToken
+    }
+
     func signIn(email: String, password: String) async throws -> UserSession {
         throw CancellationError()
     }

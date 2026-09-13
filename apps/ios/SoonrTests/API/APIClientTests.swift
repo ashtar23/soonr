@@ -129,6 +129,70 @@ struct APIClientTests {
         #expect(rejections.value == 1)
     }
 
+    /// The bug this exists for: a viewer came back after an hour and was
+    /// signed out. One 401 is not proof the session is over — the token may
+    /// have gone stale, and the server answers its own failure to reach
+    /// Supabase with a 401 as well.
+    @Test
+    func aStaleTokenIsRefreshedAndTheRequestTriedAgain() async throws {
+        let transport = StubTransport(
+            .json(401, #"{"error":"Authentication failed."}"#),
+            .json(200, #"{"item":{"id":"1"}}"#)
+        )
+        let rejections = Counter()
+
+        let _: CreatedItem =
+            try await transport
+            .client(
+                accessToken: "stale",
+                refreshedAccessToken: "fresh",
+                onUnauthorized: { rejections.increment() }
+            )
+            .get(["watchlist"])
+
+        #expect(rejections.value == 0)
+        let requests = await transport.requests
+        #expect(requests.count == 2)
+        #expect(requests.last?.value(forHTTPHeaderField: "Authorization") == "Bearer fresh")
+    }
+
+    @Test
+    func aFreshTokenRejectedTooEndsTheSession() async {
+        let transport = StubTransport(.json(401, #"{"error":"Authentication failed."}"#))
+        let rejections = Counter()
+
+        await #expect(throws: APIError.unauthorized) {
+            let _: CreatedItem =
+                try await transport
+                .client(
+                    accessToken: "stale",
+                    refreshedAccessToken: "fresh",
+                    onUnauthorized: { rejections.increment() }
+                )
+                .get(["watchlist"])
+        }
+
+        #expect(rejections.value == 1)
+        #expect(await transport.requests.count == 2)
+    }
+
+    /// Nothing left to refresh with means the session really is over.
+    @Test
+    func aSessionThatCannotBeRefreshedEndsWithoutASecondRequest() async {
+        let transport = StubTransport(.json(401, #"{"error":"Authentication failed."}"#))
+        let rejections = Counter()
+
+        await #expect(throws: APIError.unauthorized) {
+            let _: CreatedItem =
+                try await transport
+                .client(accessToken: "stale", onUnauthorized: { rejections.increment() })
+                .get(["watchlist"])
+        }
+
+        #expect(rejections.value == 1)
+        #expect(await transport.requests.count == 1)
+    }
+
     /// A guest is not signed in to begin with, so a 401 on a request that
     /// carried no session must not sign anyone out.
     @Test
@@ -240,19 +304,23 @@ private actor StubTransport {
     }
 
     private(set) var requests: [URLRequest] = []
-    private let response: Response
+    /// The last one answers every request after it, so a test that cares about
+    /// one exchange states one response.
+    private var responses: [Response]
 
-    init(_ response: Response) {
-        self.response = response
+    init(_ responses: Response...) {
+        self.responses = responses
     }
 
     nonisolated func client(
         accessToken: String? = nil,
+        refreshedAccessToken: String? = nil,
         onUnauthorized: @escaping @Sendable () -> Void = {}
     ) -> APIClient {
         APIClient(
             configuration: .test,
             accessToken: { accessToken },
+            refreshedAccessToken: { refreshedAccessToken },
             onUnauthorized: onUnauthorized,
             transport: { request in
                 try await self.send(request)
@@ -262,6 +330,7 @@ private actor StubTransport {
 
     private func send(_ request: URLRequest) throws -> (Data, URLResponse) {
         requests.append(request)
+        let response = responses.count > 1 ? responses.removeFirst() : responses[0]
         let url = try #require(request.url)
         let httpResponse = try #require(
             HTTPURLResponse(
