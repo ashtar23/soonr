@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// A title as a list row: artwork, name, release and platform metadata, and a
-/// countdown badge for releases that are today or ahead. Shared by search and,
-/// from the discovery slice, Home.
 struct TitleRow: View {
     let title: TitleSummary
     var now: Date = .now
@@ -54,7 +51,6 @@ struct TitleRow: View {
     }
 }
 
-/// A tinted capsule for a release countdown.
 struct ReleaseBadge: View {
     let text: String
 

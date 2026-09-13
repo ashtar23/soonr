@@ -1,6 +1,6 @@
 import Foundation
 
-/// In-memory notifications for SwiftUI previews. Performs no network requests.
+/// Performs no network requests.
 struct PreviewNotifications: NotificationsProviding {
     var records: [NotificationRecord] = [.previewUnread, .previewRead]
     var preferences = NotificationPreferences(

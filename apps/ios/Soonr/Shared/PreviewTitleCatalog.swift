@@ -8,7 +8,7 @@ extension TitleDetailsDependencies {
     }
 }
 
-/// In-memory title data for SwiftUI previews. Performs no network requests.
+/// Performs no network requests.
 struct PreviewTitleCatalog:
     TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging, AccountCreating
 {

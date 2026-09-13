@@ -1,6 +1,6 @@
 import Foundation
 
-/// In-memory authentication for previews. Performs no network requests.
+/// Performs no network requests.
 struct PreviewAuthentication: Authenticating {
     var restored: UserSession?
     var signInResult: Result<UserSession, PreviewAuthenticationError> = .success(.preview)

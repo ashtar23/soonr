@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// A title as an artwork-led card for horizontal discovery rails.
 struct TitleCard: View {
     let title: TitleSummary
     var now: Date = .now
 
-    /// Cards grow with the text they carry so the name keeps room to breathe.
+    /// Grows with the text it carries, so the name keeps room to breathe.
     @ScaledMetric(relativeTo: .headline) private var cardWidth: CGFloat = 200
 
     var body: some View {

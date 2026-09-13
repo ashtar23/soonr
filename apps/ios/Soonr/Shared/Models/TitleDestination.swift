@@ -1,9 +1,9 @@
-/// What it takes to open the details screen: the id its request needs, and a
-/// name to show in the navigation bar until the request answers.
+/// The id the details request needs, plus a name for its navigation bar until
+/// that request answers.
 ///
 /// A notification knows only this much about the title it points at, so the
-/// screen asks for this rather than a whole `TitleSummary` it would have to be
-/// handed a hollow copy of.
+/// screen asks for this rather than a `TitleSummary` it would be handed a
+/// hollow copy of.
 struct TitleDestination: Hashable, Sendable {
     let id: String
     let name: String

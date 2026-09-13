@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Remote title artwork with a neutral placeholder. Callers set the size.
+/// Callers set the size; the artwork fills it.
 struct TitleArtwork: View {
     /// Pixel widths served by RAWG's image CDN. Other widths redirect.
     enum Width: Int, Sendable {

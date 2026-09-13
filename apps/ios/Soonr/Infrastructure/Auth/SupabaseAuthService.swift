@@ -1,8 +1,8 @@
 import Auth
 import Foundation
 
-/// Supabase-backed authentication. The SDK owns token refresh and Keychain
-/// persistence, which is the reason it is the project's one dependency.
+/// The SDK owns token refresh and Keychain persistence, which is the reason
+/// it is the project's one dependency.
 struct SupabaseAuthService: Authenticating {
     private let client: AuthClient
 

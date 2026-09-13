@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Identity at the top of an auth form. Sits on a clear row so it reads as a
-/// header rather than another card.
+/// Sits on a clear row so it reads as a header rather than another card.
 struct AuthHeader: View {
     let icon: String
     let title: String
@@ -29,10 +28,8 @@ struct AuthHeader: View {
     }
 }
 
-/// A form row with a leading glyph, an optional trailing status, and its own
-/// message. Keeping the message in the row puts it against the field it
-/// describes, which a shared section footer cannot do once a form has more
-/// than one field.
+/// Carries its own message, which puts it against the field it describes; a
+/// shared section footer cannot once a form has more than one field.
 struct AuthField<Content: View, Accessory: View>: View {
     let icon: String
     var message: String?

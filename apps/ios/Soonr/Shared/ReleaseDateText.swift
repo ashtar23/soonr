@@ -1,8 +1,7 @@
 import Foundation
 
-/// Presentation helpers for API release dates (`YYYY`, `YYYY-MM`, or
-/// `YYYY-MM-DD`). Release dates are calendar days, so they are interpreted in
-/// UTC to avoid shifting across time zones.
+/// API release dates arrive as `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`. They are
+/// calendar days, so they are read in UTC and cannot shift across time zones.
 enum ReleaseDateText {
     static let unannounced = "TBA"
 
@@ -54,7 +53,6 @@ enum ReleaseDateText {
         return calendar.dateComponents([.day], from: todayDate, to: releaseDate).day
     }
 
-    /// A short badge for releases that are today or still ahead.
     static func countdown(daysUntil days: Int) -> String? {
         switch days {
         case ..<0:
