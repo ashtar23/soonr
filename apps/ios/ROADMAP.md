@@ -196,11 +196,11 @@ Deferred:
 `subtitle` and the game in `titleName`. A row leading with `message` never says
 which game it is about.
 
-**That copy is frozen at generation time.** A row generated on release day
-still says "Releases today" a week later; only the timestamp caption tells the
-reader otherwise. The generator already stores the target date and preset in
-`payload`, so rendering the sentence client-side would fix it — an API-side
-decision, not taken here.
+**That copy is frozen at generation time**, so a row generated on release day
+still said "Releases today" a week later. `payload` already carries the target
+release date, so the row works the sentence out against today and keeps the
+server's copy as the fallback. No API change was needed: `payload` was in the
+response all along.
 
 Deferred:
 
