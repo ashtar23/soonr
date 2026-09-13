@@ -124,7 +124,7 @@ struct NotificationPreferencesView: View {
         // is the only way back and the switch takes you there. Springing back
         // with nothing else happening left the tap achieving nothing.
         guard push.authorization != .denied else {
-            openSettings()
+            openNotificationSettings()
             return
         }
 
@@ -137,8 +137,11 @@ struct NotificationPreferencesView: View {
         model.edit { $0.channels.push = true }
     }
 
-    private func openSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+    /// `openNotificationSettingsURLString` lands on Soonr's notification
+    /// settings rather than its general page, so the switch that needs turning
+    /// on is already on screen.
+    private func openNotificationSettings() {
+        guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else {
             return
         }
 
@@ -153,14 +156,10 @@ struct NotificationPreferencesView: View {
         case .authorized:
             Text("Sent to this device, even when Soonr isn't open.")
         case .denied:
-            // iOS shows its prompt once ever, so Settings is the only way back.
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Notifications are turned off for Soonr in Settings.")
-                // Kept beside the switch rather than replacing it: someone
-                // reading this should not have to guess that the switch above
-                // has quietly become a link.
-                Button("Open Settings", action: openSettings)
-            }
+            // A footer explains; it does not act. The switch is the control,
+            // and this is where it says so — iOS shows its prompt once ever,
+            // so Settings is the only way back.
+            Text("Notifications are turned off for Soonr in Settings. Tap to turn them back on.")
         }
     }
 
