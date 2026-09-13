@@ -94,6 +94,26 @@ if (!databaseUrl && !supabaseConfig.supabaseUrl) {
   );
 }
 
+/**
+ * All four or none. A partial set cannot sign anything, and failing at the
+ * point of sending would report it as a delivery problem rather than a
+ * configuration one.
+ */
+function getApnsConfig() {
+  const keyId = getOptionalEnv("APNS_KEY_ID");
+  const teamId = getOptionalEnv("APNS_TEAM_ID");
+  const bundleId = getOptionalEnv("APNS_BUNDLE_ID");
+  // Railway keeps the newlines; a shell export often does not, and a key whose
+  // line breaks became "\n" cannot be parsed.
+  const privateKey = getOptionalEnv("APNS_PRIVATE_KEY")?.replace(/\\n/g, "\n");
+
+  if (!keyId || !teamId || !bundleId || !privateKey) {
+    return null;
+  }
+
+  return { keyId, teamId, bundleId, privateKey };
+}
+
 export const env = {
   appEnv,
   dataSource,
@@ -102,6 +122,7 @@ export const env = {
   // /health reports a build it cannot identify rather than inventing one.
   commitSha: getOptionalEnv("RAILWAY_GIT_COMMIT_SHA"),
   branch: getOptionalEnv("RAILWAY_GIT_BRANCH"),
+  apns: getApnsConfig(),
   host: process.env.HOST?.trim() || "0.0.0.0",
   port: getOptionalIntegerEnv("PORT", 3001),
   rawgApiKey: process.env.RAWG_API_KEY?.trim() || null,

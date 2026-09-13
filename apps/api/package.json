@@ -8,6 +8,7 @@
     "start": "tsx src/server.ts",
     "generate:openapi-spec": "node --import tsx/esm src/generate-openapi-spec.ts",
     "generate:release-approaching": "tsx src/generate-release-approaching-notifications.ts",
+    "deliver:push": "tsx src/deliver-push-notifications.ts",
     "sync:home-discovery": "tsx src/sync-home-discovery.ts",
     "sync:catalog": "tsx src/sync-catalog.ts",
     "evaluate:search": "tsx src/evaluate-search.ts",

@@ -256,7 +256,13 @@ and triggers required by the hosted websocket stream.
 
 ```bash
 psql "<railway-postgres-connection-string>" -f apps/api/sql/phase2-push-device-tokens-schema.sql
+psql "<railway-postgres-connection-string>" -f apps/api/sql/phase2-push-delivery-schema.sql
 ```
+
+Push delivery also needs `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID` and
+`APNS_PRIVATE_KEY` (the contents of the `.p8`, not a path to it) on the API
+service. Without all four, `pnpm --filter api deliver:push` refuses to run
+rather than reporting a configuration problem as a delivery failure.
 
 If you want hosted notification generation to run against real watchlist data,
 also apply the watchlists schema bootstrap first:
