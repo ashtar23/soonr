@@ -10,8 +10,6 @@ struct NotificationRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            unreadIndicator
-
             // Artwork is what makes a list of similar sentences scannable, but
             // at accessibility sizes the text needs the whole row.
             if dynamicTypeSize.isAccessibilitySize == false {
@@ -39,16 +37,6 @@ struct NotificationRow: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    /// A fixed column whether or not the dot is drawn, so message text lines up
-    /// down the list instead of shifting as rows are read.
-    private var unreadIndicator: some View {
-        Circle()
-            .fill(.tint)
-            .frame(width: 8, height: 8)
-            .padding(.top, 6)
-            .opacity(record.isRead ? 0 : 1)
     }
 
     /// What happened and when. `subtitle` carries the detail ("Releases

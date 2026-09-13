@@ -40,14 +40,20 @@ struct NotificationRowSnapshotTests {
         )
     }
 
-    /// An unread notification above a read one.
+    /// An unread notification above a read one. The list paints the unread
+    /// fill through `listRowBackground`, which needs a `List` and so cannot be
+    /// rendered here; this draws the same view behind the row instead.
     private var rows: some View {
         VStack(spacing: 0) {
             NotificationRow(record: .snapshotUnread, now: .snapshotNow)
+                .padding(.horizontal, 16)
+                .background(UnreadRowBackground())
+
             NotificationRow(record: .snapshotRead, now: .snapshotNow)
+                .padding(.horizontal, 16)
+
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
     }
 }
 

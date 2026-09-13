@@ -17,13 +17,12 @@ struct NotificationsView: View {
             content
                 .navigationTitle("Notifications")
                 .toolbar {
-                    if notifications.unreadCount > 0 {
+                    // Always present once signed in, with the action dimmed
+                    // rather than gone, so the bar does not rearrange itself
+                    // as the last notification is read.
+                    if case .signedIn = session.state {
                         ToolbarItem(placement: .topBarTrailing) {
-                            Button("Mark all read") {
-                                Task {
-                                    await notifications.markAllRead()
-                                }
-                            }
+                            menu
                         }
                     }
                 }
@@ -49,6 +48,19 @@ struct NotificationsView: View {
             }
 
             await notifications.load()
+        }
+    }
+
+    private var menu: some View {
+        Menu {
+            Button("Mark all read", systemImage: "checkmark.circle") {
+                Task {
+                    await notifications.markAllRead()
+                }
+            }
+            .disabled(notifications.unreadCount == 0)
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
         }
     }
 
@@ -106,6 +118,8 @@ struct NotificationsView: View {
 private struct NotificationsList: View {
     let records: [NotificationRecord]
 
+    @Environment(NotificationsStore.self) private var notifications
+
     var body: some View {
         List {
             ForEach(records) { record in
@@ -118,6 +132,18 @@ private struct NotificationsList: View {
                     isFirst: record.id == records.first?.id,
                     isLast: record.id == records.last?.id
                 )
+                .unreadRowBackground(record.isRead == false)
+                .swipeActions(edge: .trailing) {
+                    // One way only: the API can set a notification read and
+                    // has no way to put it back.
+                    if record.isRead == false {
+                        Button("Mark read", systemImage: "envelope.open") {
+                            Task {
+                                await notifications.markRead(id: record.id)
+                            }
+                        }
+                    }
+                }
             }
         }
         .listStyle(.plain)
