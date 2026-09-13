@@ -94,8 +94,10 @@ private struct WatchlistList: View {
                 NavigationLink(value: TitleDestination(entry.title)) {
                     TitleRow(title: entry.title)
                 }
-                .listRowSeparator(.hidden, edges: entry.id == entries.first?.id ? .top : [])
-                .listRowSeparator(.hidden, edges: entry.id == entries.last?.id ? .bottom : [])
+                .hidingOuterSeparators(
+                    isFirst: entry.id == entries.first?.id,
+                    isLast: entry.id == entries.last?.id
+                )
             }
         }
         .listStyle(.plain)

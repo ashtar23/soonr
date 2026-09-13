@@ -95,10 +95,10 @@ private struct SearchResultsList: View {
             NavigationLink(value: TitleDestination(title)) {
                 TitleRow(title: title)
             }
-            // Plain lists also draw separators above the first row and below
-            // the last one; separators belong between results only.
-            .listRowSeparator(title.id == titles.first?.id ? .hidden : .automatic, edges: .top)
-            .listRowSeparator(title.id == titles.last?.id ? .hidden : .automatic, edges: .bottom)
+            .hidingOuterSeparators(
+                isFirst: title.id == titles.first?.id,
+                isLast: title.id == titles.last?.id
+            )
         }
         .listStyle(.plain)
         .accessibilityLabel("Search results")
