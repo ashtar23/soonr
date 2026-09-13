@@ -1,0 +1,85 @@
+import Foundation
+
+struct NotificationRecord: Decodable, Equatable, Sendable, Identifiable {
+    enum EventType: String, Equatable, Sendable {
+        case releaseDateChanged = "release_date_changed"
+        case releaseApproaching = "release_approaching"
+        case unknown
+    }
+
+    let id: String
+    let eventType: EventType
+    /// What the row opens. `titleId` is what the notification is about;
+    /// these are the same today but the API keeps them apart.
+    let destinationTitleID: String
+    let titleName: String
+    let titleArtworkURL: URL?
+    let message: String
+    let subtitle: String?
+    let createdAt: String
+    let readAt: String?
+
+    var isRead: Bool {
+        readAt != nil
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case eventType
+        case destinationTitleID = "destinationTitleId"
+        case titleName
+        case titleArtworkURL = "titleArtworkUrl"
+        case message
+        case subtitle
+        case createdAt
+        case readAt
+    }
+}
+
+extension NotificationRecord.EventType: Decodable {
+    /// A new event type must not fail the whole list.
+    init(from decoder: any Decoder) throws {
+        let rawValue = try decoder.singleValueContainer().decode(String.self)
+        self = Self(rawValue: rawValue) ?? .unknown
+    }
+}
+
+struct NotificationPreferences: Codable, Equatable, Sendable {
+    enum TimingPreset: String, Codable, Equatable, Sendable, CaseIterable {
+        case onDay = "on_day"
+        case hours24Before = "hours_24_before"
+        case days7Before = "days_7_before"
+        case days30Before = "days_30_before"
+    }
+
+    struct Channels: Codable, Equatable, Sendable {
+        var inApp: Bool
+        var push: Bool
+    }
+
+    struct Events: Codable, Equatable, Sendable {
+        var releaseDateChanged: Bool
+        var releaseApproaching: Bool
+    }
+
+    var channels: Channels
+    var events: Events
+    var timingPresets: [TimingPreset]
+
+    /// Presets the client does not know are dropped rather than failing the
+    /// payload: it cannot offer a switch for something it cannot name, but it
+    /// can still show the rest.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        channels = try container.decode(Channels.self, forKey: .channels)
+        events = try container.decode(Events.self, forKey: .events)
+        timingPresets = try container.decode([String].self, forKey: .timingPresets)
+            .compactMap(TimingPreset.init(rawValue:))
+    }
+
+    init(channels: Channels, events: Events, timingPresets: [TimingPreset]) {
+        self.channels = channels
+        self.events = events
+        self.timingPresets = timingPresets
+    }
+}

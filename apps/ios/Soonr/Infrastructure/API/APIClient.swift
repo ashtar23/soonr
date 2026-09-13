@@ -36,6 +36,7 @@ struct APIClient: Sendable {
     enum Method: String, Sendable {
         case get = "GET"
         case post = "POST"
+        case put = "PUT"
         case delete = "DELETE"
     }
 
@@ -79,6 +80,14 @@ struct APIClient: Sendable {
     /// For a write whose response body the caller does not read.
     func post<Body: Encodable>(_ pathComponents: [String], body: Body) async throws {
         _ = try await send(.post, pathComponents, body: try encode(body))
+    }
+
+    func put<Body: Encodable, Response: Decodable>(
+        _ pathComponents: [String],
+        body: Body
+    ) async throws -> Response {
+        let data = try await send(.put, pathComponents, body: try encode(body))
+        return try decode(data)
     }
 
     /// The response body is discarded: the endpoints we delete from report only

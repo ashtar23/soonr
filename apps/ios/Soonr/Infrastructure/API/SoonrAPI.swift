@@ -2,7 +2,7 @@ import Foundation
 
 struct SoonrAPI:
     TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging, AccountCreating,
-    Sendable
+    NotificationsProviding, Sendable
 {
     private let client: APIClient
 
@@ -54,6 +54,47 @@ struct SoonrAPI:
 
     func removeFromWatchlist(titleID: String) async throws {
         try await client.delete(["watchlist", titleID])
+    }
+
+    func notifications() async throws -> [NotificationRecord] {
+        let response: NotificationListResponse = try await client.get(["notifications"])
+        return response.items
+    }
+
+    func unreadNotificationCount() async throws -> Int {
+        let response: UnreadCountResponse = try await client.get(["notifications", "unread-count"])
+        return response.unreadCount
+    }
+
+    func markNotificationRead(id: String) async throws -> NotificationRecord {
+        let response: MarkReadResponse = try await client.post(
+            ["notifications", "read"],
+            body: NotificationReadBody(notificationID: id)
+        )
+        return response.notification
+    }
+
+    func markAllNotificationsRead() async throws -> Int {
+        let response: MarkAllReadResponse = try await client.post(
+            ["notifications", "read-all"],
+            body: EmptyBody()
+        )
+        return response.markedCount
+    }
+
+    func notificationPreferences() async throws -> NotificationPreferences {
+        let response: PreferencesResponse = try await client.get(["notification-preferences"])
+        return response.preferences
+    }
+
+    func updateNotificationPreferences(
+        _ preferences: NotificationPreferences
+    ) async throws -> NotificationPreferences {
+        let response: PreferencesResponse = try await client.put(
+            ["notification-preferences"],
+            body: preferences
+        )
+        return response.preferences
     }
 
     func emailAvailability(email: String) async throws -> FieldAvailability {
@@ -108,3 +149,34 @@ private struct TitleSearchResponse: Decodable {
 private struct WatchlistResponse: Decodable {
     let items: [WatchlistEntry]
 }
+
+private struct NotificationListResponse: Decodable {
+    let items: [NotificationRecord]
+}
+
+private struct UnreadCountResponse: Decodable {
+    let unreadCount: Int
+}
+
+private struct MarkReadResponse: Decodable {
+    let notification: NotificationRecord
+}
+
+private struct MarkAllReadResponse: Decodable {
+    let markedCount: Int
+}
+
+private struct PreferencesResponse: Decodable {
+    let preferences: NotificationPreferences
+}
+
+private struct NotificationReadBody: Encodable {
+    let notificationID: String
+
+    enum CodingKeys: String, CodingKey {
+        case notificationID = "notificationId"
+    }
+}
+
+/// The route takes no body, but a POST still sends one.
+private struct EmptyBody: Encodable {}
