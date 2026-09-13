@@ -41,7 +41,10 @@
                   "required": [
                     "status",
                     "appEnv",
-                    "dataSource"
+                    "dataSource",
+                    "commit",
+                    "branch",
+                    "startedAt"
                   ],
                   "properties": {
                     "status": {
@@ -93,6 +96,29 @@
                           ]
                         }
                       ]
+                    },
+                    "commit": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "branch": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "startedAt": {
+                      "type": "string"
                     }
                   }
                 }

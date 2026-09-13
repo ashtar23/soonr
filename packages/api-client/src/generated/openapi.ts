@@ -65,6 +65,9 @@ export interface paths {
                             status: "ok";
                             appEnv: "development" | "staging" | "production" | "test";
                             dataSource: "postgres" | "supabase";
+                            commit: string | null;
+                            branch: string | null;
+                            startedAt: string;
                         };
                     };
                 };

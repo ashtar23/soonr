@@ -98,6 +98,10 @@ export const env = {
   appEnv,
   dataSource,
   databaseUrl,
+  // Railway injects these on every deploy. Null anywhere else, which is how
+  // /health reports a build it cannot identify rather than inventing one.
+  commitSha: getOptionalEnv("RAILWAY_GIT_COMMIT_SHA"),
+  branch: getOptionalEnv("RAILWAY_GIT_BRANCH"),
   host: process.env.HOST?.trim() || "0.0.0.0",
   port: getOptionalIntegerEnv("PORT", 3001),
   rawgApiKey: process.env.RAWG_API_KEY?.trim() || null,
