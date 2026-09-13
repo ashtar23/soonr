@@ -83,6 +83,9 @@ struct TitleDetailsView: View {
         }
         // Only meaningful once the title is known to exist.
         .disabled(model.summary == nil)
+        // The bookmark changes optimistically and the row it affects is on
+        // another screen, so this is the only acknowledgement the tap gets.
+        .sensoryFeedback(.success, trigger: isSaved)
     }
 
     private func watchlistTapped() {

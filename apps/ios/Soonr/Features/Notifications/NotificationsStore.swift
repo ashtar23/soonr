@@ -70,6 +70,12 @@ final class NotificationsStore {
             if let current = state.records, let index = current.firstIndex(where: { $0.id == id }) {
                 state = .loaded(current.replacing(at: index) { _ in updated })
             }
+
+            if known == nil {
+                // Nothing local was adjusted, so the count — and the badge that
+                // follows it — would otherwise still include what was just read.
+                unreadCount = (try? await notifications.unreadNotificationCount()) ?? unreadCount
+            }
         } catch is CancellationError {
             state = previousState
             unreadCount = previousCount

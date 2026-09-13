@@ -16,6 +16,8 @@ struct SoonrApp: App {
     @State private var pushRegistration: PushRegistrationStore
     @State private var router = AppRouter()
 
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
         let dependencies = AppDependencies.live()
         self.dependencies = dependencies
@@ -60,6 +62,19 @@ struct SoonrApp: App {
                 }
                 // Tapping a push opens the game it is about, and reads the
                 // notification behind it so the badge agrees with the screen.
+                // Notifications can be turned off in Settings while the app is
+                // away, and notifications can be read on another device, so
+                // both are re-read on the way back rather than at launch only.
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active, case .signedIn = session.state else {
+                        return
+                    }
+
+                    Task {
+                        await pushRegistration.restore()
+                        await notifications.refresh()
+                    }
+                }
                 // The icon mirrors what the app shows: a push leaves a number
                 // there that only the app can take down.
                 .task(id: notifications.unreadCount) {
