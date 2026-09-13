@@ -16,8 +16,25 @@ struct NotificationsView: View {
         NavigationStack {
             content
                 .navigationTitle("Notifications")
-                .navigationDestination(for: TitleDestination.self) { destination in
-                    TitleDetailsView(destination: destination, dependencies: details)
+                .toolbar {
+                    if notifications.unreadCount > 0 {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Mark all read") {
+                                Task {
+                                    await notifications.markAllRead()
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationDestination(for: NotificationRecord.self) { record in
+                    TitleDetailsView(destination: record.destination, dependencies: details)
+                        // Opening it is what reads it, as in Mail. Doing this
+                        // on the destination rather than in the row's action
+                        // keeps it true however the screen was reached.
+                        .task {
+                            await notifications.markRead(id: record.id)
+                        }
                 }
         }
         // On the stack rather than on `content`, which signing in replaces.
@@ -92,9 +109,15 @@ private struct NotificationsList: View {
     var body: some View {
         List {
             ForEach(records) { record in
-                NavigationLink(value: record.destination) {
+                // The record, not its title: opening one is what marks it
+                // read, and the destination needs to know which it was.
+                NavigationLink(value: record) {
                     NotificationRow(record: record)
                 }
+                .hidingOuterSeparators(
+                    isFirst: record.id == records.first?.id,
+                    isLast: record.id == records.last?.id
+                )
             }
         }
         .listStyle(.plain)

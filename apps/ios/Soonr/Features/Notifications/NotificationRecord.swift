@@ -1,7 +1,8 @@
 import Foundation
 
-struct NotificationRecord: Decodable, Equatable, Sendable, Identifiable {
-    enum EventType: String, Equatable, Sendable {
+/// `Hashable` because the list navigates with the record itself.
+struct NotificationRecord: Decodable, Hashable, Sendable, Identifiable {
+    enum EventType: String, Hashable, Sendable {
         case releaseDateChanged = "release_date_changed"
         case releaseApproaching = "release_approaching"
         case unknown

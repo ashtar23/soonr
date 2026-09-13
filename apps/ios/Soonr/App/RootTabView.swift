@@ -3,6 +3,8 @@ import SwiftUI
 struct RootTabView: View {
     let dependencies: AppDependencies
 
+    @Environment(NotificationsStore.self) private var notifications
+
     @State private var selection: AppTab = .home
 
     var body: some View {
@@ -30,6 +32,7 @@ struct RootTabView: View {
             Tab("Notifications", systemImage: "bell", value: AppTab.notifications) {
                 notificationsView
             }
+            .badge(notifications.unreadCount)
 
             Tab(
                 "Search",
@@ -64,6 +67,7 @@ struct RootTabView: View {
                 .tabItem {
                     Label("Notifications", systemImage: "bell")
                 }
+                .badge(notifications.unreadCount)
                 .tag(AppTab.notifications)
 
             searchView
@@ -106,4 +110,5 @@ struct RootTabView: View {
 #Preview {
     RootTabView(dependencies: .preview)
         .environment(ThemeSettings(defaults: .previewDefaults))
+        .environment(NotificationsStore(notifications: PreviewNotifications()))
 }
