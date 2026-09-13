@@ -9,7 +9,7 @@ struct TitleDetailsModelTests {
     @Test
     func successfulLoadShowsDetailsForTheSelectedTitle() async {
         let loader = RecordingTitleDetails(results: [.success(.preview)])
-        let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
+        let model = TitleDetailsModel(destination: .preview, titleDetails: loader)
 
         await model.load()
 
@@ -20,7 +20,7 @@ struct TitleDetailsModelTests {
     @Test
     func missingTitleShowsNotFound() async {
         let model = TitleDetailsModel(
-            summary: .preview,
+            destination: .preview,
             titleDetails: RecordingTitleDetails(results: [.success(nil)])
         )
 
@@ -35,7 +35,7 @@ struct TitleDetailsModelTests {
             .failure(DetailsFixtureError.offline),
             .success(.preview),
         ])
-        let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
+        let model = TitleDetailsModel(destination: .preview, titleDetails: loader)
 
         await model.load()
         #expect(model.state == .failed(.unknown(message: "You're offline.")))
@@ -48,7 +48,7 @@ struct TitleDetailsModelTests {
     @Test
     func loadRecordsWhatTheServerSaysAboutMembership() async {
         let model = TitleDetailsModel(
-            summary: .preview,
+            destination: .preview,
             titleDetails: RecordingTitleDetails(results: [.success(.saved)])
         )
 
@@ -61,7 +61,7 @@ struct TitleDetailsModelTests {
     @Test
     func aTitleThatIsNotSavedReportsSoFromTheServer() async {
         let model = TitleDetailsModel(
-            summary: .preview,
+            destination: .preview,
             titleDetails: RecordingTitleDetails(results: [.success(.preview)])
         )
 
@@ -73,7 +73,7 @@ struct TitleDetailsModelTests {
     @Test
     func loadingAgainAfterSuccessDoesNotRefetch() async {
         let loader = RecordingTitleDetails(results: [.success(.preview)])
-        let model = TitleDetailsModel(summary: .preview, titleDetails: loader)
+        let model = TitleDetailsModel(destination: .preview, titleDetails: loader)
 
         await model.load()
         await model.load()

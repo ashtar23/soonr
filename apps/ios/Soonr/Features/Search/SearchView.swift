@@ -29,8 +29,8 @@ struct SearchView: View {
                 .task(id: model.query) {
                     await model.search()
                 }
-                .navigationDestination(for: TitleSummary.self) { title in
-                    TitleDetailsView(summary: title, dependencies: details)
+                .navigationDestination(for: TitleDestination.self) { destination in
+                    TitleDetailsView(destination: destination, dependencies: details)
                 }
         }
     }
@@ -92,7 +92,7 @@ private struct SearchResultsList: View {
 
     var body: some View {
         List(titles) { title in
-            NavigationLink(value: title) {
+            NavigationLink(value: TitleDestination(title)) {
                 TitleRow(title: title)
             }
             // Plain lists also draw separators above the first row and below

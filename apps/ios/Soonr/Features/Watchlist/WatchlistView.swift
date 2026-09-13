@@ -16,8 +16,8 @@ struct WatchlistView: View {
         NavigationStack {
             content
                 .navigationTitle("Watchlist")
-                .navigationDestination(for: TitleSummary.self) { title in
-                    TitleDetailsView(summary: title, dependencies: details)
+                .navigationDestination(for: TitleDestination.self) { destination in
+                    TitleDetailsView(destination: destination, dependencies: details)
                 }
         }
         // Attached to the stack, not to `content`: signing in switches that
@@ -95,7 +95,7 @@ private struct WatchlistList: View {
     var body: some View {
         List {
             ForEach(entries) { entry in
-                NavigationLink(value: entry.title) {
+                NavigationLink(value: TitleDestination(entry.title)) {
                     TitleRow(title: entry.title)
                 }
                 .listRowSeparator(.hidden, edges: entry.id == entries.first?.id ? .top : [])

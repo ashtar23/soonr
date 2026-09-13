@@ -25,8 +25,8 @@ struct HomeView: View {
             .task {
                 await model.load()
             }
-            .navigationDestination(for: TitleSummary.self) { title in
-                TitleDetailsView(summary: title, dependencies: details)
+            .navigationDestination(for: TitleDestination.self) { destination in
+                TitleDetailsView(destination: destination, dependencies: details)
             }
         }
     }
@@ -98,7 +98,7 @@ private struct HomeRailSection: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: 16) {
                     ForEach(rail.titles) { title in
-                        NavigationLink(value: title) {
+                        NavigationLink(value: TitleDestination(title)) {
                             TitleCard(title: title)
                         }
                         .buttonStyle(.plain)

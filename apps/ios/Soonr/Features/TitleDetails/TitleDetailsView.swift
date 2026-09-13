@@ -10,17 +10,17 @@ struct TitleDetailsView: View {
     /// finishes the save instead of just dismissing.
     @State private var savesAfterSignIn = false
 
-    init(summary: TitleSummary, dependencies: TitleDetailsDependencies) {
+    init(destination: TitleDestination, dependencies: TitleDetailsDependencies) {
         _model = State(
             initialValue: TitleDetailsModel(
-                summary: summary,
+                destination: destination,
                 titleDetails: dependencies.titleDetails
             )
         )
     }
 
     private var isSaved: Bool {
-        watchlist.contains(model.summary.id)
+        watchlist.contains(model.destination.id)
     }
 
     var body: some View {
@@ -30,7 +30,7 @@ struct TitleDetailsView: View {
                 await model.retry()
             }
         )
-        .navigationTitle(model.summary.name)
+        .navigationTitle(model.destination.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -44,11 +44,11 @@ struct TitleDetailsView: View {
         // what the store believes, including when the list was never fetched.
         .onChange(of: model.serverMembership) { _, membership in
             if let membership {
-                watchlist.reconcile(titleID: model.summary.id, isSaved: membership)
+                watchlist.reconcile(titleID: model.destination.id, isSaved: membership)
             }
         }
         .sheet(isPresented: $isPresentingSignIn, onDismiss: finishSignIn) {
-            SignInSheet(prompt: "Sign in to add \(model.summary.name) to your watchlist.")
+            SignInSheet(prompt: "Sign in to add \(model.destination.name) to your watchlist.")
         }
         .alert(
             "Watchlist unavailable",
@@ -83,7 +83,7 @@ struct TitleDetailsView: View {
             )
         }
         // Only meaningful once the title is known to exist.
-        .disabled(model.state.isLoaded == false)
+        .disabled(model.summary == nil)
     }
 
     private func watchlistTapped() {
@@ -93,20 +93,24 @@ struct TitleDetailsView: View {
             return
         }
 
-        Task {
-            await watchlist.setSaved(isSaved == false, title: model.summary)
-        }
+        save(isSaved == false)
     }
 
     private func finishSignIn() {
         let shouldSave = savesAfterSignIn && session.state.session != nil
         savesAfterSignIn = false
-        guard shouldSave else {
+        if shouldSave {
+            save(true)
+        }
+    }
+
+    private func save(_ isSaved: Bool) {
+        guard let summary = model.summary else {
             return
         }
 
         Task {
-            await watchlist.setSaved(true, title: model.summary)
+            await watchlist.setSaved(isSaved, title: summary)
         }
     }
 }
@@ -235,7 +239,7 @@ private struct TitleDetailsList: View {
 
 #Preview("Loaded") {
     NavigationStack {
-        TitleDetailsView(summary: .preview, dependencies: .preview)
+        TitleDetailsView(destination: .preview, dependencies: .preview)
     }
     .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
 }
@@ -243,7 +247,7 @@ private struct TitleDetailsList: View {
 #Preview("Sparse") {
     NavigationStack {
         TitleDetailsView(
-            summary: .preview,
+            destination: .preview,
             dependencies: .preview(PreviewTitleCatalog(details: .previewSparse))
         )
     }
@@ -253,7 +257,7 @@ private struct TitleDetailsList: View {
 #Preview("Not found") {
     NavigationStack {
         TitleDetailsView(
-            summary: .preview,
+            destination: .preview,
             dependencies: .preview(PreviewTitleCatalog(details: nil))
         )
     }
@@ -263,7 +267,7 @@ private struct TitleDetailsList: View {
 /// A guest, whose watchlist tap opens the sign-in sheet instead of saving.
 #Preview("Guest") {
     NavigationStack {
-        TitleDetailsView(summary: .preview, dependencies: .preview)
+        TitleDetailsView(destination: .preview, dependencies: .preview)
     }
     .environment(SessionStore(authentication: PreviewAuthentication()))
 }

@@ -7,19 +7,19 @@ enum TitleDetailsState: Equatable {
     case notFound
     case failed(FailureReason)
 
-    var isLoaded: Bool {
-        if case .loaded = self {
-            return true
+    var details: TitleDetails? {
+        if case let .loaded(details) = self {
+            return details
         }
 
-        return false
+        return nil
     }
 }
 
 @MainActor
 @Observable
 final class TitleDetailsModel {
-    let summary: TitleSummary
+    let destination: TitleDestination
     private(set) var state: TitleDetailsState = .loading
     /// What the server says about this title, which is authoritative even when
     /// the watchlist list itself is stale or was never loaded. `nil` until a
@@ -29,9 +29,16 @@ final class TitleDetailsModel {
 
     @ObservationIgnored private let titleDetails: any TitleDetailsLoading
 
-    init(summary: TitleSummary, titleDetails: any TitleDetailsLoading) {
-        self.summary = summary
+    init(destination: TitleDestination, titleDetails: any TitleDetailsLoading) {
+        self.destination = destination
         self.titleDetails = titleDetails
+    }
+
+    /// The full title, known only once the server answers. The watchlist needs
+    /// it to show a row for a game the list has never seen, which is why saving
+    /// waits for a successful load.
+    var summary: TitleSummary? {
+        state.details?.summary
     }
 
     /// Loads details once; repeated calls after a successful load are ignored
@@ -52,7 +59,7 @@ final class TitleDetailsModel {
         state = .loading
 
         do {
-            let result = try await titleDetails.titleDetails(id: summary.id)
+            let result = try await titleDetails.titleDetails(id: destination.id)
             try Task.checkCancellation()
             serverMembership = result?.isInWatchlist
             state = result.map { .loaded($0.details) } ?? .notFound

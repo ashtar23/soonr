@@ -105,6 +105,10 @@ extension TitleSummary {
     )
 }
 
+extension TitleDestination {
+    static let preview = TitleDestination(TitleSummary.preview)
+}
+
 extension TitleDetails {
     static let preview = TitleDetails(
         summary: .preview,
