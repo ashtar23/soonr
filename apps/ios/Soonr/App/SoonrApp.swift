@@ -7,12 +7,16 @@ struct SoonrApp: App {
     @State private var theme = ThemeSettings()
     @State private var session: SessionStore
     @State private var watchlist: WatchlistStore
+    @State private var notifications: NotificationsStore
 
     init() {
         let dependencies = AppDependencies.live()
         self.dependencies = dependencies
         _session = State(initialValue: SessionStore(authentication: dependencies.authentication))
         _watchlist = State(initialValue: WatchlistStore(watchlist: dependencies.watchlist))
+        _notifications = State(
+            initialValue: NotificationsStore(notifications: dependencies.notifications)
+        )
     }
 
     var body: some Scene {
@@ -21,6 +25,7 @@ struct SoonrApp: App {
                 .environment(theme)
                 .environment(session)
                 .environment(watchlist)
+                .environment(notifications)
                 .environment(\.accounts, dependencies.accounts)
                 .tint(theme.accent.color)
                 .preferredColorScheme(theme.appearance.colorScheme)
@@ -43,8 +48,12 @@ struct SoonrApp: App {
                         return
                     case .signedOut:
                         watchlist.clear()
+                        notifications.clear()
                     case .signedIn:
-                        await watchlist.load()
+                        await withTaskGroup(of: Void.self) { group in
+                            group.addTask { await watchlist.load() }
+                            group.addTask { await notifications.load() }
+                        }
                     }
                 }
         }

@@ -28,7 +28,7 @@ struct RootTabView: View {
             }
 
             Tab("Notifications", systemImage: "bell", value: AppTab.notifications) {
-                NotificationsView()
+                notificationsView
             }
 
             Tab(
@@ -60,7 +60,7 @@ struct RootTabView: View {
                 }
                 .tag(AppTab.watchlist)
 
-            NotificationsView()
+            notificationsView
                 .tabItem {
                     Label("Notifications", systemImage: "bell")
                 }
@@ -85,6 +85,10 @@ struct RootTabView: View {
             homeDiscovery: dependencies.homeDiscovery,
             details: dependencies.titleDetails
         )
+    }
+
+    private var notificationsView: some View {
+        NotificationsView(details: dependencies.titleDetails)
     }
 
     private var watchlistView: some View {

@@ -43,9 +43,7 @@ struct WatchlistView: View {
     private var content: some View {
         switch session.state {
         case .restoring:
-            ProgressView()
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            LoadingScreen()
         case .signedOut:
             PlaceholderScreen(
                 icon: "bookmark",
@@ -67,9 +65,7 @@ struct WatchlistView: View {
     private var signedInContent: some View {
         switch watchlist.state {
         case .loading:
-            ProgressView()
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            LoadingScreen()
         case let .loaded(entries) where entries.isEmpty:
             PlaceholderScreen(
                 icon: "bookmark",
