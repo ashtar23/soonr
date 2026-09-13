@@ -4,6 +4,8 @@ struct NotificationPreferencesView: View {
     // Shared rather than owned: this screen is reachable from two tabs, and
     // two copies would drift apart and then overwrite each other's changes.
     @Environment(NotificationPreferencesStore.self) private var model
+    @Environment(PushRegistrationStore.self) private var push
+    @Environment(\.openURL) private var openURL
 
     /// Bumped when a tap asks for something the list cannot give, which is
     /// what the haptic answers.
@@ -58,10 +60,11 @@ struct NotificationPreferencesView: View {
         List {
             Section {
                 Toggle("In the app", isOn: toggle(\.channels.inApp))
+                Toggle("On this device", isOn: pushChannel(preferences))
             } header: {
                 Text("Deliver")
             } footer: {
-                Text("Push notifications aren't available yet.")
+                pushFooter
             }
 
             Section("Tell me about") {
@@ -95,6 +98,55 @@ struct NotificationPreferencesView: View {
         // any single-choice list does. Dimming it would have put a dimmed
         // checkmark on screen, which reads as off and on at the same time.
         .sensoryFeedback(.warning, trigger: refusedTaps)
+    }
+
+    /// Reads as on only when the server holds the preference *and* iOS still
+    /// allows it: permission revoked in Settings means nothing arrives,
+    /// whatever the account last saved.
+    private func pushChannel(_ preferences: NotificationPreferences) -> Binding<Bool> {
+        Binding(
+            get: { preferences.channels.push && push.authorization == .authorized },
+            set: { isOn in
+                Task {
+                    await setPushChannel(isOn)
+                }
+            }
+        )
+    }
+
+    private func setPushChannel(_ isOn: Bool) async {
+        guard isOn else {
+            model.edit { $0.channels.push = false }
+            return
+        }
+
+        // Asking happens on the way on, so the prompt follows a request for
+        // notifications rather than arriving unexplained at launch.
+        guard await push.requestAuthorization() else {
+            return
+        }
+
+        model.edit { $0.channels.push = true }
+    }
+
+    @ViewBuilder
+    private var pushFooter: some View {
+        switch push.authorization {
+        case .undetermined:
+            Text("Soonr asks for permission the first time you turn this on.")
+        case .authorized:
+            Text("Sent to this device, even when Soonr isn't open.")
+        case .denied:
+            // iOS shows its prompt once ever, so Settings is the only way back.
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Notifications are turned off for Soonr in Settings.")
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+            }
+        }
     }
 
     private func toggle(
@@ -152,8 +204,40 @@ private extension TimingPreset {
 }
 
 #Preview("Preferences") {
-    NavigationStack {
-        NotificationPreferencesView()
+    PreferencesPreview(authorization: .authorized)
+}
+
+#Preview("Push not yet asked for") {
+    PreferencesPreview(authorization: .undetermined)
+}
+
+#Preview("Push refused") {
+    PreferencesPreview(authorization: .denied)
+}
+
+private struct PreferencesPreview: View {
+    @State private var preferences = NotificationPreferencesStore(
+        notifications: PreviewNotifications()
+    )
+    @State private var push: PushRegistrationStore
+
+    init(authorization: PushAuthorization) {
+        _push = State(
+            initialValue: PushRegistrationStore(
+                notifications: PreviewNotifications(),
+                system: PreviewPushAuthorization(authorization: authorization)
+            )
+        )
     }
-    .environment(NotificationPreferencesStore(notifications: PreviewNotifications()))
+
+    var body: some View {
+        NavigationStack {
+            NotificationPreferencesView()
+        }
+        .environment(preferences)
+        .environment(push)
+        .task {
+            await push.restore()
+        }
+    }
 }
