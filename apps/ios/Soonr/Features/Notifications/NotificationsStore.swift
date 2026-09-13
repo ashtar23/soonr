@@ -49,17 +49,21 @@ final class NotificationsStore {
     /// Moves the row and the badge first, putting both back if the server
     /// refuses.
     func markRead(id: String) async {
-        guard let records = state.records,
-            let index = records.firstIndex(where: { $0.id == id }),
-            records[index].isRead == false
-        else {
+        let known = state.records?.firstIndex { $0.id == id }
+
+        // Only a record we hold and already know to be read is worth skipping.
+        // A tapped push opens this before the list has loaded, and requiring a
+        // loaded list here left the server never told.
+        if let records = state.records, let known, records[known].isRead {
             return
         }
 
         let previousState = state
         let previousCount = unreadCount
-        state = .loaded(records.replacing(at: index) { $0.markedRead() })
-        unreadCount = max(0, unreadCount - 1)
+        if let records = state.records, let known {
+            state = .loaded(records.replacing(at: known) { $0.markedRead() })
+            unreadCount = max(0, unreadCount - 1)
+        }
 
         do {
             let updated = try await notifications.markNotificationRead(id: id)

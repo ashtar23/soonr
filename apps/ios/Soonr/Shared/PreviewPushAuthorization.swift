@@ -14,4 +14,6 @@ struct PreviewPushAuthorization: PushAuthorizing {
     }
 
     func registerForRemoteNotifications() async {}
+
+    func setBadgeCount(_ count: Int) async {}
 }

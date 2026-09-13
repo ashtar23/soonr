@@ -194,6 +194,22 @@ struct PushRegistrationStoreTests {
         #expect(await registrar.registered.count == 2)
     }
 
+    /// A push puts a number on the icon and iOS leaves it there; reading the
+    /// notifications is what has to take it down.
+    @Test
+    func theBadgeFollowsWhatIsStillUnread() async {
+        let system = StubPushSystem(authorization: .authorized)
+        let store = PushRegistrationStore(
+            notifications: StubDeviceRegistrar(),
+            system: system
+        )
+
+        await store.showBadge(3)
+        await store.showBadge(0)
+
+        #expect(await system.badgeCounts == [3, 0])
+    }
+
     @Test
     func aRejectedUploadLeavesTheDeviceUnregistered() async {
         let registrar = StubDeviceRegistrar(failing: true)
@@ -213,6 +229,7 @@ struct PushRegistrationStoreTests {
 private actor StubPushSystem: PushAuthorizing {
     private(set) var registrations = 0
     private(set) var prompts = 0
+    private(set) var badgeCounts: [Int] = []
 
     private let status: PushAuthorization
     private let grants: Bool
@@ -233,6 +250,10 @@ private actor StubPushSystem: PushAuthorizing {
 
     func registerForRemoteNotifications() async {
         registrations += 1
+    }
+
+    func setBadgeCount(_ count: Int) async {
+        badgeCounts.append(count)
     }
 }
 

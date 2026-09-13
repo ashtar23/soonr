@@ -60,6 +60,11 @@ struct SoonrApp: App {
                 }
                 // Tapping a push opens the game it is about, and reads the
                 // notification behind it so the badge agrees with the screen.
+                // The icon mirrors what the app shows: a push leaves a number
+                // there that only the app can take down.
+                .task(id: notifications.unreadCount) {
+                    await pushRegistration.showBadge(notifications.unreadCount)
+                }
                 .task {
                     for await opened in OpenedPushNotifications.opened {
                         router.open(opened)

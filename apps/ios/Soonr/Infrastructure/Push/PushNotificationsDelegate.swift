@@ -142,4 +142,12 @@ struct SystemPushAuthorization: PushAuthorizing {
     func registerForRemoteNotifications() async {
         UIApplication.shared.registerForRemoteNotifications()
     }
+
+    func setBadgeCount(_ count: Int) async {
+        do {
+            try await UNUserNotificationCenter.current().setBadgeCount(count)
+        } catch {
+            AppLog.notifications.error("Could not set the badge: \(error)")
+        }
+    }
 }

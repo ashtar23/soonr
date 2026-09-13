@@ -17,4 +17,7 @@ protocol PushAuthorizing: Sendable {
     func requestAuthorization() async -> Bool
     /// Asks APNs for a token, which arrives through `PushDeviceTokens`.
     func registerForRemoteNotifications() async
+    /// The number on the app icon, which iOS keeps showing until it is told
+    /// otherwise — a push sets it, and nothing clears it by itself.
+    func setBadgeCount(_ count: Int) async
 }

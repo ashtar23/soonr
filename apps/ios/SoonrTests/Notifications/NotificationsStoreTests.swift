@@ -74,6 +74,19 @@ struct NotificationsStoreTests {
         #expect(store.unreadCount == 1)
     }
 
+    /// A tapped push opens the app before the list has loaded. Requiring a
+    /// loaded list here meant the server was never told, and the notification
+    /// stayed unread — while tapping the same row in the list worked.
+    @Test
+    func markingOneReadBeforeTheListLoadsStillTellsTheServer() async {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(notifications: notifications)
+
+        await store.markRead(id: NotificationRecord.unread.id)
+
+        #expect(await notifications.readIDs == [NotificationRecord.unread.id])
+    }
+
     @Test
     func markingOneThatIsAlreadyReadSendsNothing() async {
         let notifications = StubNotifications(records: [.read], unreadCount: 0)

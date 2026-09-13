@@ -58,6 +58,13 @@ final class PushRegistrationStore {
         return granted
     }
 
+    /// Keeps the icon in step with what the app itself shows. A push sets the
+    /// badge and iOS leaves it there, so reading the notifications has to take
+    /// it down.
+    func showBadge(_ count: Int) async {
+        await system.setBadgeCount(count)
+    }
+
     func tokenReceived(_ token: String) async {
         guard token != deviceToken || isRegistered == false else {
             return
