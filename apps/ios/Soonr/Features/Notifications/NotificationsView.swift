@@ -139,7 +139,15 @@ private struct NotificationsList: View {
     @Environment(NotificationsStore.self) private var notifications
 
     var body: some View {
+        ScrollToTop(tab: .notifications) {
+            list
+        }
+    }
+
+    private var list: some View {
         List {
+            ScrollToTopAnchor()
+
             ForEach(records) { record in
                 // The record, not its title: the destination marks it read
                 // and needs to know which it was.

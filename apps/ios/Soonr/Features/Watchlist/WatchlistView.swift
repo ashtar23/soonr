@@ -87,7 +87,15 @@ private struct WatchlistList: View {
     let entries: [WatchlistEntry]
 
     var body: some View {
+        ScrollToTop(tab: .watchlist) {
+            list
+        }
+    }
+
+    private var list: some View {
         List {
+            ScrollToTopAnchor()
+
             ForEach(entries) { entry in
                 NavigationLink(value: TitleDestination(entry.title)) {
                     TitleRow(title: entry.title)
