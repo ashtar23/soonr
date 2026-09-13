@@ -53,8 +53,11 @@ struct NotificationsView: View {
         .sheet(isPresented: $isPresentingSignIn) {
             SignInSheet(prompt: "Sign in to hear when the games you follow arrive.")
         }
-        .onChange(of: pushRouting.pendingDestination) { _, destination in
-            guard let destination else {
+        // `task(id:)` rather than `onChange`: this screen is built the first
+        // time its tab is selected, which is after the destination was set, and
+        // a change handler never sees a value that arrived before it existed.
+        .task(id: pushRouting.pendingDestination) {
+            guard let destination = pushRouting.pendingDestination else {
                 return
             }
 

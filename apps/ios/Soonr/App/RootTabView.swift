@@ -6,34 +6,27 @@ struct RootTabView: View {
     @Environment(NotificationsStore.self) private var notifications
     @Environment(PushRoutingStore.self) private var pushRouting
 
-    @State private var selection: AppTab = .home
-
     var body: some View {
-        tabs
-            // A tapped push has a destination the notifications tab shows, so
-            // the tab has to be the one on screen.
-            .onChange(of: pushRouting.pendingDestination) { _, destination in
-                if destination != nil {
-                    selection = .notifications
-                }
-            }
+        @Bindable var pushRouting = pushRouting
+
+        tabs(selection: $pushRouting.selectedTab)
     }
 
     @ViewBuilder
-    private var tabs: some View {
+    private func tabs(selection: Binding<AppTab>) -> some View {
         if #available(iOS 26, *) {
-            modernTabs
+            modernTabs(selection: selection)
                 .tabBarMinimizeBehavior(.onScrollDown)
         } else if #available(iOS 18, *) {
-            modernTabs
+            modernTabs(selection: selection)
         } else {
-            legacyTabs
+            legacyTabs(selection: selection)
         }
     }
 
     @available(iOS 18, *)
-    private var modernTabs: some View {
-        TabView(selection: $selection) {
+    private func modernTabs(selection: Binding<AppTab>) -> some View {
+        TabView(selection: selection) {
             Tab("Home", systemImage: "house", value: AppTab.home) {
                 homeView
             }
@@ -62,8 +55,8 @@ struct RootTabView: View {
         }
     }
 
-    private var legacyTabs: some View {
-        TabView(selection: $selection) {
+    private func legacyTabs(selection: Binding<AppTab>) -> some View {
+        TabView(selection: selection) {
             homeView
                 .tabItem {
                     Label("Home", systemImage: "house")
