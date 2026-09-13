@@ -14,6 +14,7 @@ struct SoonrApp: App {
     @State private var notifications: NotificationsStore
     @State private var notificationPreferences: NotificationPreferencesStore
     @State private var pushRegistration: PushRegistrationStore
+    @State private var pushRouting = PushRoutingStore()
 
     init() {
         let dependencies = AppDependencies.live()
@@ -40,6 +41,7 @@ struct SoonrApp: App {
                 .environment(notifications)
                 .environment(notificationPreferences)
                 .environment(pushRegistration)
+                .environment(pushRouting)
                 .environment(\.accounts, dependencies.accounts)
                 .tint(theme.accent.color)
                 .preferredColorScheme(theme.appearance.colorScheme)
@@ -54,6 +56,14 @@ struct SoonrApp: App {
                 .task {
                     for await token in PushDeviceTokens.tokens {
                         await pushRegistration.tokenReceived(token)
+                    }
+                }
+                // Tapping a push opens the game it is about, and reads the
+                // notification behind it so the badge agrees with the screen.
+                .task {
+                    for await opened in OpenedPushNotifications.opened {
+                        pushRouting.open(opened)
+                        await notifications.markRead(id: opened.notificationID)
                     }
                 }
                 // A rejected session ends here rather than leaving a screen

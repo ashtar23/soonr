@@ -4,10 +4,23 @@ struct RootTabView: View {
     let dependencies: AppDependencies
 
     @Environment(NotificationsStore.self) private var notifications
+    @Environment(PushRoutingStore.self) private var pushRouting
 
     @State private var selection: AppTab = .home
 
     var body: some View {
+        tabs
+            // A tapped push has a destination the notifications tab shows, so
+            // the tab has to be the one on screen.
+            .onChange(of: pushRouting.pendingDestination) { _, destination in
+                if destination != nil {
+                    selection = .notifications
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var tabs: some View {
         if #available(iOS 26, *) {
             modernTabs
                 .tabBarMinimizeBehavior(.onScrollDown)

@@ -16,7 +16,58 @@ enum PushDeviceTokens {
     }
 }
 
+/// A notification the viewer tapped, and what it was about.
+struct OpenedPushNotification: Hashable, Sendable {
+    let notificationID: String
+    let destination: TitleDestination
+}
+
+enum OpenedPushNotifications {
+    private static let channel = AsyncStream<OpenedPushNotification>.makeStream()
+
+    static var opened: AsyncStream<OpenedPushNotification> {
+        channel.stream
+    }
+
+    static func received(_ response: UNNotificationResponse) {
+        let content = response.notification.request.content
+        guard let opened = parse(userInfo: content.userInfo, title: content.title) else {
+            return
+        }
+
+        channel.continuation.yield(opened)
+    }
+
+    /// The keys `apps/api` puts alongside the alert. The alert's own title is
+    /// the game's name, which is what the details screen shows until its own
+    /// request answers.
+    static func parse(
+        userInfo: [AnyHashable: Any],
+        title: String
+    ) -> OpenedPushNotification? {
+        guard let titleID = userInfo["destinationTitleId"] as? String,
+            let notificationID = userInfo["notificationId"] as? String,
+            titleID.isEmpty == false
+        else {
+            return nil
+        }
+
+        return OpenedPushNotification(
+            notificationID: notificationID,
+            destination: TitleDestination(id: titleID, name: title)
+        )
+    }
+}
+
 final class PushNotificationsDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
@@ -32,6 +83,25 @@ final class PushNotificationsDelegate: NSObject, UIApplicationDelegate {
         // not match the provisioning profile. Nothing is sent until a token
         // arrives, so the app carries on without one.
         AppLog.notifications.error("Could not register for push: \(error)")
+    }
+}
+
+extension PushNotificationsDelegate: UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        OpenedPushNotifications.received(response)
+    }
+
+    /// Shown even with Soonr open. The list behind it is not necessarily on
+    /// screen, so suppressing it would drop the only sign that anything
+    /// arrived.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .badge]
     }
 }
 

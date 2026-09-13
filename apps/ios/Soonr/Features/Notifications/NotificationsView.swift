@@ -7,7 +7,9 @@ enum NotificationsRoute: Hashable {
 struct NotificationsView: View {
     @Environment(SessionStore.self) private var session
     @Environment(NotificationsStore.self) private var notifications
+    @Environment(PushRoutingStore.self) private var pushRouting
 
+    @State private var path = NavigationPath()
     @State private var isPresentingSignIn = false
 
     private let details: TitleDetailsDependencies
@@ -17,7 +19,7 @@ struct NotificationsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             content
                 .navigationTitle("Notifications")
                 .toolbar {
@@ -35,6 +37,9 @@ struct NotificationsView: View {
                         NotificationPreferencesView()
                     }
                 }
+                .navigationDestination(for: TitleDestination.self) { destination in
+                    TitleDetailsView(destination: destination, dependencies: details)
+                }
                 .navigationDestination(for: NotificationRecord.self) { record in
                     TitleDetailsView(destination: record.destination, dependencies: details)
                         // On the destination rather than the row's action,
@@ -47,6 +52,14 @@ struct NotificationsView: View {
         // On the stack rather than on `content`, which signing in replaces.
         .sheet(isPresented: $isPresentingSignIn) {
             SignInSheet(prompt: "Sign in to hear when the games you follow arrive.")
+        }
+        .onChange(of: pushRouting.pendingDestination) { _, destination in
+            guard let destination else {
+                return
+            }
+
+            path.append(destination)
+            pushRouting.destinationOpened()
         }
         // The root loads once per session, so opening the tab is the way back
         // from a failed load. An already-loaded list is left alone.
