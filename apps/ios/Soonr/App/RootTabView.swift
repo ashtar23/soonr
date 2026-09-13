@@ -4,12 +4,12 @@ struct RootTabView: View {
     let dependencies: AppDependencies
 
     @Environment(NotificationsStore.self) private var notifications
-    @Environment(PushRoutingStore.self) private var pushRouting
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
-        @Bindable var pushRouting = pushRouting
+        @Bindable var router = router
 
-        tabs(selection: $pushRouting.selectedTab)
+        return tabs(selection: $router.selectedTab)
     }
 
     @ViewBuilder

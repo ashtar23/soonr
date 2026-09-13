@@ -14,7 +14,7 @@ struct SoonrApp: App {
     @State private var notifications: NotificationsStore
     @State private var notificationPreferences: NotificationPreferencesStore
     @State private var pushRegistration: PushRegistrationStore
-    @State private var pushRouting = PushRoutingStore()
+    @State private var router = AppRouter()
 
     init() {
         let dependencies = AppDependencies.live()
@@ -41,7 +41,7 @@ struct SoonrApp: App {
                 .environment(notifications)
                 .environment(notificationPreferences)
                 .environment(pushRegistration)
-                .environment(pushRouting)
+                .environment(router)
                 .environment(\.accounts, dependencies.accounts)
                 .tint(theme.accent.color)
                 .preferredColorScheme(theme.appearance.colorScheme)
@@ -62,7 +62,7 @@ struct SoonrApp: App {
                 // notification behind it so the badge agrees with the screen.
                 .task {
                     for await opened in OpenedPushNotifications.opened {
-                        pushRouting.open(opened)
+                        router.open(opened)
                         await notifications.markRead(id: opened.notificationID)
                     }
                 }
@@ -84,6 +84,7 @@ struct SoonrApp: App {
                         watchlist.clear()
                         notifications.clear()
                         notificationPreferences.clear()
+                        router.reset()
                         await pushRegistration.signedOut()
                     case .signedIn:
                         await pushRegistration.signedIn()

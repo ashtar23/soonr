@@ -7,9 +7,8 @@ enum NotificationsRoute: Hashable {
 struct NotificationsView: View {
     @Environment(SessionStore.self) private var session
     @Environment(NotificationsStore.self) private var notifications
-    @Environment(PushRoutingStore.self) private var pushRouting
+    @Environment(AppRouter.self) private var router
 
-    @State private var path = NavigationPath()
     @State private var isPresentingSignIn = false
 
     private let details: TitleDetailsDependencies
@@ -19,7 +18,9 @@ struct NotificationsView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        @Bindable var router = router
+
+        return NavigationStack(path: $router.notificationsPath) {
             content
                 .navigationTitle("Notifications")
                 .toolbar {
@@ -52,17 +53,6 @@ struct NotificationsView: View {
         // On the stack rather than on `content`, which signing in replaces.
         .sheet(isPresented: $isPresentingSignIn) {
             SignInSheet(prompt: "Sign in to hear when the games you follow arrive.")
-        }
-        // `task(id:)` rather than `onChange`: this screen is built the first
-        // time its tab is selected, which is after the destination was set, and
-        // a change handler never sees a value that arrived before it existed.
-        .task(id: pushRouting.pendingDestination) {
-            guard let destination = pushRouting.pendingDestination else {
-                return
-            }
-
-            path.append(destination)
-            pushRouting.destinationOpened()
         }
         // The root loads once per session, so opening the tab is the way back
         // from a failed load. An already-loaded list is left alone.
