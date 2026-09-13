@@ -20,7 +20,7 @@ enum NotificationPreferencesState: Equatable {
 /// screen back to what the server last confirmed.
 @MainActor
 @Observable
-final class NotificationPreferencesModel {
+final class NotificationPreferencesStore {
     private(set) var state: NotificationPreferencesState = .loading
     private(set) var saveFailure: FailureReason?
 
@@ -78,6 +78,16 @@ final class NotificationPreferencesModel {
 
     func clearSaveFailure() {
         saveFailure = nil
+    }
+
+    /// Signing out drops one account's settings rather than showing them to
+    /// the next, and returns the screen to loading so it fetches again.
+    func clear() {
+        saveTask?.cancel()
+        saveTask = nil
+        confirmed = nil
+        saveFailure = nil
+        state = .loading
     }
 
     private func fetch() async {

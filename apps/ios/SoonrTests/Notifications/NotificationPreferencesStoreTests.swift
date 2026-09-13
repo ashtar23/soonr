@@ -5,10 +5,10 @@ import Testing
 
 @MainActor
 @Suite(.tags(.networking))
-struct NotificationPreferencesModelTests {
+struct NotificationPreferencesStoreTests {
     @Test
     func loadShowsWhatTheServerHasSaved() async {
-        let model = NotificationPreferencesModel(
+        let model = NotificationPreferencesStore(
             notifications: StubPreferences(stored: .everything)
         )
 
@@ -20,7 +20,7 @@ struct NotificationPreferencesModelTests {
     @Test
     func failureIsReportedAndRetryRecovers() async {
         let preferences = StubPreferences(stored: .everything, failingLoads: 1)
-        let model = NotificationPreferencesModel(notifications: preferences)
+        let model = NotificationPreferencesStore(notifications: preferences)
 
         await model.load()
         #expect(model.state == .failed(.offline))
@@ -87,9 +87,27 @@ struct NotificationPreferencesModelTests {
         #expect(await preferences.saved.isEmpty)
     }
 
+    /// The store outlives the screen now, so signing out has to drop what it
+    /// holds instead of showing it to the next account.
+    @Test
+    func signingOutDropsOneAccountsSettingsAndLoadsAgain() async {
+        let preferences = StubPreferences(stored: .everything)
+        let model = await loaded(preferences)
+
+        model.edit { $0.channels.inApp = false }
+        model.clear()
+
+        #expect(model.state == .loading)
+        #expect(model.preferences == nil)
+
+        await model.load()
+        #expect(model.state == .loaded(.everything))
+        #expect(await preferences.saved.isEmpty)
+    }
+
     /// A save cannot start until the screen knows what it is editing.
-    private func loaded(_ preferences: StubPreferences) async -> NotificationPreferencesModel {
-        let model = NotificationPreferencesModel(
+    private func loaded(_ preferences: StubPreferences) async -> NotificationPreferencesStore {
+        let model = NotificationPreferencesStore(
             notifications: preferences,
             // Long enough that only an explicit flush sends anything, so the
             // test never races the timer.

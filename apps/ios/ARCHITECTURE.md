@@ -158,6 +158,34 @@ Use the narrowest state mechanism that fits:
 Server responses remain feature-local unless multiple screens genuinely share
 their lifetime. Avoid a single app-wide store containing every feature's state.
 
+**The rule that decides it: two screens reading the same server state share one
+store.** A feature model owned per screen is right until a second screen reads
+the same thing, at which point two copies drift apart and then overwrite each
+other. `WatchlistStore`, `NotificationsStore` and
+`NotificationPreferencesStore` are each at the root for that reason and no
+other; everything else stays per-screen.
+
+### Why not a state-management library
+
+`@Observable` in the environment is Apple's own answer, and the Observation
+framework tracks reads per property, so a view re-renders only for the fields
+it actually reads. That is the granularity an atom library buys elsewhere, and
+it is already in the language here.
+
+The Composable Architecture is the reducer-and-store option, and it earns its
+learning curve and its dependency when state must be exactly answerable —
+complex undo, multiplayer, intricate navigation. This app is a list, a detail
+screen and some switches.
+
+Point-Free's `swift-sharing` is the closest thing to atoms: one property
+wrapper usable from views, models and UIKit alike, with persistence backends.
+Its two advantages are persistence and working outside SwiftUI. Our persistence
+is a server API, and there is no UIKit here.
+
+Revisit if the app grows genuinely intricate navigation or undo, or needs state
+shared with a widget or an app extension — that last one is what would make
+`swift-sharing` pay for itself.
+
 ## Concurrency
 
 - Feature models that update presentation state are isolated to `MainActor`.

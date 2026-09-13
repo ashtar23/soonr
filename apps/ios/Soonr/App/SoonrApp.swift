@@ -8,6 +8,7 @@ struct SoonrApp: App {
     @State private var session: SessionStore
     @State private var watchlist: WatchlistStore
     @State private var notifications: NotificationsStore
+    @State private var notificationPreferences: NotificationPreferencesStore
 
     init() {
         let dependencies = AppDependencies.live()
@@ -16,6 +17,9 @@ struct SoonrApp: App {
         _watchlist = State(initialValue: WatchlistStore(watchlist: dependencies.watchlist))
         _notifications = State(
             initialValue: NotificationsStore(notifications: dependencies.notifications)
+        )
+        _notificationPreferences = State(
+            initialValue: NotificationPreferencesStore(notifications: dependencies.notifications)
         )
     }
 
@@ -26,8 +30,8 @@ struct SoonrApp: App {
                 .environment(session)
                 .environment(watchlist)
                 .environment(notifications)
+                .environment(notificationPreferences)
                 .environment(\.accounts, dependencies.accounts)
-                .environment(\.notifications, dependencies.notifications)
                 .tint(theme.accent.color)
                 .preferredColorScheme(theme.appearance.colorScheme)
                 .task {
@@ -50,6 +54,7 @@ struct SoonrApp: App {
                     case .signedOut:
                         watchlist.clear()
                         notifications.clear()
+                        notificationPreferences.clear()
                     case .signedIn:
                         await withTaskGroup(of: Void.self) { group in
                             group.addTask { await watchlist.load() }

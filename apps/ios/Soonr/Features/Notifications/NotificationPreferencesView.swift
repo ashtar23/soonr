@@ -1,11 +1,9 @@
 import SwiftUI
 
 struct NotificationPreferencesView: View {
-    @State private var model: NotificationPreferencesModel
-
-    init(notifications: any NotificationsProviding) {
-        _model = State(initialValue: NotificationPreferencesModel(notifications: notifications))
-    }
+    // Shared rather than owned: this screen is reachable from two tabs, and
+    // two copies would drift apart and then overwrite each other's changes.
+    @Environment(NotificationPreferencesStore.self) private var model
 
     var body: some View {
         content
@@ -155,6 +153,7 @@ private extension Array where Element == TimingPreset {
 
 #Preview("Preferences") {
     NavigationStack {
-        NotificationPreferencesView(notifications: PreviewNotifications())
+        NotificationPreferencesView()
     }
+    .environment(NotificationPreferencesStore(notifications: PreviewNotifications()))
 }

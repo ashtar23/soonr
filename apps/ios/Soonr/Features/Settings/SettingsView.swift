@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @Environment(\.notifications) private var notifications
-
     var body: some View {
         List {
             Section("Preferences") {
@@ -22,7 +20,7 @@ struct SettingsView: View {
                 }
 
                 NavigationLink {
-                    NotificationPreferencesView(notifications: notifications)
+                    NotificationPreferencesView()
                 } label: {
                     Label("Notifications", systemImage: "bell")
                 }

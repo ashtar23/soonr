@@ -8,7 +8,6 @@ enum NotificationsRoute: Hashable {
 struct NotificationsView: View {
     @Environment(SessionStore.self) private var session
     @Environment(NotificationsStore.self) private var notifications
-    @Environment(\.notifications) private var notificationsAPI
 
     @State private var isPresentingSignIn = false
 
@@ -35,7 +34,7 @@ struct NotificationsView: View {
                 .navigationDestination(for: NotificationsRoute.self) { route in
                     switch route {
                     case .preferences:
-                        NotificationPreferencesView(notifications: notificationsAPI)
+                        NotificationPreferencesView()
                     }
                 }
                 .navigationDestination(for: NotificationRecord.self) { record in
