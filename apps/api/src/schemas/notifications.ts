@@ -22,9 +22,12 @@ const ReleaseDateChangedNotificationPayloadSchema = Type.Object({
   nextReleaseDate: Type.Union([Type.String(), Type.Null()]),
 });
 
+// Optional because a stored payload may not carry a preset this build can
+// read, and dropping it is better than failing the response or inventing one.
+// Clients read the dates; nothing renders the preset.
 const ReleaseApproachingNotificationPayloadSchema = Type.Object({
   targetReleaseDate: Type.Union([Type.String(), Type.Null()]),
-  timingPreset: NotificationTimingPresetSchema,
+  timingPreset: Type.Optional(NotificationTimingPresetSchema),
 });
 
 export const NotificationPayloadSchema = Type.Union([

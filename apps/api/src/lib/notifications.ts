@@ -1,3 +1,4 @@
+import { notificationTimingPresetValues } from "@repo/types";
 import type {
   NotificationPreferences,
   NotificationPayload,
@@ -29,7 +30,9 @@ type NotificationRecordRow = {
   title_artwork_url: string | null;
   message: string;
   subtitle: string | null;
-  payload: NotificationPayload;
+  /// `jsonb` accepts any object, so this is what the column actually holds:
+  /// something unverified, normalized before it reaches a response.
+  payload: unknown;
   created_at: string;
   read_at: string | null;
 };
@@ -241,10 +244,61 @@ function mapNotificationRecord(row: NotificationRecordRow): NotificationRecord {
     titleArtworkUrl: row.title_artwork_url,
     message: row.message,
     subtitle: row.subtitle,
-    payload: row.payload,
+    payload: normalizeNotificationPayload(row.event_type, row.payload),
     createdAt: row.created_at,
     readAt: row.read_at,
   };
+}
+
+/**
+ * Forces a stored payload into the shape the response schema declares.
+ *
+ * Responses are validated on the way out, so a single row carrying a payload
+ * the schema rejects failed serialization and took the whole list with it —
+ * not just that row, and not just once: it stayed broken until the data was
+ * fixed by hand. A column typed `jsonb` cannot promise otherwise, so nothing
+ * reaches a response without passing through here.
+ *
+ * Missing parts become null rather than being invented, and an unreadable
+ * timing preset is dropped: clients read the dates, and a wrong preset would
+ * be worse than an absent one.
+ */
+export function normalizeNotificationPayload(
+  eventType: NotificationRecord["eventType"],
+  payload: unknown,
+): NotificationPayload {
+  const stored = isPlainObject(payload) ? payload : {};
+
+  if (eventType === "release_approaching") {
+    const timingPreset = stored.timingPreset;
+
+    return {
+      targetReleaseDate: nullableString(stored.targetReleaseDate),
+      ...(isTimingPreset(timingPreset) ? { timingPreset } : {}),
+    } as NotificationPayload;
+  }
+
+  return {
+    previousReleaseDate: nullableString(stored.previousReleaseDate),
+    nextReleaseDate: nullableString(stored.nextReleaseDate),
+  };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" && value !== null && Array.isArray(value) === false
+  );
+}
+
+function nullableString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function isTimingPreset(value: unknown): value is NotificationTimingPreset {
+  return (
+    typeof value === "string" &&
+    (notificationTimingPresetValues as readonly string[]).includes(value)
+  );
 }
 
 function mapNotificationPreferencesRow(
