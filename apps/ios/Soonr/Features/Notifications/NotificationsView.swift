@@ -1,8 +1,14 @@
 import SwiftUI
 
+/// Where this tab can go besides a title.
+enum NotificationsRoute: Hashable {
+    case preferences
+}
+
 struct NotificationsView: View {
     @Environment(SessionStore.self) private var session
     @Environment(NotificationsStore.self) private var notifications
+    @Environment(\.notifications) private var notificationsAPI
 
     @State private var isPresentingSignIn = false
 
@@ -24,6 +30,12 @@ struct NotificationsView: View {
                         ToolbarItem(placement: .topBarTrailing) {
                             menu
                         }
+                    }
+                }
+                .navigationDestination(for: NotificationsRoute.self) { route in
+                    switch route {
+                    case .preferences:
+                        NotificationPreferencesView(notifications: notificationsAPI)
                     }
                 }
                 .navigationDestination(for: NotificationRecord.self) { record in
@@ -59,6 +71,10 @@ struct NotificationsView: View {
                 }
             }
             .disabled(notifications.unreadCount == 0)
+
+            NavigationLink(value: NotificationsRoute.preferences) {
+                Label("Notification settings", systemImage: "gearshape")
+            }
         } label: {
             Label("More", systemImage: "ellipsis.circle")
         }

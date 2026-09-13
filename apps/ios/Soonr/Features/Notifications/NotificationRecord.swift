@@ -100,4 +100,12 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
         self.events = events
         self.timingPresets = timingPresets
     }
+
+    /// What the server assumes for an account that has never saved any: the
+    /// same values `notification-generation` falls back to.
+    static let `default` = NotificationPreferences(
+        channels: Channels(inApp: true, push: false),
+        events: Events(releaseDateChanged: true, releaseApproaching: true),
+        timingPresets: [.onDay]
+    )
 }
