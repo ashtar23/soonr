@@ -20,7 +20,7 @@ struct PagedListTests {
     func afreshListHoldsNothingAndAsksForNothing() {
         let list = PagedList<Row>()
 
-        #expect(list.isEmpty)
+        #expect(list.items.isEmpty)
         #expect(list.hasMore == false)
     }
 
@@ -211,6 +211,67 @@ struct PagedListTests {
         list.updateAll { Row(id: $0.id, label: "read") }
 
         #expect(list.items.allSatisfy { $0.label == "read" })
+    }
+
+    @Test
+    func aRowAddedHereGoesOnTop() {
+        var list = PagedList(page(["b", "c"], next: "cursor-2"))
+
+        list.prepend(Row(id: "a"))
+
+        #expect(list.items.map(\.id) == ["a", "b", "c"])
+    }
+
+    @Test
+    func aRowAlreadyHeldIsNotAddedTwice() {
+        var list = PagedList(page(["a", "b"]))
+
+        list.prepend(Row(id: "b"))
+
+        #expect(list.items.map(\.id) == ["a", "b"])
+    }
+
+    /// A row added here must be known to identity, or the page it really lives
+    /// on would show it a second time when it loads.
+    @Test
+    func aRowAddedHereIsNotAppendedAgainByALaterPage() {
+        var list = PagedList(page(["b"], next: "cursor-2"))
+        list.prepend(Row(id: "a"))
+
+        list.append(page(["a", "c"]))
+
+        #expect(list.items.map(\.id) == ["a", "b", "c"])
+    }
+
+    @Test
+    func aRemovedRowIsGone() {
+        var list = PagedList(page(["a", "b", "c"]))
+
+        list.removeAll { $0.id == "b" }
+
+        #expect(list.items.map(\.id) == ["a", "c"])
+    }
+
+    /// Removing has to forget as well as drop, or saving the same title again
+    /// would be rejected as a duplicate and never reappear.
+    @Test
+    func aRemovedRowCanComeBack() {
+        var list = PagedList(page(["a", "b"]))
+        list.removeAll { $0.id == "b" }
+
+        list.prepend(Row(id: "b"))
+
+        #expect(list.items.map(\.id) == ["b", "a"])
+    }
+
+    @Test
+    func removingSomethingNotHeldChangesNothing() {
+        var list = PagedList(page(["a"], next: "cursor-2"))
+
+        list.removeAll { $0.id == "zzz" }
+
+        #expect(list.items.map(\.id) == ["a"])
+        #expect(list.nextCursor == "cursor-2")
     }
 
     // MARK: - Cost

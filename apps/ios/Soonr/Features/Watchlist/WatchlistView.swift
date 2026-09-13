@@ -86,6 +86,8 @@ struct WatchlistView: View {
 private struct WatchlistList: View {
     let entries: [WatchlistEntry]
 
+    @Environment(WatchlistStore.self) private var watchlist
+
     var body: some View {
         ScrollToTop(tab: .watchlist) {
             list
@@ -104,6 +106,15 @@ private struct WatchlistList: View {
                     isFirst: entry.id == entries.first?.id,
                     isLast: entry.id == entries.last?.id
                 )
+            }
+
+            // A row of its own rather than an `.onAppear` on the last entry, so
+            // the trigger does not depend on which entry happens to be last.
+            if watchlist.hasMore {
+                LoadingMoreRow()
+                    .task {
+                        await watchlist.loadMore()
+                    }
             }
         }
         .listStyle(.plain)

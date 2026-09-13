@@ -191,19 +191,6 @@ private struct NotificationsList: View {
     }
 }
 
-/// The last row, which asks for the next page by appearing.
-private struct LoadingMoreRow: View {
-    var body: some View {
-        HStack {
-            Spacer()
-            ProgressView()
-            Spacer()
-        }
-        .listRowSeparator(.hidden)
-        .accessibilityLabel("Loading more notifications")
-    }
-}
-
 private extension NotificationRecord {
     var destination: TitleDestination {
         TitleDestination(id: destinationTitleID, name: titleName)

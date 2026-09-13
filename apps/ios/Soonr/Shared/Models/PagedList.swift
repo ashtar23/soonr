@@ -27,10 +27,6 @@ where Item.ID: Sendable {
 
     private var identifiers: Set<Item.ID> = []
 
-    var isEmpty: Bool {
-        items.isEmpty
-    }
-
     var hasMore: Bool {
         nextCursor != nil
     }
@@ -85,6 +81,40 @@ where Item.ID: Sendable {
         let added = page.items.filter { arriving[$0.id] != nil }
         items.insert(contentsOf: added, at: 0)
         identifiers.formUnion(added.map(\.id))
+    }
+
+    /// Adds a row at the top, for one created here rather than loaded. Does
+    /// nothing if it is already held, so saving something twice cannot show it
+    /// twice.
+    mutating func prepend(_ item: Item) {
+        guard identifiers.contains(item.id) == false else {
+            return
+        }
+
+        identifiers.insert(item.id)
+        items.insert(item, at: 0)
+    }
+
+    /// Removes rows, and forgets them: identity has to go with the row, or the
+    /// same row added again would be rejected as a duplicate and never
+    /// reappear.
+    ///
+    /// Takes a predicate rather than an id because a row is not always removed
+    /// by the identity it is listed under — a watchlist entry is identified by
+    /// the entry, and removed by the title it holds.
+    mutating func removeAll(where shouldRemove: (Item) -> Bool) {
+        var removed = false
+
+        for item in items where shouldRemove(item) {
+            identifiers.remove(item.id)
+            removed = true
+        }
+
+        guard removed else {
+            return
+        }
+
+        items.removeAll(where: shouldRemove)
     }
 
     /// Replaces one row, wherever it sits. Used for a change made here rather

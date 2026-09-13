@@ -30,7 +30,16 @@ final class WatchlistStore {
     /// say why the bookmark sprang back.
     private(set) var mutationFailure: FailureReason?
 
+    /// True while a further page is on its way, so a fast scroll cannot start
+    /// the same request several times over.
+    private(set) var isLoadingMore = false
+
+    var hasMore: Bool {
+        state.entries != nil && page.hasMore
+    }
+
     @ObservationIgnored private let watchlist: any WatchlistManaging
+    @ObservationIgnored private var page = PagedList<WatchlistEntry>()
 
     init(watchlist: any WatchlistManaging) {
         self.watchlist = watchlist
@@ -56,6 +65,7 @@ final class WatchlistStore {
 
     /// Drops another account's titles rather than leaving them on screen.
     func clear() {
+        page = PagedList<WatchlistEntry>()
         state = .loaded([])
         savedIDs = []
         mutationFailure = nil
@@ -119,7 +129,43 @@ final class WatchlistStore {
         mutationFailure = nil
     }
 
+    /// The next page, asked for when the last row comes into view. Silent
+    /// about failure: the rows already on screen are still good, and reaching
+    /// the bottom again retries.
+    func loadMore() async {
+        guard isLoadingMore == false, let cursor = page.nextCursor else {
+            return
+        }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        do {
+            let next = try await watchlist.watchlist(after: cursor)
+            try Task.checkCancellation()
+            // A title saved while its real entry sat on a page not yet loaded
+            // is held under a stand-in id, which the paged list cannot match
+            // against the server's own. Letting the server's copy win keeps the
+            // title once rather than twice.
+            let arriving = Set(next.items.map(\.title.id))
+            page.removeAll { arriving.contains($0.title.id) }
+            page.append(next)
+            state = .loaded(page.items)
+            // Membership grows with what has been seen; a title on a page not
+            // loaded yet is still answered by title details, which reports it
+            // for one title authoritatively.
+            savedIDs.formUnion(next.items.map(\.title.id))
+        } catch is CancellationError {
+            return
+        } catch {
+            AppLog.watchlist.error("Could not load more of the watchlist: \(error)")
+        }
+    }
+
     private func insertEntry(for title: TitleSummary) {
+        // Identity here is the entry, but a title is saved once however many
+        // entries could hold it — and the entry this makes carries a stand-in
+        // id, so the paged list cannot tell the two apart on its own.
         guard let entries = state.entries,
             entries.contains(where: { $0.title.id == title.id }) == false
         else {
@@ -128,20 +174,23 @@ final class WatchlistStore {
 
         // Newest first, matching the server's default order. The identifier
         // and timestamp are replaced by the server's own on the next load.
-        let entry = WatchlistEntry(
-            id: title.id,
-            title: title,
-            addedAt: ISO8601DateFormatter().string(from: .now)
+        page.prepend(
+            WatchlistEntry(
+                id: title.id,
+                title: title,
+                addedAt: ISO8601DateFormatter().string(from: .now)
+            )
         )
-        state = .loaded([entry] + entries)
+        state = .loaded(page.items)
     }
 
     private func removeEntry(titleID: String) {
-        guard let entries = state.entries else {
+        guard state.entries != nil else {
             return
         }
 
-        state = .loaded(entries.filter { $0.title.id != titleID })
+        page.removeAll { $0.title.id == titleID }
+        state = .loaded(page.items)
     }
 
     private func fetch(showingLoadingState: Bool) async {
@@ -150,10 +199,11 @@ final class WatchlistStore {
         }
 
         do {
-            let entries = try await watchlist.watchlist(after: nil).items
+            let first = try await watchlist.watchlist(after: nil)
             try Task.checkCancellation()
-            state = .loaded(entries)
-            savedIDs = Set(entries.map(\.title.id))
+            page.reset(to: first)
+            state = .loaded(page.items)
+            savedIDs = Set(page.items.map(\.title.id))
         } catch is CancellationError {
             return
         } catch {
