@@ -5,6 +5,10 @@ struct NotificationPreferencesView: View {
     // two copies would drift apart and then overwrite each other's changes.
     @Environment(NotificationPreferencesStore.self) private var model
 
+    /// Bumped when a tap asks for something the list cannot give, which is
+    /// what the haptic answers.
+    @State private var refusedTaps = 0
+
     var body: some View {
         content
             .navigationTitle("Notifications")
@@ -72,6 +76,10 @@ struct NotificationPreferencesView: View {
                         isSelected: preferences.timingPresets.contains(preset),
                         isOnlyChoice: preferences.timingPresets == [preset]
                     ) {
+                        if preferences.timingPresets == [preset] {
+                            refusedTaps += 1
+                        }
+
                         model.edit { $0.toggleTimingPreset(preset) }
                     }
                 }
@@ -83,6 +91,10 @@ struct NotificationPreferencesView: View {
             // Nothing here has an effect while the event itself is off.
             .disabled(preferences.events.releaseApproaching == false)
         }
+        // The row stays live and simply declines, the way the selected row of
+        // any single-choice list does. Dimming it would have put a dimmed
+        // checkmark on screen, which reads as off and on at the same time.
+        .sensoryFeedback(.warning, trigger: refusedTaps)
     }
 
     private func toggle(
@@ -98,9 +110,8 @@ struct NotificationPreferencesView: View {
 private struct TimingRow: View {
     let preset: TimingPreset
     let isSelected: Bool
-    /// The last one standing. Clearing it would send an empty list, which the
-    /// server answers by handing back its own default — so the checkmark came
-    /// straight back and the tap looked broken.
+    /// The last one standing, which cannot be cleared: an empty list is a
+    /// state the server answers by handing back its own default.
     let isOnlyChoice: Bool
     let select: () -> Void
 
@@ -121,7 +132,6 @@ private struct TimingRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .disabled(isOnlyChoice)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityHint(isOnlyChoice ? "At least one is needed" : "")
