@@ -59,6 +59,7 @@ enum OpenedPushNotifications {
     }
 }
 
+@MainActor
 final class PushNotificationsDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
@@ -86,11 +87,19 @@ final class PushNotificationsDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
-// `@preconcurrency`, not `nonisolated`: UIKit finishes this delegate's work
-// inside a CATransaction commit and asserts if that happens off the main
-// thread. Marking the methods nonisolated to satisfy Swift 6's Sendable
-// checking moved them to a background executor, and tapping a notification
-// crashed the app.
+// The class is `@MainActor` and this is `@preconcurrency` for two different
+// reasons, and both are load-bearing.
+//
+// UIKit finishes this delegate's work inside a CATransaction commit and
+// asserts if that happens off the main thread. These methods are `async`, and
+// a nonisolated `async` method in Swift 6 runs on the cooperative pool — not
+// on the caller — so returning from one resumed the ObjC completion handler on
+// a background thread and aborted the app when a notification was tapped.
+// `@preconcurrency` alone did not fix that: it silences Sendable diagnostics,
+// it does not choose an executor. The isolation is what does.
+//
+// `@preconcurrency` is still needed, because `UNNotificationResponse` is not
+// Sendable and the protocol requirement is nonisolated.
 extension PushNotificationsDelegate: @preconcurrency UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
