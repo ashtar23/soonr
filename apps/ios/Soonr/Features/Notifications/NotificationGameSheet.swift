@@ -76,36 +76,37 @@ struct NotificationGameSheet: View {
     /// is for. A row that also navigated made the button decorative and the
     /// whole sheet a single large tap target.
     private func row(for record: NotificationRecord) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            // Which reminder it was, because four of them fire for one release
-            // and otherwise every line reads as the same sentence about the
-            // same date, told apart only by its timestamp.
-            Text(record.payload.timingPreset?.label ?? record.message)
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            // Which reminder it was. Four fire for one release, and without
+            // this every line is the same sentence about the same date.
+            Text(headline(for: record))
                 .font(.subheadline)
                 .fontWeight(record.isRead ? .regular : .semibold)
                 .foregroundStyle(.primary)
 
-            if detail(for: record).isEmpty == false {
-                Text(detail(for: record))
+            Spacer(minLength: 0)
+
+            if let arrived = NotificationTimestamp.text(record.createdAt, now: now) {
+                Text(arrived)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
     }
 
-    /// When it arrived, and what it said if the reminder above did not already
-    /// say it.
-    private func detail(for record: NotificationRecord) -> String {
-        [
-            record.payload.timingPreset == nil
-                ? nil : NotificationCaption.text(for: record, now: now),
-            NotificationTimestamp.text(record.createdAt, now: now),
-        ]
-        .compactMap { $0 }
-        .joined(separator: " · ")
+    /// What the reminder was, in the words the reader would use.
+    ///
+    /// The server's own sentence is worked out against today — "out now" for
+    /// anything already released — so it says the same thing on every line of
+    /// a run-up that happened months ago. Which reminder it was does not
+    /// change, which is what makes a timeline readable.
+    private func headline(for record: NotificationRecord) -> String {
+        record.payload.timingPreset?.label
+            ?? NotificationCaption.text(for: record, now: now)
+            ?? record.message
     }
 
     /// Going to the game is a change to the path the tab already owns, so the
