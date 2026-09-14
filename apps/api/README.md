@@ -99,6 +99,26 @@ This command executes the same due-title-window, timing-preset, and deduped
 event fan-out behavior currently modeled in the Supabase SQL migration, but it
 is owned by the Fastify backend package and runs against `DATABASE_URL`.
 
+## Hosted release-date-change generation
+
+A release date moving is recorded by a trigger on `titles` — see
+`sql/phase2-title-release-date-changes-schema.sql`, and the reason there, which
+is that three code paths overwrite the date and none of them remembered it.
+
+```bash
+pnpm --dir apps/api generate:release-date-changed
+```
+
+Unprocessed changes are collapsed per title before anything is sent, so a
+provider that moves a date and moves it back produces no notification at all,
+and one that moves it twice produces one. That is what removes the need for a
+threshold on how far a date has to move: a day's slip is real news, a wobble
+is none, and the net tells them apart without guessing a number.
+
+A date appearing or disappearing is recorded and then left alone. "Announced"
+and "no longer dated" are different sentences from "moved", and a notification
+that says the wrong one is worse than one that never arrives.
+
 ## Hosted home discovery sync
 
 Run the curated home-candidate sync manually with:
@@ -223,8 +243,12 @@ below do. A service left running would never fire again.
 
 | Service | Start command | Schedule |
 | --- | --- | --- |
-| `notifications-generate` | `pnpm --filter api generate:release-approaching && pnpm --filter api prune:notifications` | daily |
+| `notifications-generate` | `pnpm --filter api generate:release-approaching && pnpm --filter api generate:release-date-changed && pnpm --filter api prune:notifications` | daily |
 | `push-deliver` | `pnpm --filter api deliver:push` | `*/15 * * * *` |
+
+Both generators and the prune ride on one service rather than taking three:
+they are once-a-day jobs against the same database, and three containers to
+run three queries is two services to forget about.
 
 Pruning rides along with generation rather than taking a service of its own:
 it is a once-a-day tidy, and a second container to run one delete is a service
