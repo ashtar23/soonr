@@ -184,10 +184,73 @@ struct NotificationsSocketTests {
 
     @Test
     func backoffGrowsAndThenHoldsAtThirtySeconds() {
-        #expect(NotificationsSocket.exponentialBackoff(failures: 1) == .seconds(1))
-        #expect(NotificationsSocket.exponentialBackoff(failures: 2) == .seconds(2))
-        #expect(NotificationsSocket.exponentialBackoff(failures: 4) == .seconds(8))
-        #expect(NotificationsSocket.exponentialBackoff(failures: 9) == .seconds(30))
+        #expect(NotificationsSocket.delay(failures: 1, spread: 1) == .seconds(1))
+        #expect(NotificationsSocket.delay(failures: 2, spread: 1) == .seconds(2))
+        #expect(NotificationsSocket.delay(failures: 4, spread: 1) == .seconds(8))
+        #expect(NotificationsSocket.delay(failures: 9, spread: 1) == .seconds(30))
+    }
+
+    /// Every client connected to a server when it restarted starts counting
+    /// from the same moment, so without a spread they all come back together.
+    @Test
+    func backoffIsSpreadSoClientsDoNotReturnInStep() {
+        let delays = (0..<40).map { _ in
+            NotificationsSocket.exponentialBackoff(failures: 4)
+        }
+
+        #expect(Set(delays).count > 1)
+        #expect(delays.allSatisfy { $0 >= .seconds(6.4) && $0 <= .seconds(9.6) })
+    }
+
+    @Test
+    func thespreadScalesTheDelayRatherThanReplacingIt() {
+        #expect(NotificationsSocket.delay(failures: 3, spread: 0.8) == .seconds(3.2))
+        #expect(NotificationsSocket.delay(failures: 3, spread: 1.2) == .seconds(4.8))
+    }
+
+    /// A half-open socket takes writes and answers nothing, so a ping that
+    /// succeeds proves less than it looks like it does.
+    @Test
+    func asocketThatStopsAnsweringIsDropped() async throws {
+        let connector = StubConnector(script: [[.text(ready), .hold], [.text(ready), .hold]])
+        let socket = NotificationsSocket(
+            configuration: configuration(),
+            accessToken: { "token-1" },
+            connector: connector,
+            backoff: { _ in .zero },
+            pingInterval: .milliseconds(5),
+            pongTimeout: .milliseconds(20)
+        )
+
+        let reader = Task {
+            for await _ in socket.notificationEvents() {}
+        }
+        defer { reader.cancel() }
+
+        // Silence past the deadline ends the connection, and the next one opens.
+        try await waitUntil { connector.urls.count >= 2 }
+    }
+
+    /// A token the server keeps refusing keeps being refused, and retrying
+    /// every thirty seconds for as long as the app is open helps nobody.
+    @Test
+    func itgivesUpAfterEnoughRefusals() async throws {
+        let refusal = #"{"type":"error","message":"Authentication failed."}"#
+        let connector = StubConnector(
+            script: Array(repeating: [.text(refusal)], count: 20)
+        )
+        let socket = NotificationsSocket(
+            configuration: configuration(),
+            accessToken: { "token-1" },
+            connector: connector,
+            backoff: { _ in .zero },
+            attemptLimit: 4
+        )
+
+        // The stream ends by itself rather than the reader stopping it.
+        for await _ in socket.notificationEvents() {}
+
+        #expect(connector.urls.count == 4)
     }
 
     @Test

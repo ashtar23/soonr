@@ -17,19 +17,25 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
     private let accessToken: AccessTokenProvider
     private let backoff: Backoff
     private let pingInterval: Duration
+    private let pongTimeout: Duration
+    private let attemptLimit: Int
 
     init(
         configuration: AppConfiguration,
         accessToken: @escaping AccessTokenProvider,
         connector: any WebSocketConnecting = URLSessionWebSocketConnector(),
         backoff: @escaping Backoff = NotificationsSocket.exponentialBackoff,
-        pingInterval: Duration = .seconds(30)
+        pingInterval: Duration = .seconds(30),
+        pongTimeout: Duration = .seconds(10),
+        attemptLimit: Int = 10
     ) {
         self.configuration = configuration
         self.accessToken = accessToken
         self.connector = connector
         self.backoff = backoff
         self.pingInterval = pingInterval
+        self.pongTimeout = pongTimeout
+        self.attemptLimit = attemptLimit
     }
 
     func notificationEvents() -> AsyncStream<NotificationStreamEvent> {
@@ -74,6 +80,17 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
 
             failures += 1
 
+            // A token the server keeps refusing will keep being refused. Giving
+            // up ends the stream rather than retrying every thirty seconds for
+            // as long as the app is open; the app opens it again when the scene
+            // next becomes active, which is when something may have changed.
+            guard failures < attemptLimit else {
+                AppLog.notifications.error(
+                    "Notifications stream gave up after \(failures) attempts"
+                )
+                return
+            }
+
             do {
                 try await Task.sleep(for: backoff(failures))
             } catch {
@@ -98,13 +115,20 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
         let auth = try JSONEncoder().encode(AuthMessage(accessToken: token))
         try await channel.send(String(decoding: auth, as: UTF8.self))
 
+        let liveness = Liveness()
+
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                try await keepAlive(on: channel)
+                try await keepAlive(on: channel, liveness: liveness)
             }
 
             group.addTask {
-                try await read(from: channel, yielding: continuation, readiness: readiness)
+                try await read(
+                    from: channel,
+                    yielding: continuation,
+                    readiness: readiness,
+                    liveness: liveness
+                )
             }
 
             defer { group.cancelAll() }
@@ -117,12 +141,18 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
     private func read(
         from channel: any WebSocketChannel,
         yielding continuation: AsyncStream<NotificationStreamEvent>.Continuation,
-        readiness: Readiness
+        readiness: Readiness,
+        liveness: Liveness
     ) async throws {
         while true {
             try Task.checkCancellation()
 
-            switch try decode(try await channel.receive()) {
+            let message = try await channel.receive()
+            // Anything at all proves the connection is carrying; a pong is only
+            // the cheapest thing the server can send to prove it.
+            await liveness.heard()
+
+            switch try decode(message) {
             case .ready:
                 await readiness.markReady()
             case .pong:
@@ -142,11 +172,24 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
     /// A socket idling behind NAT is dropped without either end being told, and
     /// the app would only find out at the next read — which, on a stream that
     /// is quiet by nature, could be hours. Writing on a timer surfaces a dead
-    /// connection as a failed send instead.
-    private func keepAlive(on channel: any WebSocketChannel) async throws {
+    /// connection as a failed send.
+    ///
+    /// A send that succeeds is not proof of much, though: a half-open socket
+    /// accepts writes and answers nothing. So the ping is a question, and
+    /// silence after it is the answer that ends the connection.
+    private func keepAlive(
+        on channel: any WebSocketChannel,
+        liveness: Liveness
+    ) async throws {
         while true {
             try await Task.sleep(for: pingInterval)
             try await channel.send(#"{"type":"ping"}"#)
+
+            try await Task.sleep(for: pongTimeout)
+
+            if await liveness.silent(for: pongTimeout) {
+                throw APIError.invalidResponse
+            }
         }
     }
 
@@ -166,8 +209,35 @@ struct NotificationsSocket: NotificationStreaming, Sendable {
 
     /// Doubling from one second, capped: a server that is down stays polled at
     /// a rate that does not matter, and one that blinked is back quickly.
+    ///
+    /// Spread, because every client that was connected to a server when it
+    /// restarted starts counting from the same moment. Without it they all
+    /// return together, at one second, then two, then four — the restarted
+    /// server meeting the whole fleet at once, repeatedly.
     static func exponentialBackoff(failures: Int) -> Duration {
-        .seconds(min(30, 1 << min(failures - 1, 5)))
+        delay(failures: failures, spread: .random(in: 0.8...1.2))
+    }
+
+    /// Separated from the spread so the curve can be checked without chance
+    /// deciding what the answer is.
+    static func delay(failures: Int, spread: Double) -> Duration {
+        let seconds = Double(min(30, 1 << min(max(failures, 1) - 1, 5)))
+        return .seconds(seconds * spread)
+    }
+}
+
+/// When the connection last carried anything, which is the only evidence that
+/// it still exists: a socket dropped behind NAT accepts writes and answers
+/// nothing.
+private actor Liveness {
+    private var lastHeard = ContinuousClock.now
+
+    func heard() {
+        lastHeard = .now
+    }
+
+    func silent(for duration: Duration) -> Bool {
+        ContinuousClock.now - lastHeard > duration
     }
 }
 
