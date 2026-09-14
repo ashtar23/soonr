@@ -29,6 +29,10 @@ struct NotificationsView: View {
                     // rearrange itself as the last notification is read.
                     if case .signedIn = session.state {
                         ToolbarItem(placement: .topBarTrailing) {
+                            unreadFilterButton
+                        }
+
+                        ToolbarItem(placement: .topBarTrailing) {
                             menu
                         }
                     }
@@ -66,34 +70,34 @@ struct NotificationsView: View {
         }
     }
 
+    /// A filter belongs beside the list it filters, not inside a menu: it is
+    /// flipped while reading rather than chosen once, and a menu row that keeps
+    /// state puts a checkmark column in front of everything else in the menu,
+    /// so the settings row shifts sideways depending on whether a filter is on.
+    private var unreadFilterButton: some View {
+        Button {
+            Task {
+                await notifications.setShowsUnreadOnly(notifications.showsUnreadOnly == false)
+            }
+        } label: {
+            Label(
+                notifications.showsUnreadOnly ? "Showing unread only" : "Show unread only",
+                systemImage: notifications.showsUnreadOnly
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle"
+            )
+        }
+    }
+
+    /// Only things that happen, so nothing in here carries a checkmark.
     private var menu: some View {
         Menu {
-            // What this list does, apart from where this list goes.
-            Section {
-                Button("Mark all read", systemImage: "checkmark.circle") {
-                    Task {
-                        await notifications.markAllRead()
-                    }
-                }
-                .disabled(notifications.unreadCount == 0)
-
-                Toggle(isOn: $groupsByGame) {
-                    Label("Group by game", systemImage: "square.stack")
-                }
-
-                Toggle(
-                    isOn: Binding(
-                        get: { notifications.showsUnreadOnly },
-                        set: { showsUnreadOnly in
-                            Task {
-                                await notifications.setShowsUnreadOnly(showsUnreadOnly)
-                            }
-                        }
-                    )
-                ) {
-                    Label("Unread only", systemImage: "line.3.horizontal.decrease.circle")
+            Button("Mark all read", systemImage: "checkmark.circle") {
+                Task {
+                    await notifications.markAllRead()
                 }
             }
+            .disabled(notifications.unreadCount == 0)
 
             NavigationLink(value: NotificationsRoute.preferences) {
                 Label("Notification settings", systemImage: "gearshape")

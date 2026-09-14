@@ -19,6 +19,10 @@ struct NotificationGameSheet: View {
             List {
                 ForEach(group.records) { record in
                     row(for: record)
+                        .hidingOuterSeparators(
+                            isFirst: record.id == group.records.first?.id,
+                            isLast: record.id == group.records.last?.id
+                        )
                         .unreadRowBackground(record.isRead == false)
                         .swipeActions(edge: .trailing) {
                             if record.isRead == false {
