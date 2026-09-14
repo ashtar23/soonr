@@ -10,6 +10,10 @@ struct NotificationPreferencesView: View {
     /// Bumped when a tap asks for something the list cannot give, which is
     /// what the haptic answers.
     @State private var refusedTaps = 0
+    /// Held by the screen it changes as well as here, which `@AppStorage`
+    /// keeps in step: it is how the list is read rather than what the server
+    /// sends, so it never leaves the device.
+    @AppStorage("notifications.groupsByGame") private var groupsByGame = true
 
     var body: some View {
         content
@@ -65,6 +69,16 @@ struct NotificationPreferencesView: View {
                 Text("Deliver")
             } footer: {
                 pushFooter
+            }
+
+            Section {
+                Toggle("Group by game", isOn: $groupsByGame)
+            } header: {
+                Text("In the list")
+            } footer: {
+                Text(
+                    "A game told about more than once shows its newest, and opens the rest."
+                )
             }
 
             Section("Tell me about") {
