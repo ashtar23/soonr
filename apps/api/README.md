@@ -223,10 +223,23 @@ below do. A service left running would never fire again.
 
 | Service | Start command | Schedule |
 | --- | --- | --- |
-| `notifications-generate` | `pnpm --filter api generate:release-approaching` | daily |
+| `notifications-generate` | `pnpm --filter api generate:release-approaching && pnpm --filter api prune:notifications` | daily |
 | `push-deliver` | `pnpm --filter api deliver:push` | `*/15 * * * *` |
 
+Pruning rides along with generation rather than taking a service of its own:
+it is a once-a-day tidy, and a second container to run one delete is a service
+to forget about. Chained, so a generation that fails does not quietly take the
+tidying with it — the run fails and says so.
+
 `notifications-generate` needs `DATABASE_URL`.
+
+Retention defaults to 180 days and only ever removes notifications that have
+been **read** — an unread one is the reader's own unfinished business, however
+old. Pass `--older-than-days=` to change it; a window under a day is refused,
+because zero would delete everything already read and is a plausible typo.
+Events are removed once the last record referencing them is gone, never
+before: they are shared between everyone watching the same game, and deleting
+one cascades to the records that still point at it.
 
 `push-deliver` needs `DATABASE_URL` **and** all four of `APNS_KEY_ID`,
 `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_PRIVATE_KEY`. Without them the script
