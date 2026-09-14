@@ -206,17 +206,6 @@ private struct TimingRow: View {
 
 private typealias TimingPreset = NotificationPreferences.TimingPreset
 
-private extension TimingPreset {
-    var label: String {
-        switch self {
-        case .onDay: "On release day"
-        case .hours24Before: "A day before"
-        case .days7Before: "A week before"
-        case .days30Before: "A month before"
-        }
-    }
-}
-
 #if DEBUG
 
     #Preview("Preferences") {

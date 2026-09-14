@@ -49,13 +49,16 @@ struct NotificationGameSheet: View {
     /// whole sheet a single large tap target.
     private func row(for record: NotificationRecord) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(NotificationCaption.text(for: record, now: now) ?? record.message)
+            // Which reminder it was, because four of them fire for one release
+            // and otherwise every line reads as the same sentence about the
+            // same date, told apart only by its timestamp.
+            Text(record.payload.timingPreset?.label ?? record.message)
                 .font(.subheadline)
                 .fontWeight(record.isRead ? .regular : .semibold)
                 .foregroundStyle(.primary)
 
-            if let timestamp = NotificationTimestamp.text(record.createdAt, now: now) {
-                Text(timestamp)
+            if detail(for: record).isEmpty == false {
+                Text(detail(for: record))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -63,6 +66,18 @@ struct NotificationGameSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+
+    /// When it arrived, and what it said if the reminder above did not already
+    /// say it.
+    private func detail(for record: NotificationRecord) -> String {
+        [
+            record.payload.timingPreset == nil
+                ? nil : NotificationCaption.text(for: record, now: now),
+            NotificationTimestamp.text(record.createdAt, now: now),
+        ]
+        .compactMap { $0 }
+        .joined(separator: " · ")
     }
 
     /// Going to the game is a change to the path the tab already owns, so the

@@ -74,7 +74,42 @@ struct NotificationCaptionTests {
 
         let payload = try JSONDecoder().decode(NotificationPayload.self, from: json)
 
+        #expect(
+            payload
+                == .releaseApproaching(targetReleaseDate: "2026-11-19", timingPreset: .onDay)
+        )
+    }
+
+    /// Four reminders fire for one release and say the same thing about the
+    /// same date; which reminder it was is the only thing telling them apart.
+    @Test
+    func thereminderItWasIsKept() throws {
+        let json = Data(#"{"targetReleaseDate":"2026-11-19","timingPreset":"days_7_before"}"#.utf8)
+
+        let payload = try JSONDecoder().decode(NotificationPayload.self, from: json)
+
+        #expect(payload.timingPreset == .days7Before)
+        #expect(payload.timingPreset?.label == "A week before")
+    }
+
+    /// A preset this build cannot name must not fail the payload it arrived
+    /// with, the way an unknown event type does not.
+    @Test
+    func apresetThisBuildCannotNameIsDropped() throws {
+        let json = Data(#"{"targetReleaseDate":"2026-11-19","timingPreset":"hours_3_before"}"#.utf8)
+
+        let payload = try JSONDecoder().decode(NotificationPayload.self, from: json)
+
         #expect(payload == .releaseApproaching(targetReleaseDate: "2026-11-19"))
+    }
+
+    @Test
+    func apayloadWithoutAPresetStillReads() throws {
+        let json = Data(#"{"targetReleaseDate":"2026-11-19"}"#.utf8)
+
+        let payload = try JSONDecoder().decode(NotificationPayload.self, from: json)
+
+        #expect(payload.timingPreset == nil)
     }
 }
 

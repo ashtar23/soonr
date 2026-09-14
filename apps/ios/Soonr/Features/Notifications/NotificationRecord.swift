@@ -76,6 +76,18 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
         static let inApproachOrder: [Self] = [
             .days30Before, .days7Before, .hours24Before, .onDay,
         ]
+
+        /// How far ahead this reminder is, as a reader would say it. Used both
+        /// where the presets are chosen and where a notification says which of
+        /// them it was.
+        var label: String {
+            switch self {
+            case .onDay: "On release day"
+            case .hours24Before: "A day before"
+            case .days7Before: "A week before"
+            case .days30Before: "A month before"
+            }
+        }
     }
 
     struct Channels: Codable, Equatable, Sendable {
