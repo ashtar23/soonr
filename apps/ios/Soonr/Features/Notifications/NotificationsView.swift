@@ -183,6 +183,14 @@ private struct NotificationsList: View {
 
     @Environment(NotificationsStore.self) private var notifications
     @State private var openGroup: NotificationGameGroup?
+    /// How many pages have loaded without the trigger leaving the screen.
+    ///
+    /// A page usually pushes the trigger out of view, and it asks again when
+    /// scrolling brings it back. Grouped, a page can add almost no rows — every
+    /// record folding into a game already listed — so the trigger stays put and
+    /// asks again immediately. A list of many notifications about few games
+    /// would fetch every page at once, on opening the tab, to show nothing new.
+    @State private var loadsWithoutScrolling = 0
     @ScaledMetric(relativeTo: .headline) private var sheetHeaderHeight: CGFloat = 96
     @ScaledMetric(relativeTo: .subheadline) private var sheetRowHeight: CGFloat = 58
     @ScaledMetric(relativeTo: .headline) private var sheetMaximumHeight: CGFloat = 460
@@ -210,6 +218,46 @@ private struct NotificationsList: View {
         return min(sheetHeaderHeight + rows * sheetRowHeight, sheetMaximumHeight)
     }
 
+    /// Asks for the next page by appearing, and stops asking once it has done
+    /// so several times without moving.
+    ///
+    /// Keyed on what is loaded so each page re-arms it. A plain `.task` runs
+    /// when the row appears and not again, so a row that stays on screen — a
+    /// tall screen, a short page — stopped asking, and paging only resumed
+    /// once it had scrolled away and back.
+    private var loadMoreRow: some View {
+        LoadingMoreRow(resume: resumeAction)
+            .task(id: records.count) {
+                guard hasStoppedAsking == false else {
+                    return
+                }
+
+                loadsWithoutScrolling += 1
+                await notifications.loadMore()
+            }
+            // Out of view means the reader moved, which is the signal that
+            // asking again is answering them rather than guessing.
+            .onDisappear {
+                loadsWithoutScrolling = 0
+            }
+    }
+
+    /// Enough for any screen this app runs on, and short of the run-on that
+    /// grouping can cause.
+    private var hasStoppedAsking: Bool {
+        loadsWithoutScrolling >= 5
+    }
+
+    /// Given to the row only once it has stopped asking, so the row shows a
+    /// button rather than a spinner that is not spinning towards anything.
+    private var resumeAction: (() -> Void)? {
+        guard hasStoppedAsking else {
+            return nil
+        }
+
+        return { loadsWithoutScrolling = 0 }
+    }
+
     private var list: some View {
         List {
             if groupsByGame {
@@ -225,15 +273,7 @@ private struct NotificationsList: View {
             // A row of its own rather than an `.onAppear` on the last record, so
             // the trigger does not depend on which record happens to be last.
             if notifications.hasMore {
-                LoadingMoreRow()
-                    // Keyed on what is loaded so each page re-arms the trigger.
-                    // A plain `.task` runs when the row appears and not again,
-                    // so a row that stays on screen — a tall screen, a short
-                    // page — stopped asking, and paging only resumed once it
-                    // had scrolled away and back.
-                    .task(id: records.count) {
-                        await notifications.loadMore()
-                    }
+                loadMoreRow
             }
         }
         .listStyle(.plain)

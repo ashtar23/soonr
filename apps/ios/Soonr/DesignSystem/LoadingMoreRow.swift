@@ -6,13 +6,24 @@ import SwiftUI
 /// then does not depend on which item happens to be last, and it survives the
 /// list changing underneath it.
 struct LoadingMoreRow: View {
+    /// Given when the list has stopped asking by itself and is waiting to be
+    /// told. A spinner that is not spinning towards anything is a lie.
+    var resume: (() -> Void)?
+
     var body: some View {
         HStack {
             Spacer()
-            ProgressView()
+
+            if let resume {
+                Button("Load more", action: resume)
+                    .font(.subheadline)
+            } else {
+                ProgressView()
+            }
+
             Spacer()
         }
         .listRowSeparator(.hidden)
-        .accessibilityLabel("Loading more")
+        .accessibilityLabel(resume == nil ? "Loading more" : "Load more")
     }
 }
