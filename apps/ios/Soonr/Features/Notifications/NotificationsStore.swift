@@ -229,6 +229,12 @@ final class NotificationsStore {
         }
     }
 
+    /// Every notification about one game, asked for directly rather than
+    /// counted out of the pages in hand.
+    func records(about titleID: String) async throws -> [NotificationRecord] {
+        try await notifications.notifications(about: titleID)
+    }
+
     /// The next page, asked for when the last row comes into view.
     ///
     /// Silent about failure on purpose: the rows already on screen are still

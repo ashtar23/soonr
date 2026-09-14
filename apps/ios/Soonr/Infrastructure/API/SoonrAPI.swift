@@ -83,6 +83,19 @@ struct SoonrAPI:
         return items
     }
 
+    func notifications(about titleID: String) async throws -> [NotificationRecord] {
+        let page: Page<NotificationRecord> = try await client.get(
+            ["notifications"],
+            queryItems: [
+                URLQueryItem(name: "titleId", value: titleID),
+                // The server's ceiling. A game with more updates than this has
+                // a problem no screen can solve.
+                URLQueryItem(name: "limit", value: "50"),
+            ]
+        )
+        return page.items
+    }
+
     func unreadNotificationCount() async throws -> Int {
         let response: UnreadCountResponse = try await client.get(["notifications", "unread-count"])
         return response.unreadCount

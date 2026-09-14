@@ -158,6 +158,10 @@ private actor StubNotificationsService: NotificationsReading, NotificationPrefer
         return Page(items: [.realtimeSample])
     }
 
+    func notifications(about _: String) async throws -> [NotificationRecord] {
+        [.realtimeSample]
+    }
+
     func unreadNotificationCount() async throws -> Int { 1 }
 
     func markNotificationRead(id _: String) async throws -> NotificationRecord {

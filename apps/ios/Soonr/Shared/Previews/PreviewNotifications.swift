@@ -20,6 +20,10 @@ import Foundation
             Page(items: unreadOnly ? records.filter { $0.isRead == false } : records)
         }
 
+        func notifications(about titleID: String) async throws -> [NotificationRecord] {
+            records.filter { $0.destinationTitleID == titleID }
+        }
+
         func unreadNotificationCount() async throws -> Int {
             records.filter { $0.isRead == false }.count
         }
