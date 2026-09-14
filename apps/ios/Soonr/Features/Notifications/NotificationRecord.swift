@@ -77,15 +77,28 @@ struct NotificationPreferences: Codable, Equatable, Sendable {
             .days30Before, .days7Before, .hours24Before, .onDay,
         ]
 
-        /// How far ahead this reminder is, as a reader would say it. Used both
-        /// where the presets are chosen and where a notification says which of
-        /// them it was.
+        /// How far ahead this reminder is, for the screen where it is chosen.
+        /// A choice can be a fragment — "a week before" finishes the sentence
+        /// the screen already started.
         var label: String {
             switch self {
             case .onDay: "On release day"
             case .hours24Before: "A day before"
             case .days7Before: "A week before"
             case .days30Before: "A month before"
+            }
+        }
+
+        /// What the reminder said when it was sent, for the screen where it is
+        /// read back. A history entry has no sentence around it, so it has to
+        /// be one: "a week before" says a week before what, and "on release
+        /// day" says only that release day was release day.
+        var sentence: String {
+            switch self {
+            case .onDay: "Out today"
+            case .hours24Before: "Out tomorrow"
+            case .days7Before: "Out in a week"
+            case .days30Before: "Out in a month"
             }
         }
     }

@@ -80,6 +80,26 @@ struct NotificationCaptionTests {
         )
     }
 
+    /// A history entry has no sentence around it, so it has to be one. The
+    /// settings phrasing is a fragment by design: it finishes a sentence that
+    /// screen already started.
+    @Test
+    func areminderSaysWhatItSaidRatherThanWhichSettingItWas() {
+        #expect(NotificationPreferences.TimingPreset.onDay.sentence == "Out today")
+        #expect(NotificationPreferences.TimingPreset.hours24Before.sentence == "Out tomorrow")
+        #expect(NotificationPreferences.TimingPreset.days7Before.sentence == "Out in a week")
+        #expect(NotificationPreferences.TimingPreset.days30Before.sentence == "Out in a month")
+    }
+
+    /// The two phrasings are for two screens and must not be confused: one is
+    /// chosen, the other is read back.
+    @Test
+    func thesettingsPhrasingStaysAFragment() {
+        for preset in NotificationPreferences.TimingPreset.allCases {
+            #expect(preset.label != preset.sentence)
+        }
+    }
+
     /// Four reminders fire for one release and say the same thing about the
     /// same date; which reminder it was is the only thing telling them apart.
     @Test

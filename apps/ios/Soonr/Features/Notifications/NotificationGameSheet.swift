@@ -77,8 +77,8 @@ struct NotificationGameSheet: View {
     /// whole sheet a single large tap target.
     private func row(for record: NotificationRecord) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            // Which reminder it was. Four fire for one release, and without
-            // this every line is the same sentence about the same date.
+            // What it said when it was sent. Four reminders fire for one
+            // release, and this is the only part that differs between them.
             Text(headline(for: record))
                 .font(.subheadline)
                 .fontWeight(record.isRead ? .regular : .semibold)
@@ -97,14 +97,14 @@ struct NotificationGameSheet: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// What the reminder was, in the words the reader would use.
+    /// What this notification told the reader, at the time it told them.
     ///
     /// The server's own sentence is worked out against today — "out now" for
-    /// anything already released — so it says the same thing on every line of
-    /// a run-up that happened months ago. Which reminder it was does not
-    /// change, which is what makes a timeline readable.
+    /// anything already released — so a run-up that happened months ago read
+    /// as the same three words over and over. What it said then does not
+    /// change, and is the only thing that makes a history worth reading.
     private func headline(for record: NotificationRecord) -> String {
-        record.payload.timingPreset?.label
+        record.payload.timingPreset?.sentence
             ?? NotificationCaption.text(for: record, now: now)
             ?? record.message
     }
