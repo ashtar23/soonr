@@ -191,6 +191,17 @@ final class NotificationsStore {
         }
     }
 
+    /// Everything a collapsed row stands for, because the row is unread when
+    /// anything behind it is and clearing it has to mean all of them.
+    ///
+    /// One request each: the API marks notifications read by id, and a handful
+    /// of them is what a group holds.
+    func markRead(ids: [String]) async {
+        for id in ids {
+            await markRead(id: id)
+        }
+    }
+
     func markAllRead() async {
         guard let records = state.records, records.contains(where: { $0.isRead == false }) else {
             return

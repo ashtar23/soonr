@@ -179,6 +179,9 @@ private struct NotificationsList: View {
 
     @Environment(NotificationsStore.self) private var notifications
     @State private var openGroup: NotificationGameGroup?
+    @ScaledMetric(relativeTo: .headline) private var sheetHeaderHeight: CGFloat = 132
+    @ScaledMetric(relativeTo: .subheadline) private var sheetRowHeight: CGFloat = 58
+    @ScaledMetric(relativeTo: .headline) private var sheetMaximumHeight: CGFloat = 460
 
     var body: some View {
         ScrollToTop(tab: .notifications, topID: records.first?.id) {
@@ -194,11 +197,13 @@ private struct NotificationsList: View {
         }
     }
 
-    /// Roughly a row each, plus the bar above them, and never more than half
-    /// the screen.
+    /// The header, a row each, and never more than the cap — which the rows
+    /// scroll inside when a game has been heard from more often than it fits.
+    /// Measured in scaled points so larger text gets a taller sheet rather than
+    /// a cramped one.
     private func sheetHeight(for group: NotificationGameGroup) -> CGFloat {
         let rows = CGFloat(group.records.count)
-        return min(120 + rows * 58, 420)
+        return min(sheetHeaderHeight + rows * sheetRowHeight, sheetMaximumHeight)
     }
 
     private var list: some View {
@@ -254,6 +259,17 @@ private struct NotificationsList: View {
                 isLast: group.latest.id == section.records.last?.id
             )
             .unreadRowBackground(group.hasUnread)
+            .swipeActions(edge: .trailing) {
+                if group.hasUnread {
+                    Button("Mark read", systemImage: "envelope.open") {
+                        Task {
+                            await notifications.markRead(
+                                ids: group.records.filter { $0.isRead == false }.map(\.id)
+                            )
+                        }
+                    }
+                }
+            }
         } else {
             row(group.latest, in: section.records)
         }

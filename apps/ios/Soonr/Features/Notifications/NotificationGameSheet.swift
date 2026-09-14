@@ -13,33 +13,66 @@ struct NotificationGameSheet: View {
     @Environment(NotificationsStore.self) private var notifications
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
+    @ScaledMetric(relativeTo: .headline) private var artworkWidth: CGFloat = 72
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(group.records) { record in
-                    Button {
-                        open(record)
-                    } label: {
-                        row(for: record)
-                    }
-                    .buttonStyle(.plain)
-                    .unreadRowBackground(record.isRead == false)
+                    row(for: record)
+                        .unreadRowBackground(record.isRead == false)
+                        .swipeActions(edge: .trailing) {
+                            if record.isRead == false {
+                                Button("Mark read", systemImage: "envelope.open") {
+                                    Task {
+                                        await notifications.markRead(id: record.id)
+                                    }
+                                }
+                            }
+                        }
                 }
             }
             .listStyle(.plain)
-            .navigationTitle(group.latest.titleName)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("View game") {
-                        open(nil)
-                    }
-                }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                header
             }
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 
+    /// The artwork the tapped row showed, carried into the sheet so it is
+    /// plainly the same game rather than a list of sentences about one.
+    private var header: some View {
+        HStack(spacing: 12) {
+            TitleArtwork(url: group.latest.titleArtworkURL, width: .thumbnail, cornerRadius: 8)
+                .frame(width: artworkWidth, height: artworkWidth * 9 / 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(group.latest.titleName)
+                    .font(.headline)
+                    .lineLimit(2)
+
+                Text("\(group.records.count) updates")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            Button("View game") {
+                openGame()
+            }
+            .prominentButton()
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 12)
+        .background(.bar)
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Reading is what the rows are for; going to the game is what the button
+    /// is for. A row that also navigated made the button decorative and the
+    /// whole sheet a single large tap target.
     private func row(for record: NotificationRecord) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(NotificationCaption.text(for: record, now: now) ?? record.message)
@@ -54,7 +87,6 @@ struct NotificationGameSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(.rect)
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
@@ -63,16 +95,9 @@ struct NotificationGameSheet: View {
     /// sheet closes and the stack it closes onto is where the game appears.
     /// Nesting a second navigation stack inside the sheet would have left two
     /// back buttons meaning different things.
-    private func open(_ record: NotificationRecord?) {
+    private func openGame() {
         let destination = group.latest.destination
         dismiss()
-
-        if let record {
-            Task {
-                await notifications.markRead(id: record.id)
-            }
-        }
-
         router.notificationsPath.append(destination)
     }
 }
