@@ -80,7 +80,10 @@ The API reads directly from Postgres through `DATABASE_URL`.
 
 ## Hosted notification generation
 
-Run the hosted `release_approaching` generation job manually with:
+Runs on a schedule in production — see [Scheduled services](#scheduled-services).
+Nothing generates notifications without it, so the job is the feature.
+
+Run it by hand with:
 
 ```bash
 pnpm --dir apps/api generate:release-approaching
@@ -201,10 +204,55 @@ Transitional envs that remain available but are not part of the current
 
 ### Services to create
 
-Create two services in the same Railway project:
+The API, the database, and a service per scheduled job:
 
-- `api-staging`
-- `postgres-staging`
+| Service | What it is |
+| --- | --- |
+| `soonr` | the Fastify API |
+| `Postgres` | the database every other service talks to |
+| `notifications-generate` | makes `release_approaching` notifications |
+| `push-deliver` | hands unsent notifications to APNs |
+| `catalog-sync` | refreshes the title catalogue |
+| `home-sync` | rebuilds the home discovery rails |
+
+### Scheduled services
+
+A cron service is an ordinary service with a **Cron Schedule** set. Railway
+starts the container on the schedule and expects it to **exit** — both jobs
+below do. A service left running would never fire again.
+
+| Service | Start command | Schedule |
+| --- | --- | --- |
+| `notifications-generate` | `pnpm --filter api generate:release-approaching` | daily |
+| `push-deliver` | `pnpm --filter api deliver:push` | `*/15 * * * *` |
+
+`notifications-generate` needs `DATABASE_URL`.
+
+`push-deliver` needs `DATABASE_URL` **and** all four of `APNS_KEY_ID`,
+`APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_PRIVATE_KEY`. Without them the script
+exits with a message naming what is missing, and the run shows as failed rather
+than quietly delivering nothing.
+
+Set **Watch Paths** on every service to `apps/api/**` and `packages/**`. Left
+empty, every commit to the repository redeploys them — including iOS-only ones,
+which can restart a job mid-schedule for no reason.
+
+Delivery latency is the delivery schedule: a notification generated at 09:00 is
+pushed by 09:15. Generation is daily because the windows it fills — thirty
+days, seven days, a day, the day itself — move once a day.
+
+### Verifying a job actually runs
+
+A green run is not proof the job did anything. `insertedRecordCount: 0` is the
+right answer on a day when no watchlisted title sits on a window, so a
+successful run with zero inserts says the service is configured, not that
+generation works. To see it insert, wait for a title to cross a boundary, or
+add one that is exactly seven or thirty days out and trigger the job.
+
+For delivery, the proof is `pushed_at` on a record that was unread and never
+pushed, for a user with a registered device — the delivery query inner-joins
+`device_tokens`, so pending notifications for a user with no device are never
+considered at all.
 
 ### API service settings
 
