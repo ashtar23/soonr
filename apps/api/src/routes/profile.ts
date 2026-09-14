@@ -20,6 +20,8 @@ import {
 import { ErrorResponseSchema } from "../schemas/common";
 import {
   ProfileConnectionsListResultSchema,
+  ProfileEditBodySchema,
+  ProfileEditResultSchema,
   ProfileListQuerySchema,
   ProfileOverviewResultSchema,
   ProfileParamsSchema,
@@ -27,11 +29,72 @@ import {
   UsernameAvailabilityQuerySchema,
   UsernameAvailabilityResultSchema,
 } from "../schemas/profile";
+import {
+  ProfileEditError,
+  editProfile,
+  postgresProfileEditStore,
+} from "../lib/social/profile-editing";
 import { checkUsernameAvailability } from "../lib/social/service";
 import { isUsernameTaken } from "../lib/social/data";
 import { authenticateRouteRequest, sendInternalServerError } from "./shared";
 
 export function registerProfileRoutes(server: FastifyInstance) {
+  server.put<{
+    Body: Static<typeof ProfileEditBodySchema>;
+  }>(
+    "/profile/me",
+    {
+      schema: {
+        tags: ["profile"],
+        summary: "Change your own profile",
+        security: [{ bearerAuth: [] }],
+        body: ProfileEditBodySchema,
+        response: {
+          200: ProfileEditResultSchema,
+          400: ErrorResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const user = await authenticateRouteRequest(
+        server,
+        reply,
+        request.headers.authorization,
+      );
+      if (!user) {
+        return;
+      }
+
+      try {
+        const profile = await editProfile(
+          { store: postgresProfileEditStore },
+          { userId: user.id, edit: request.body },
+        );
+
+        return { profile };
+      } catch (error) {
+        if (error instanceof ProfileEditError) {
+          // A name someone else took is a conflict; a name nobody could have
+          // is a bad request; a missing profile is nothing to edit.
+          const status =
+            error.reason === "username_taken"
+              ? 409
+              : error.reason === "no_profile"
+                ? 404
+                : 400;
+
+          return reply.status(status).send({ error: error.message });
+        }
+
+        return sendInternalServerError(server, reply, error);
+      }
+    },
+  );
+
   server.get<{
     Querystring: Static<typeof UsernameAvailabilityQuerySchema>;
   }>(

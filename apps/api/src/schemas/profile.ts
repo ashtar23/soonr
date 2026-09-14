@@ -78,3 +78,35 @@ export const ProfileConnectionsListResultSchema = Type.Object({
 });
 
 export { WatchlistListResultSchema as ProfileWatchlistListResultSchema };
+
+/**
+ * A patch, not a profile: a field left out is left alone, and sending null
+ * clears it. A form that edits one thing sends one thing.
+ */
+export const ProfileEditBodySchema = Type.Object({
+  username: Type.Optional(Type.String({ minLength: 1 })),
+  displayName: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  bio: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  watchlistVisibility: Type.Optional(
+    Type.Union([
+      Type.Literal("private"),
+      Type.Literal("friends"),
+      Type.Literal("public"),
+    ]),
+  ),
+});
+
+export const ProfileEditResultSchema = Type.Object({
+  profile: Type.Object({
+    userId: Type.String(),
+    username: Type.Union([Type.String(), Type.Null()]),
+    displayName: Type.Union([Type.String(), Type.Null()]),
+    avatarUrl: Type.Union([Type.String(), Type.Null()]),
+    bio: Type.Union([Type.String(), Type.Null()]),
+    watchlistVisibility: Type.Union([
+      Type.Literal("private"),
+      Type.Literal("friends"),
+      Type.Literal("public"),
+    ]),
+  }),
+});
