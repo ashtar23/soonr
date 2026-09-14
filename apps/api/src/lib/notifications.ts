@@ -30,8 +30,8 @@ type NotificationRecordRow = {
   title_artwork_url: string | null;
   message: string;
   subtitle: string | null;
-  /// `jsonb` accepts any object, so this is what the column actually holds:
-  /// something unverified, normalized before it reaches a response.
+  // `jsonb` accepts any object, so this is what the column actually holds:
+  // something unverified, normalized before it reaches a response.
   payload: unknown;
   created_at: string;
   read_at: string | null;
@@ -70,6 +70,10 @@ const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 export interface ListNotificationsParams {
   readonly cursor?: string;
   readonly limit?: number;
+  // Narrows to what has not been read. Paging still works: the cursor
+  // compares a row's own timestamp and id, so it means the same thing
+  // whichever rows are being skipped.
+  readonly unreadOnly?: boolean;
 }
 
 export async function getNotificationUnreadCount(
@@ -97,6 +101,10 @@ export async function listNotificationRecords(
   const pageLimit = normalizeLimit(params.limit);
   const decodedCursor = params.cursor ? decodeCursor(params.cursor) : null;
   const pool = getPostgresPool();
+
+  // Covered by notification_records_user_unread_idx, a partial index whose
+  // columns are this query's order, so narrowing costs nothing.
+  const unreadWhere = params.unreadOnly ? "and read_at is null" : "";
 
   let values: unknown[] = [userId, pageLimit + 1];
   let paginationWhere = "";
@@ -129,6 +137,7 @@ export async function listNotificationRecords(
         read_at
       from notification_records
       where user_id = $1::uuid
+      ${unreadWhere}
       ${paginationWhere}
       order by created_at desc, id desc
       limit $${limitParamIndex}
