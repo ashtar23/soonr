@@ -37,7 +37,7 @@ enum NotificationTimestamp {
 
     /// The API sends fractional seconds; accepting one without them costs a
     /// line and outlives a change to how it is serialized.
-    private static func date(from timestamp: String) -> Date? {
+    static func date(from timestamp: String) -> Date? {
         if let date = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true)
             .parse(timestamp)
         {

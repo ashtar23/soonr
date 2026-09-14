@@ -10,6 +10,7 @@ struct NotificationsView: View {
     @Environment(AppRouter.self) private var router
 
     @State private var isPresentingSignIn = false
+    @State private var showsUnreadOnly = false
 
     private let details: TitleDetailsDependencies
 
@@ -74,6 +75,10 @@ struct NotificationsView: View {
             }
             .disabled(notifications.unreadCount == 0)
 
+            Toggle(isOn: $showsUnreadOnly) {
+                Label("Unread only", systemImage: "line.3.horizontal.decrease.circle")
+            }
+
             NavigationLink(value: NotificationsRoute.preferences) {
                 Label("Notification settings", systemImage: "gearshape")
             }
@@ -121,10 +126,32 @@ struct NotificationsView: View {
                 await notifications.refresh()
             }
         case let .loaded(records):
-            NotificationsList(records: records)
+            let visible = showsUnreadOnly ? records.filter { $0.isRead == false } : records
+
+            if visible.isEmpty {
+                // Nothing unread among what is loaded, which is not the same as
+                // having no notifications: the filter says so rather than the
+                // screen looking broken.
+                PlaceholderScreen(
+                    icon: "checkmark.circle",
+                    title: "Nothing unread",
+                    description: "Everything here has been read."
+                ) {
+                    Button("Show all") {
+                        showsUnreadOnly = false
+                    }
+                    .prominentButton()
+                    .controlSize(.large)
+                }
                 .refreshable {
                     await notifications.refresh()
                 }
+            } else {
+                NotificationsList(records: visible)
+                    .refreshable {
+                        await notifications.refresh()
+                    }
+            }
         case let .failed(reason):
             FailureView(title: "Notifications unavailable", reason: reason) {
                 await notifications.retry()
@@ -146,40 +173,36 @@ private struct NotificationsList: View {
 
     private var list: some View {
         List {
-            ForEach(records) { record in
-                // The record, not its title: the destination marks it read
-                // and needs to know which it was.
-                NavigationLink(value: record) {
-                    NotificationRow(record: record)
-                }
-                .hidingOuterSeparators(
-                    isFirst: record.id == records.first?.id,
-                    // Only the end of the list, not the end of what is loaded:
-                    // otherwise the last row grows a separator the moment a
-                    // page lands under it, which reads as the list twitching.
-                    isLast: record.id == records.last?.id && notifications.hasMore == false
-                )
-                .unreadRowBackground(record.isRead == false)
-                .swipeActions(edge: .trailing) {
-                    // One way only: the API can set a notification read and
-                    // has no way to put it back.
-                    if record.isRead == false {
-                        Button("Mark read", systemImage: "envelope.open") {
-                            Task {
-                                await notifications.markRead(id: record.id)
+            ForEach(NotificationTimeGroup.sections(for: records)) { section in
+                Section(section.group.title) {
+                    ForEach(section.records) { record in
+                        // The record, not its title: the destination marks it
+                        // read and needs to know which it was.
+                        NavigationLink(value: record) {
+                            NotificationRow(record: record)
+                        }
+                        .hidingOuterSeparators(
+                            isFirst: record.id == section.records.first?.id,
+                            isLast: record.id == section.records.last?.id
+                        )
+                        .unreadRowBackground(record.isRead == false)
+                        .swipeActions(edge: .trailing) {
+                            // One way only: the API can set a notification read
+                            // and has no way to put it back.
+                            if record.isRead == false {
+                                Button("Mark read", systemImage: "envelope.open") {
+                                    Task {
+                                        await notifications.markRead(id: record.id)
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // A row of its own rather than an `.onAppear` on the last record:
-            // the trigger then does not depend on which record happens to be
-            // last, and it survives the list changing underneath it.
-            //
-            // Deliberately no `.id()` anywhere in this List: an explicit
-            // identifier on a ForEach child makes List build every row eagerly
-            // instead of lazily, which is the one thing that would undo paging.
+            // A row of its own rather than an `.onAppear` on the last record, so
+            // the trigger does not depend on which record happens to be last.
             if notifications.hasMore {
                 LoadingMoreRow()
                     // Keyed on what is loaded so each page re-arms the trigger.
