@@ -179,7 +179,7 @@ private struct NotificationsList: View {
 
     @Environment(NotificationsStore.self) private var notifications
     @State private var openGroup: NotificationGameGroup?
-    @ScaledMetric(relativeTo: .headline) private var sheetHeaderHeight: CGFloat = 132
+    @ScaledMetric(relativeTo: .headline) private var sheetHeaderHeight: CGFloat = 96
     @ScaledMetric(relativeTo: .subheadline) private var sheetRowHeight: CGFloat = 58
     @ScaledMetric(relativeTo: .headline) private var sheetMaximumHeight: CGFloat = 460
 

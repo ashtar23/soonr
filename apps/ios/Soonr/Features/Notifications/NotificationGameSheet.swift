@@ -13,7 +13,6 @@ struct NotificationGameSheet: View {
     @Environment(NotificationsStore.self) private var notifications
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
-    @ScaledMetric(relativeTo: .headline) private var artworkWidth: CGFloat = 72
 
     var body: some View {
         NavigationStack {
@@ -33,41 +32,16 @@ struct NotificationGameSheet: View {
                 }
             }
             .listStyle(.plain)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                header
+            .navigationTitle(group.latest.titleName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("View game") {
+                        openGame()
+                    }
+                }
             }
-            .toolbar(.hidden, for: .navigationBar)
         }
-    }
-
-    /// The artwork the tapped row showed, carried into the sheet so it is
-    /// plainly the same game rather than a list of sentences about one.
-    private var header: some View {
-        HStack(spacing: 12) {
-            TitleArtwork(url: group.latest.titleArtworkURL, width: .thumbnail, cornerRadius: 8)
-                .frame(width: artworkWidth, height: artworkWidth * 9 / 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(group.latest.titleName)
-                    .font(.headline)
-                    .lineLimit(2)
-
-                Text("\(group.records.count) updates")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
-
-            Button("View game") {
-                openGame()
-            }
-            .prominentButton()
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 12)
-        .background(.bar)
-        .accessibilityElement(children: .contain)
     }
 
     /// Reading is what the rows are for; going to the game is what the button
