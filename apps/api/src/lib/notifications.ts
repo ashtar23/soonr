@@ -74,6 +74,9 @@ export interface ListNotificationsParams {
   // compares a row's own timestamp and id, so it means the same thing
   // whichever rows are being skipped.
   readonly unreadOnly?: boolean;
+  // Narrows to one game. What a group of notifications really holds, rather
+  // than the part of it that happens to have been paged in.
+  readonly titleId?: string;
 }
 
 export async function getNotificationUnreadCount(
@@ -120,6 +123,17 @@ export async function listNotificationRecords(
   }
 
   const limitParamIndex = decodedCursor ? 4 : 2;
+
+  // Appended last so the indexes the cursor and the limit already hold do not
+  // move. Covered by notification_records_user_title_idx.
+  let titleWhere = "";
+  const titleId = params.titleId?.trim();
+
+  if (titleId) {
+    values.push(titleId);
+    titleWhere = `and destination_title_id = $${values.length}::text`;
+  }
+
   const result = await pool.query<NotificationRecordRow>(
     `
       select
@@ -138,6 +152,7 @@ export async function listNotificationRecords(
       from notification_records
       where user_id = $1::uuid
       ${unreadWhere}
+      ${titleWhere}
       ${paginationWhere}
       order by created_at desc, id desc
       limit $${limitParamIndex}
