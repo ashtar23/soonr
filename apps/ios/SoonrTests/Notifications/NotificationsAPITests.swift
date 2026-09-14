@@ -11,7 +11,8 @@ struct NotificationsAPITests {
     func theFirstPageAsksForASizeAndNoCursor() async throws {
         let transport = StubTransport(.init(statusCode: 200, body: Self.listJSON))
 
-        _ = try await transport.api(accessToken: "token").notifications(after: nil)
+        _ = try await transport.api(accessToken: "token").notifications(
+            after: nil, unreadOnly: false)
 
         let query = try await queryItems(of: transport)
         #expect(query.first { $0.name == "limit" }?.value == "20")
@@ -22,7 +23,8 @@ struct NotificationsAPITests {
     func aLaterPageSendsBackTheCursorItWasGiven() async throws {
         let transport = StubTransport(.init(statusCode: 200, body: Self.listJSON))
 
-        _ = try await transport.api(accessToken: "token").notifications(after: "cursor-2")
+        _ = try await transport.api(accessToken: "token").notifications(
+            after: "cursor-2", unreadOnly: false)
 
         let query = try await queryItems(of: transport)
         #expect(query.first { $0.name == "cursor" }?.value == "cursor-2")
@@ -35,7 +37,8 @@ struct NotificationsAPITests {
         let transport = StubTransport(.init(statusCode: 200, body: Self.listJSON))
         let cursor = "2026-01-03T12:00:00.000Z|notification-1/+="
 
-        _ = try await transport.api(accessToken: "token").notifications(after: cursor)
+        _ = try await transport.api(accessToken: "token").notifications(
+            after: cursor, unreadOnly: false)
 
         let query = try await queryItems(of: transport)
         #expect(query.first { $0.name == "cursor" }?.value == cursor)
@@ -53,7 +56,7 @@ struct NotificationsAPITests {
         let transport = StubTransport(.init(statusCode: 200, body: Self.listJSON))
 
         let notifications = try await transport.api(accessToken: "token")
-            .notifications(after: nil).items
+            .notifications(after: nil, unreadOnly: false).items
 
         let request = try #require(await transport.requests.first)
         #expect(request.url?.path(percentEncoded: false) == "/notifications")
@@ -77,7 +80,9 @@ struct NotificationsAPITests {
         )
         let api = StubTransport(.init(statusCode: 200, body: body)).api(accessToken: "token")
 
-        #expect(try await api.notifications(after: nil).items.first?.eventType == .unknown)
+        #expect(
+            try await api.notifications(after: nil, unreadOnly: false).items.first?.eventType
+                == .unknown)
     }
 
     @Test

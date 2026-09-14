@@ -381,6 +381,72 @@ struct NotificationsStoreTests {
         )
     }
 
+    // MARK: - Unread only
+
+    /// The server answers a different question, so the pages in hand are
+    /// answers to the old one.
+    @Test
+    func askingForUnreadOnlyAsksTheServerAgainFromTheFirstPage() async {
+        let notifications = StubNotifications(
+            records: [.unread],
+            unreadCount: 1,
+            firstPageCursor: "cursor-2"
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+
+        await store.setShowsUnreadOnly(true)
+
+        #expect(store.showsUnreadOnly)
+        #expect(await notifications.unreadOnlyAsked == [false, true])
+        // From the top, not from the cursor the unfiltered list had reached.
+        #expect(await notifications.cursorsAsked == [nil, nil])
+    }
+
+    @Test
+    func askingForWhatIsAlreadyShowingChangesNothing() async {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+
+        await store.setShowsUnreadOnly(false)
+
+        #expect(await notifications.loads == 1)
+    }
+
+    /// A later page has to keep asking the narrower question, or paging would
+    /// widen the list halfway down.
+    @Test
+    func alaterPageKeepsTheFilter() async {
+        let notifications = StubNotifications(
+            records: [.unread],
+            unreadCount: 1,
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [], nextCursor: nil)]
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await store.setShowsUnreadOnly(true)
+
+        await store.loadMore()
+
+        #expect(await notifications.unreadOnlyAsked == [false, true, true])
+    }
+
+    /// Signing out must not leave the next account looking at a filtered list
+    /// with no way to tell why it is short.
+    @Test
+    func signingOutForgetsTheFilter() async {
+        let notifications = StubNotifications(records: [.unread], unreadCount: 1)
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await store.setShowsUnreadOnly(true)
+
+        store.clear()
+
+        #expect(store.showsUnreadOnly == false)
+    }
+
     /// Proving something does *not* happen needs a bounded wait; everything
     /// else in this suite awaits the event itself.
     private func settle(for duration: Duration = .milliseconds(60)) async {
@@ -401,6 +467,7 @@ private actor StubNotifications: NotificationsReading {
     /// from `records`.
     private var laterPages: [Page<NotificationRecord>]
     private(set) var cursorsAsked: [String?] = []
+    private(set) var unreadOnlyAsked: [Bool] = []
     private var firstPageCursor: String?
     private var failingLoads: Int
     private var loadSignal: AsyncStream<Void>.Continuation?
@@ -431,9 +498,13 @@ private actor StubNotifications: NotificationsReading {
         return stream
     }
 
-    func notifications(after cursor: String?) async throws -> Page<NotificationRecord> {
+    func notifications(
+        after cursor: String?,
+        unreadOnly: Bool
+    ) async throws -> Page<NotificationRecord> {
         loads += 1
         cursorsAsked.append(cursor)
+        unreadOnlyAsked.append(unreadOnly)
         loadSignal?.yield()
 
         if failingLoads > 0 {

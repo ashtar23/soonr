@@ -25,6 +25,11 @@ final class NotificationsStore {
     /// True while a further page is on its way, so a fast scroll cannot start
     /// the same request several times over.
     private(set) var isLoadingMore = false
+    /// Narrows the list to what has not been read. Held here rather than on the
+    /// screen because it changes what is asked for, not what is shown: the
+    /// server answers a different question, so the pages already loaded are
+    /// answers to the old one and are thrown away.
+    private(set) var showsUnreadOnly = false
 
     var hasMore: Bool {
         state.records != nil && page.hasMore
@@ -53,6 +58,17 @@ final class NotificationsStore {
         self.refreshDelay = refreshDelay
     }
 
+    func setShowsUnreadOnly(_ showsUnreadOnly: Bool) async {
+        guard showsUnreadOnly != self.showsUnreadOnly else {
+            return
+        }
+
+        self.showsUnreadOnly = showsUnreadOnly
+        refreshTask?.cancel()
+        page = PagedList<NotificationRecord>()
+        await fetch(showingLoadingState: true)
+    }
+
     func load() async {
         await fetch(showingLoadingState: state.records == nil)
     }
@@ -70,6 +86,7 @@ final class NotificationsStore {
         refreshTask = nil
         expectedEchoes = 0
         echoesExpectedAt = nil
+        showsUnreadOnly = false
         page = PagedList<NotificationRecord>()
         state = .loaded([])
         unreadCount = 0
@@ -215,7 +232,10 @@ final class NotificationsStore {
         defer { isLoadingMore = false }
 
         do {
-            let next = try await notifications.notifications(after: cursor)
+            let next = try await notifications.notifications(
+                after: cursor,
+                unreadOnly: showsUnreadOnly
+            )
             try Task.checkCancellation()
             page.append(next)
             state = .loaded(page.items)
@@ -233,7 +253,10 @@ final class NotificationsStore {
     /// replacing the list wholesale would throw away the reader's place in it.
     private func reconcile() async {
         do {
-            async let first = notifications.notifications(after: nil)
+            async let first = notifications.notifications(
+                after: nil,
+                unreadOnly: showsUnreadOnly
+            )
             async let count = notifications.unreadNotificationCount()
             let (reloaded, unread) = try await (first, count)
             try Task.checkCancellation()
@@ -253,7 +276,10 @@ final class NotificationsStore {
         }
 
         do {
-            async let first = notifications.notifications(after: nil)
+            async let first = notifications.notifications(
+                after: nil,
+                unreadOnly: showsUnreadOnly
+            )
             async let count = notifications.unreadNotificationCount()
             let (loaded, unread) = try await (first, count)
             try Task.checkCancellation()

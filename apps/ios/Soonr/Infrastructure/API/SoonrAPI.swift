@@ -59,8 +59,16 @@ struct SoonrAPI:
         try await client.delete(["watchlist", titleID])
     }
 
-    func notifications(after cursor: String?) async throws -> Page<NotificationRecord> {
-        try await client.get(["notifications"], queryItems: pageQuery(after: cursor))
+    func notifications(
+        after cursor: String?,
+        unreadOnly: Bool
+    ) async throws -> Page<NotificationRecord> {
+        var query = pageQuery(after: cursor)
+        if unreadOnly {
+            query.append(URLQueryItem(name: "unread", value: "true"))
+        }
+
+        return try await client.get(["notifications"], queryItems: query)
     }
 
     /// The first page carries no cursor. The size is asked for explicitly

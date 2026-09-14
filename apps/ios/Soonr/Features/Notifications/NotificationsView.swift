@@ -10,7 +10,6 @@ struct NotificationsView: View {
     @Environment(AppRouter.self) private var router
 
     @State private var isPresentingSignIn = false
-    @State private var showsUnreadOnly = false
 
     private let details: TitleDetailsDependencies
 
@@ -77,7 +76,16 @@ struct NotificationsView: View {
                 }
                 .disabled(notifications.unreadCount == 0)
 
-                Toggle(isOn: $showsUnreadOnly) {
+                Toggle(
+                    isOn: Binding(
+                        get: { notifications.showsUnreadOnly },
+                        set: { showsUnreadOnly in
+                            Task {
+                                await notifications.setShowsUnreadOnly(showsUnreadOnly)
+                            }
+                        }
+                    )
+                ) {
                     Label("Unread only", systemImage: "line.3.horizontal.decrease.circle")
                 }
             }
@@ -117,6 +125,25 @@ struct NotificationsView: View {
         switch notifications.state {
         case .loading:
             LoadingScreen()
+        case let .loaded(records) where records.isEmpty && notifications.showsUnreadOnly:
+            // Nothing unread at all, which the server has now been asked
+            // directly rather than inferred from the pages in hand.
+            PlaceholderScreen(
+                icon: "checkmark.circle",
+                title: "Nothing unread",
+                description: "Everything has been read."
+            ) {
+                Button("Show all") {
+                    Task {
+                        await notifications.setShowsUnreadOnly(false)
+                    }
+                }
+                .prominentButton()
+                .controlSize(.large)
+            }
+            .refreshable {
+                await notifications.refresh()
+            }
         case let .loaded(records) where records.isEmpty:
             PlaceholderScreen(
                 icon: "bell",
@@ -129,32 +156,10 @@ struct NotificationsView: View {
                 await notifications.refresh()
             }
         case let .loaded(records):
-            let visible = showsUnreadOnly ? records.filter { $0.isRead == false } : records
-
-            if visible.isEmpty {
-                // Nothing unread among what is loaded, which is not the same as
-                // having no notifications: the filter says so rather than the
-                // screen looking broken.
-                PlaceholderScreen(
-                    icon: "checkmark.circle",
-                    title: "Nothing unread",
-                    description: "Everything here has been read."
-                ) {
-                    Button("Show all") {
-                        showsUnreadOnly = false
-                    }
-                    .prominentButton()
-                    .controlSize(.large)
-                }
+            NotificationsList(records: records)
                 .refreshable {
                     await notifications.refresh()
                 }
-            } else {
-                NotificationsList(records: visible)
-                    .refreshable {
-                        await notifications.refresh()
-                    }
-            }
         case let .failed(reason):
             FailureView(title: "Notifications unavailable", reason: reason) {
                 await notifications.retry()

@@ -13,8 +13,11 @@ import Foundation
             timingPresets: [.onDay, .days7Before]
         )
 
-        func notifications(after _: String?) async throws -> Page<NotificationRecord> {
-            Page(items: records)
+        func notifications(
+            after _: String?,
+            unreadOnly: Bool
+        ) async throws -> Page<NotificationRecord> {
+            Page(items: unreadOnly ? records.filter { $0.isRead == false } : records)
         }
 
         func unreadNotificationCount() async throws -> Int {
