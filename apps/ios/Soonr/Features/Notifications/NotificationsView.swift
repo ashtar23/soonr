@@ -210,18 +210,29 @@ private struct NotificationsList: View {
         return min(sheetHeaderHeight + rows * sheetRowHeight, sheetMaximumHeight)
     }
 
+    private var sections: [NotificationSection] {
+        NotificationTimeGroup.sections(for: records)
+    }
+
     private var list: some View {
-        List {
-            ForEach(NotificationTimeGroup.sections(for: records)) { section in
-                Section(section.group.title) {
-                    if groupsByGame {
-                        ForEach(NotificationGameGroup.groups(for: section.records)) { group in
-                            groupRow(group, in: section)
-                        }
-                    } else {
-                        ForEach(section.records) { record in
-                            row(record, in: section.records)
-                        }
+        let sections = sections
+
+        return List {
+            ForEach(sections) { section in
+                // A heading only where it divides something. One above an
+                // undivided list names the whole list, which the list did not
+                // need naming.
+                if sections.count > 1 {
+                    TimeHeaderRow(title: section.group.title)
+                }
+
+                if groupsByGame {
+                    ForEach(NotificationGameGroup.groups(for: section.records)) { group in
+                        groupRow(group, in: section)
+                    }
+                } else {
+                    ForEach(section.records) { record in
+                        row(record, in: section.records)
                     }
                 }
             }
@@ -304,6 +315,29 @@ private struct NotificationsList: View {
                 }
             }
         }
+    }
+}
+
+/// A heading that scrolls away with what it heads.
+///
+/// A `Section` header in a plain list is pinned: it detaches and floats as a
+/// full-width bar for as long as its rows are on screen, which for three
+/// headings over twenty rows is a lot of furniture. A row is just a row.
+private struct TimeHeaderRow: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 12)
+            .padding(.bottom, 2)
+            .listRowSeparator(.hidden)
+            // `Section` gave this for free; a row has to say so itself, or
+            // VoiceOver reads it as another notification.
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
