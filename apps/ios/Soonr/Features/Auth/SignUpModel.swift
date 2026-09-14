@@ -81,11 +81,7 @@ final class SignUpModel {
                 username: UsernameRule.normalize(self.username)
             )
         } problem: { reason in
-            switch reason {
-            case .reserved: "That username isn't available."
-            case .invalid: "That username can't be used."
-            case .taken, .unknown, .none: "That username is already taken."
-            }
+            UsernameRule.message(for: reason)
         }
     }
 
@@ -132,14 +128,7 @@ final class SignUpModel {
         case .email:
             email.contains("@") ? nil : "Enter an email address you can receive mail at."
         case .username:
-            switch UsernameRule.problem(with: username) {
-            case .tooLong:
-                "Usernames can be at most \(UsernameRule.maximumLength) characters."
-            case .malformed:
-                "Usernames use letters, numbers, dots and underscores."
-            case .none:
-                nil
-            }
+            UsernameRule.problem(with: username).map(UsernameRule.message(for:))
         case .password:
             password.count >= Self.minimumPasswordLength
                 ? nil

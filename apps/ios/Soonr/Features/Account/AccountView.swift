@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountView: View {
     @Environment(SessionStore.self) private var session
     @Environment(ProfileStore.self) private var profiles
+    @Environment(\.accounts) private var accounts
     @State private var isPresentingSignIn = false
     @State private var isEditingProfile = false
 
@@ -27,7 +28,7 @@ struct AccountView: View {
         }
         .sheet(isPresented: $isEditingProfile) {
             if let profile = profiles.state.profile {
-                ProfileEditor(profile: profile)
+                ProfileEditor(profile: profile, accounts: accounts)
             }
         }
     }

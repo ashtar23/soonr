@@ -13,6 +13,7 @@ struct ProfileEditor: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var edit: ProfileEdit
+    @State private var availability: UsernameAvailability
     @FocusState private var focused: Field?
 
     private enum Field {
@@ -21,23 +22,36 @@ struct ProfileEditor: View {
         case bio
     }
 
-    init(profile: UserProfile) {
+    init(profile: UserProfile, accounts: any AccountCreating) {
         self.profile = profile
         _edit = State(initialValue: ProfileEdit(from: profile))
+        _availability = State(initialValue: UsernameAvailability(accounts: accounts))
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Username", text: $edit.username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .focused($focused, equals: .username)
+                    // The same indicator sign-up uses, so a name reads as free
+                    // or taken the same way wherever it is chosen.
+                    HStack(spacing: 12) {
+                        TextField("Username", text: $edit.username)
+                            .textContentType(.username)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .focused($focused, equals: .username)
+
+                        FieldStatusIndicator(status: availability.status)
+                    }
                 } header: {
                     Text("Username")
                 } footer: {
-                    usernameFooter
+                    if let message = availability.status.message {
+                        Text(message)
+                            .foregroundStyle(.red)
+                    } else {
+                        Text("How people find you. Yours if nobody else has taken it.")
+                    }
                 }
 
                 Section {
@@ -67,6 +81,9 @@ struct ProfileEditor: View {
             }
             .navigationTitle("Edit profile")
             .navigationBarTitleDisplayMode(.inline)
+            .task(id: edit.username) {
+                await availability.check(edit.username, owned: profile.username)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -101,24 +118,14 @@ struct ProfileEditor: View {
 
     private var bioLimit: Int { 280 }
 
-    /// Answers what the rule can answer here, and leaves the rest to the
-    /// server: it owns the reserved names and it owns who already has one.
-    @ViewBuilder
-    private var usernameFooter: some View {
-        switch UsernameRule.problem(with: edit.username) {
-        case .tooLong:
-            Text("Usernames are at most \(UsernameRule.maximumLength) characters.")
-                .foregroundStyle(.red)
-        case .malformed where edit.username.isEmpty == false:
-            Text("Letters, numbers, dots and underscores, starting and ending with one.")
-                .foregroundStyle(.red)
-        default:
-            Text("How people find you. Yours if nobody else has taken it.")
-        }
-    }
-
     private var canSave: Bool {
-        guard profiles.isSaving == false, edit.bio.count <= bioLimit else {
+        // A name already known to be taken is not worth a round trip to be
+        // told so again. One still being checked is allowed through: the
+        // database decides on save either way.
+        guard profiles.isSaving == false,
+            edit.bio.count <= bioLimit,
+            availability.status.isProblem == false
+        else {
             return false
         }
 
@@ -163,7 +170,7 @@ struct ProfileEditor: View {
         @State private var profiles = ProfileStore(profiles: PreviewProfiles())
 
         var body: some View {
-            ProfileEditor(profile: profile)
+            ProfileEditor(profile: profile, accounts: PreviewTitleCatalog())
                 .environment(profiles)
         }
     }
