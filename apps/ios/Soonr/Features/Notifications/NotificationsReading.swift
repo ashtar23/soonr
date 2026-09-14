@@ -11,6 +11,13 @@ protocol NotificationsReading: Sendable {
         after cursor: String?,
         unreadOnly: Bool
     ) async throws -> Page<NotificationRecord>
+    /// Every notification about one game, newest first.
+    ///
+    /// Unpaged: four reminders fire for a release and the sequence repeats if
+    /// the date moves, so a game's whole history is a handful of rows. Counting
+    /// them from the pages the list happens to hold is what made a group say
+    /// "+2" and mean "+5".
+    func notifications(about titleID: String) async throws -> [NotificationRecord]
     func unreadNotificationCount() async throws -> Int
     /// Returns the notification as the server now holds it.
     func markNotificationRead(id: String) async throws -> NotificationRecord

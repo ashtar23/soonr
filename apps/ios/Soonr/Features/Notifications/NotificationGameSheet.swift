@@ -13,22 +13,23 @@ struct NotificationGameSheet: View {
     @Environment(NotificationsStore.self) private var notifications
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
+    @State private var game: NotificationGameStore?
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(group.records) { record in
+                ForEach(records) { record in
                     row(for: record)
                         .hidingOuterSeparators(
-                            isFirst: record.id == group.records.first?.id,
-                            isLast: record.id == group.records.last?.id
+                            isFirst: record.id == records.first?.id,
+                            isLast: record.id == records.last?.id
                         )
                         .unreadRowBackground(record.isRead == false)
                         .swipeActions(edge: .trailing) {
                             if record.isRead == false {
                                 Button("Mark read", systemImage: "envelope.open") {
                                     Task {
-                                        await notifications.markRead(id: record.id)
+                                        await game?.markRead(id: record.id)
                                     }
                                 }
                             }
@@ -46,6 +47,23 @@ struct NotificationGameSheet: View {
                 }
             }
         }
+        .task {
+            let game =
+                game
+                ?? NotificationGameStore(
+                    titleID: group.titleID,
+                    showing: group.records,
+                    in: notifications
+                )
+            self.game = game
+            await game.load()
+        }
+    }
+
+    /// What the server says this game has said, or what the list had until it
+    /// answers.
+    private var records: [NotificationRecord] {
+        game?.records ?? group.records
     }
 
     /// Reading is what the rows are for; going to the game is what the button

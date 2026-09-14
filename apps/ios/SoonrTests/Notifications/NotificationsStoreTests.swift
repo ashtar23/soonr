@@ -468,6 +468,8 @@ private actor StubNotifications: NotificationsReading {
     private var laterPages: [Page<NotificationRecord>]
     private(set) var cursorsAsked: [String?] = []
     private(set) var unreadOnlyAsked: [Bool] = []
+    private(set) var aboutAsked: [String] = []
+    private var aboutResult: [NotificationRecord]?
     private var firstPageCursor: String?
     private var failingLoads: Int
     private var loadSignal: AsyncStream<Void>.Continuation?
@@ -519,6 +521,10 @@ private actor StubNotifications: NotificationsReading {
         return Page(items: records, nextCursor: firstPageCursor)
     }
 
+    func serveAbout(_ records: [NotificationRecord]) {
+        aboutResult = records
+    }
+
     func serveNext(_ page: Page<NotificationRecord>) {
         laterPages.append(page)
     }
@@ -529,6 +535,11 @@ private actor StubNotifications: NotificationsReading {
 
     func setFirstPage(_ replacement: [NotificationRecord]) {
         records = replacement
+    }
+
+    func notifications(about titleID: String) async throws -> [NotificationRecord] {
+        aboutAsked.append(titleID)
+        return aboutResult ?? records
     }
 
     func unreadNotificationCount() async throws -> Int {
