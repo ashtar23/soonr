@@ -37,6 +37,12 @@ struct NotificationGameSheet: View {
                 }
             }
             .listStyle(.plain)
+            // An inline title beside a trailing button is the pattern the
+            // platform uses for a sheet, and the title centring while it fits
+            // and sliding left when it does not is that pattern working. Two
+            // attempts to pin it left were both worse: the bar's leading slot
+            // has no room and truncated a name to one letter, and moving the
+            // name into the list left the button alone in an empty bar.
             .navigationTitle(group.latest.titleName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
