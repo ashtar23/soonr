@@ -3927,8 +3927,7 @@
                               {
                                 "type": "object",
                                 "required": [
-                                  "targetReleaseDate",
-                                  "timingPreset"
+                                  "targetReleaseDate"
                                 ],
                                 "properties": {
                                   "targetReleaseDate": {
@@ -4568,8 +4567,7 @@
                             {
                               "type": "object",
                               "required": [
-                                "targetReleaseDate",
-                                "timingPreset"
+                                "targetReleaseDate"
                               ],
                               "properties": {
                                 "targetReleaseDate": {
