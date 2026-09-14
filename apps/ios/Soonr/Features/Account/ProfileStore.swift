@@ -31,9 +31,15 @@ final class ProfileStore {
     private(set) var saveFailure: FailureReason?
 
     @ObservationIgnored private let profiles: any ProfileEditing
+    @ObservationIgnored private let visibilityDelay: Duration
+    /// The last copy the server acknowledged, which is where a refused
+    /// visibility change returns to.
+    @ObservationIgnored private var confirmed: UserProfile?
+    @ObservationIgnored private var visibilityTask: Task<Void, Never>?
 
-    init(profiles: any ProfileEditing) {
+    init(profiles: any ProfileEditing, visibilityDelay: Duration = .milliseconds(400)) {
         self.profiles = profiles
+        self.visibilityDelay = visibilityDelay
     }
 
     func load(userID: String) async {
@@ -50,9 +56,47 @@ final class ProfileStore {
 
     /// Drops one account's profile rather than showing it to the next.
     func clear() {
+        visibilityTask?.cancel()
+        visibilityTask = nil
+        confirmed = nil
         state = .loading
         saveFailure = nil
         isSaving = false
+    }
+
+    /// Answers immediately and saves behind you, unlike the editor beside it.
+    ///
+    /// Picking from three options is not typing a username: there is nothing
+    /// here the server can refuse on a rule, so waiting on a round trip only
+    /// makes the control feel broken. A burst of taps sends one request for
+    /// whatever you settled on, and a refusal puts the choice back.
+    func setWatchlistVisibility(_ visibility: WatchlistVisibility) {
+        guard let current = state.profile, current.watchlistVisibility != visibility else {
+            return
+        }
+
+        state = .loaded(current.setting(watchlistVisibility: visibility))
+
+        visibilityTask?.cancel()
+        visibilityTask = Task { [weak self, visibilityDelay] in
+            try? await Task.sleep(for: visibilityDelay)
+            guard Task.isCancelled == false else {
+                return
+            }
+
+            await self?.saveVisibility()
+        }
+    }
+
+    /// Sends a pending change now rather than on the timer, so leaving the
+    /// screen straight after a tap does not lose it.
+    func flushWatchlistVisibility() async {
+        guard visibilityTask != nil else {
+            return
+        }
+
+        visibilityTask?.cancel()
+        await saveVisibility()
     }
 
     /// Returns whether it was kept, so the screen knows to stop editing.
@@ -68,6 +112,7 @@ final class ProfileStore {
 
         do {
             let saved = try await profiles.updateProfile(edit)
+            confirmed = saved
             state = .loaded(saved)
             return true
         } catch is CancellationError {
@@ -86,12 +131,38 @@ final class ProfileStore {
         saveFailure = nil
     }
 
+    private func saveVisibility() async {
+        visibilityTask = nil
+        guard let pending = state.profile else {
+            return
+        }
+
+        do {
+            let acknowledged = try await profiles.updateProfile(ProfileEdit(from: pending))
+            // Another tap may have landed while this was in flight; adopting
+            // the server's answer then would undo it.
+            if state.profile == pending {
+                confirmed = acknowledged
+                state = .loaded(acknowledged)
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            AppLog.auth.error("Could not save the watchlist visibility: \(error)")
+            saveFailure = FailureReason(error)
+            if let confirmed {
+                state = .loaded(confirmed)
+            }
+        }
+    }
+
     private func fetch(userID: String) async {
         state = .loading
 
         do {
             let profile = try await profiles.profile(userID: userID)
             try Task.checkCancellation()
+            confirmed = profile
             state = .loaded(profile)
         } catch is CancellationError {
             return

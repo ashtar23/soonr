@@ -20,6 +20,17 @@ struct UserProfile: Decodable, Equatable, Sendable {
         displayName ?? username.map { "@\($0)" } ?? fallback
     }
 
+    func setting(watchlistVisibility: WatchlistVisibility) -> UserProfile {
+        UserProfile(
+            userID: userID,
+            username: username,
+            displayName: displayName,
+            avatarURL: avatarURL,
+            bio: bio,
+            watchlistVisibility: watchlistVisibility
+        )
+    }
+
     private enum CodingKeys: String, CodingKey {
         case userID = "userId"
         case username

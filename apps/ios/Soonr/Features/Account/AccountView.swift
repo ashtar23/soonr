@@ -49,9 +49,15 @@ struct AccountView: View {
                 profile: profiles.state,
                 isSigningOut: session.isSigningOut,
                 editProfile: { isEditingProfile = true },
+                setVisibility: { profiles.setWatchlistVisibility($0) },
                 retryProfile: { await profiles.retry(userID: user.userID) }
             ) {
                 await session.signOut()
+            }
+            // A change made on the way out still has its timer running, so it
+            // is sent rather than lost.
+            .onDisappear {
+                Task { await profiles.flushWatchlistVisibility() }
             }
         }
     }
@@ -144,8 +150,18 @@ private struct SignedInAccount: View {
     let profile: ProfileState
     let isSigningOut: Bool
     let editProfile: () -> Void
+    let setVisibility: (WatchlistVisibility) -> Void
     let retryProfile: () async -> Void
     let signOut: () async -> Void
+
+    /// Reads what the screen is showing and writes through the store, which
+    /// answers immediately and saves behind the tap.
+    private var visibility: Binding<WatchlistVisibility> {
+        Binding(
+            get: { profile.profile?.watchlistVisibility ?? .friends },
+            set: { setVisibility($0) }
+        )
+    }
 
     var body: some View {
         List {
@@ -154,15 +170,20 @@ private struct SignedInAccount: View {
             }
 
             if let profile = profile.profile {
-                Section("Privacy") {
-                    NavigationLink {
-                        WatchlistVisibilityView(profile: profile)
-                    } label: {
-                        LabeledContent(
-                            "Watchlist visibility",
-                            value: profile.watchlistVisibility.label
-                        )
+                Section {
+                    // A menu rather than a screen of its own: three options do
+                    // not earn a push, and the one that is chosen explains
+                    // itself underneath instead of inside.
+                    Picker("Watchlist visibility", selection: visibility) {
+                        ForEach(WatchlistVisibility.allCases, id: \.self) { visibility in
+                            Text(visibility.label).tag(visibility)
+                        }
                     }
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("Privacy")
+                } footer: {
+                    Text(profile.watchlistVisibility.explanation)
                 }
             }
 
