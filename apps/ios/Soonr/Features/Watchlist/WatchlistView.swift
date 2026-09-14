@@ -89,22 +89,20 @@ private struct WatchlistList: View {
     @Environment(WatchlistStore.self) private var watchlist
 
     var body: some View {
-        ScrollToTop(tab: .watchlist) {
+        ScrollToTop(tab: .watchlist, topID: entries.first?.id) {
             list
         }
     }
 
     private var list: some View {
         List {
-            ScrollToTopAnchor()
-
             ForEach(entries) { entry in
                 NavigationLink(value: TitleDestination(entry.title)) {
                     TitleRow(title: entry.title)
                 }
                 .hidingOuterSeparators(
                     isFirst: entry.id == entries.first?.id,
-                    isLast: entry.id == entries.last?.id
+                    isLast: entry.id == entries.last?.id && watchlist.hasMore == false
                 )
             }
 
@@ -112,7 +110,7 @@ private struct WatchlistList: View {
             // the trigger does not depend on which entry happens to be last.
             if watchlist.hasMore {
                 LoadingMoreRow()
-                    .task {
+                    .task(id: entries.count) {
                         await watchlist.loadMore()
                     }
             }

@@ -139,15 +139,13 @@ private struct NotificationsList: View {
     @Environment(NotificationsStore.self) private var notifications
 
     var body: some View {
-        ScrollToTop(tab: .notifications) {
+        ScrollToTop(tab: .notifications, topID: records.first?.id) {
             list
         }
     }
 
     private var list: some View {
         List {
-            ScrollToTopAnchor()
-
             ForEach(records) { record in
                 // The record, not its title: the destination marks it read
                 // and needs to know which it was.
@@ -156,7 +154,10 @@ private struct NotificationsList: View {
                 }
                 .hidingOuterSeparators(
                     isFirst: record.id == records.first?.id,
-                    isLast: record.id == records.last?.id
+                    // Only the end of the list, not the end of what is loaded:
+                    // otherwise the last row grows a separator the moment a
+                    // page lands under it, which reads as the list twitching.
+                    isLast: record.id == records.last?.id && notifications.hasMore == false
                 )
                 .unreadRowBackground(record.isRead == false)
                 .swipeActions(edge: .trailing) {
@@ -181,7 +182,12 @@ private struct NotificationsList: View {
             // instead of lazily, which is the one thing that would undo paging.
             if notifications.hasMore {
                 LoadingMoreRow()
-                    .task {
+                    // Keyed on what is loaded so each page re-arms the trigger.
+                    // A plain `.task` runs when the row appears and not again,
+                    // so a row that stays on screen — a tall screen, a short
+                    // page — stopped asking, and paging only resumed once it
+                    // had scrolled away and back.
+                    .task(id: records.count) {
                         await notifications.loadMore()
                     }
             }
