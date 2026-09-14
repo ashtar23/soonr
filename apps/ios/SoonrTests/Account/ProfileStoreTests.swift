@@ -130,6 +130,47 @@ struct ProfileStoreTests {
         #expect(store.saveFailure == nil)
     }
 
+    // MARK: - Counts
+
+    @Test
+    func theCountsArriveWithTheProfile() async {
+        let counts = ProfileCounts(friends: 5, followers: 12, following: 8)
+        let store = ProfileStore(profiles: StubProfiles(profile: profile(), counts: counts))
+
+        await store.load(userID: userID)
+
+        #expect(store.counts == counts)
+    }
+
+    /// An edit returns only the profile. Dropping the counts with it would
+    /// blank them every time someone changed their bio.
+    @Test
+    func savingKeepsTheCounts() async {
+        let counts = ProfileCounts(friends: 5, followers: 12, following: 8)
+        let profiles = StubProfiles(
+            profile: profile(),
+            counts: counts,
+            acknowledging: profile(bio: "New bio")
+        )
+        let store = ProfileStore(profiles: profiles)
+        await store.load(userID: userID)
+
+        _ = await store.save(ProfileEdit(from: profile(bio: "New bio")))
+
+        #expect(store.counts == counts)
+    }
+
+    @Test
+    func signingOutForgetsTheCounts() async {
+        let counts = ProfileCounts(friends: 5, followers: 12, following: 8)
+        let store = ProfileStore(profiles: StubProfiles(profile: profile(), counts: counts))
+        await store.load(userID: userID)
+
+        store.clear()
+
+        #expect(store.counts == nil)
+    }
+
     // MARK: - Watchlist visibility
 
     /// The reason it does not wait for the server: the control has to answer
@@ -233,17 +274,20 @@ private actor StubProfiles: ProfileEditing {
     private(set) var saves: [ProfileEdit] = []
 
     private let profile: UserProfile
+    private let counts: ProfileCounts
     private let acknowledging: UserProfile?
     private var failingLoads: Int
     private var failingSaves: Bool
 
     init(
         profile: UserProfile,
+        counts: ProfileCounts = ProfileCounts(friends: 0, followers: 0, following: 0),
         acknowledging: UserProfile? = nil,
         failingLoads: Int = 0,
         failingSaves: Bool = false
     ) {
         self.profile = profile
+        self.counts = counts
         self.acknowledging = acknowledging
         self.failingLoads = failingLoads
         self.failingSaves = failingSaves
@@ -253,7 +297,7 @@ private actor StubProfiles: ProfileEditing {
         failingSaves = false
     }
 
-    func profile(userID _: String) async throws -> UserProfile {
+    func profile(userID _: String) async throws -> ProfileOverview {
         loads += 1
 
         if failingLoads > 0 {
@@ -261,7 +305,7 @@ private actor StubProfiles: ProfileEditing {
             throw URLError(.notConnectedToInternet)
         }
 
-        return profile
+        return ProfileOverview(profile: profile, counts: counts)
     }
 
     func updateProfile(_ edit: ProfileEdit) async throws -> UserProfile {

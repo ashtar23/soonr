@@ -14,6 +14,7 @@ struct ProfileEditor: View {
 
     @State private var edit: ProfileEdit
     @State private var availability: UsernameAvailability
+    @State private var isConfirmingDiscard = false
     @FocusState private var focused: Field?
 
     private enum Field {
@@ -81,13 +82,33 @@ struct ProfileEditor: View {
             }
             .navigationTitle("Edit profile")
             .navigationBarTitleDisplayMode(.inline)
+            // A swipe is too easy to make by accident to be allowed to throw
+            // away a bio someone has been writing. Once anything has changed,
+            // leaving goes through Cancel, which asks.
+            .interactiveDismissDisabled(hasChanges || profiles.isSaving)
             .task(id: edit.username) {
                 await availability.check(edit.username, owned: profile.username)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        dismiss()
+                        if hasChanges {
+                            isConfirmingDiscard = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    // Anchored to the button, so on a wide screen it opens
+                    // from what was tapped rather than the bottom edge.
+                    .confirmationDialog(
+                        "Discard your changes?",
+                        isPresented: $isConfirmingDiscard,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Discard changes", role: .destructive) {
+                            dismiss()
+                        }
+                        Button("Keep editing", role: .cancel) {}
                     }
                 }
 
@@ -117,6 +138,10 @@ struct ProfileEditor: View {
     }
 
     private var bioLimit: Int { 280 }
+
+    private var hasChanges: Bool {
+        edit != ProfileEdit(from: profile)
+    }
 
     private var canSave: Bool {
         // A name already known to be taken is not worth a round trip to be

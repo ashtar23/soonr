@@ -97,14 +97,14 @@ struct SoonrAPI:
         return page.items
     }
 
-    func profile(userID: String) async throws -> UserProfile {
-        // The overview answers about anyone, and carries the relationship and
-        // counts a profile screen wants. Only the profile itself is read here;
-        // the rest belongs to a screen that shows somebody else.
+    func profile(userID: String) async throws -> ProfileOverview {
+        // The overview answers about anyone. The relationship and the previews
+        // belong to a screen that shows somebody else; your own screen reads
+        // the profile and the counts.
         let response: ProfileOverviewResponse = try await client.get(
             ["profile", userID]
         )
-        return response.profile
+        return ProfileOverview(profile: response.profile, counts: response.counts)
     }
 
     func updateProfile(_ edit: ProfileEdit) async throws -> UserProfile {
@@ -216,6 +216,7 @@ private struct TitleSearchResponse: Decodable {
 
 private struct ProfileOverviewResponse: Decodable {
     let profile: UserProfile
+    let counts: ProfileCounts
 }
 
 private struct ProfileResponse: Decodable {

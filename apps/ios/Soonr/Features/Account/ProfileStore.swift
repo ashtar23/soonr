@@ -29,6 +29,9 @@ final class ProfileStore {
     /// Set when the server refused, and cleared by the next attempt. Held
     /// beside the form rather than replacing it, so nothing typed is lost.
     private(set) var saveFailure: FailureReason?
+    /// Read with the profile and kept across edits, which do not return them:
+    /// changing your name does not change who follows you.
+    private(set) var counts: ProfileCounts?
 
     @ObservationIgnored private let profiles: any ProfileEditing
     @ObservationIgnored private let visibilityDelay: Duration
@@ -59,6 +62,7 @@ final class ProfileStore {
         visibilityTask?.cancel()
         visibilityTask = nil
         confirmed = nil
+        counts = nil
         state = .loading
         saveFailure = nil
         isSaving = false
@@ -160,10 +164,11 @@ final class ProfileStore {
         state = .loading
 
         do {
-            let profile = try await profiles.profile(userID: userID)
+            let overview = try await profiles.profile(userID: userID)
             try Task.checkCancellation()
-            confirmed = profile
-            state = .loaded(profile)
+            confirmed = overview.profile
+            counts = overview.counts
+            state = .loaded(overview.profile)
         } catch is CancellationError {
             return
         } catch {

@@ -11,8 +11,8 @@ import Foundation
             stored = profile
         }
 
-        func profile(userID _: String) async throws -> UserProfile {
-            stored
+        func profile(userID _: String) async throws -> ProfileOverview {
+            ProfileOverview(profile: stored, counts: .preview)
         }
 
         func updateProfile(_ edit: ProfileEdit) async throws -> UserProfile {
@@ -26,6 +26,10 @@ import Foundation
             )
             return stored
         }
+    }
+
+    extension ProfileCounts {
+        static let preview = ProfileCounts(friends: 5, followers: 12, following: 8)
     }
 
     extension UserProfile {

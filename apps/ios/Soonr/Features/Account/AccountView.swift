@@ -19,6 +19,16 @@ struct AccountView: View {
                             Label("Settings", systemImage: "gear")
                         }
                     }
+
+                    // In the bar, where Contacts puts it on your own card,
+                    // rather than as a button sitting under your name.
+                    if canEditProfile {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Edit") {
+                                isEditingProfile = true
+                            }
+                        }
+                    }
                 }
         }
         // Attached to the stack, not to `content`: signing in switches that
@@ -48,8 +58,8 @@ struct AccountView: View {
             SignedInAccount(
                 user: user,
                 profile: profiles.state,
+                counts: profiles.counts,
                 isSigningOut: session.isSigningOut,
-                editProfile: { isEditingProfile = true },
                 setVisibility: { profiles.setWatchlistVisibility($0) },
                 retryProfile: { await profiles.retry(userID: user.userID) }
             ) {
@@ -61,6 +71,14 @@ struct AccountView: View {
                 Task { await profiles.flushWatchlistVisibility() }
             }
         }
+    }
+
+    private var canEditProfile: Bool {
+        guard case .signedIn = session.state else {
+            return false
+        }
+
+        return profiles.state.profile != nil
     }
 }
 
@@ -143,14 +161,17 @@ struct SignedOutAccountContent: View {
 /// Who you are, and the few things about you that are not app behaviour.
 ///
 /// Anything that answers "how should the app work" lives behind the gear
-/// instead. What is left here is your name, who gets to see what, and the
-/// account itself — which is why the screen leads with the profile rather than
-/// with a row that says you are signed in.
+/// instead. What is left is your name, who gets to see what, and the account
+/// itself.
+///
+/// Laid out as your card rather than as the top row of a list, the way Contacts
+/// shows your own card: this screen is about one person, and with only a few
+/// rows under it a leading row made the whole thing read as a form.
 private struct SignedInAccount: View {
     let user: UserSession
     let profile: ProfileState
+    let counts: ProfileCounts?
     let isSigningOut: Bool
-    let editProfile: () -> Void
     let setVisibility: (WatchlistVisibility) -> Void
     let retryProfile: () async -> Void
     let signOut: () async -> Void
@@ -168,7 +189,9 @@ private struct SignedInAccount: View {
         List {
             Section {
                 header
+                    .frame(maxWidth: .infinity)
             }
+            .listRowBackground(Color.clear)
 
             if let profile = profile.profile {
                 Section {
@@ -207,64 +230,54 @@ private struct SignedInAccount: View {
                 .disabled(isSigningOut)
             }
         }
+        // The card is the heading, so a large title above it would say
+        // "Account" twice.
+        .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// The whole row opens the editor, rather than a pencil sitting beside it:
-    /// there is one thing to do with your own profile here, and the row is
-    /// already the size of a target.
     @ViewBuilder
     private var header: some View {
         switch profile {
         case .loading:
-            HStack(spacing: 14) {
-                InitialsAvatar(name: fallbackName)
+            VStack(spacing: 12) {
+                InitialsAvatar(name: fallbackName, diameter: avatarDiameter)
                 ProgressView()
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 8)
         case let .loaded(profile):
-            Button(action: editProfile) {
-                HStack(spacing: 14) {
-                    InitialsAvatar(name: avatarName(for: profile))
+            VStack(spacing: 12) {
+                InitialsAvatar(name: avatarName(for: profile), diameter: avatarDiameter)
 
-                    identity(for: profile)
+                identity(for: profile)
 
-                    Spacer(minLength: 0)
-
-                    // Drawn rather than pushed: this row opens a sheet, and a
-                    // NavigationLink would promise a screen you can come back
-                    // from without deciding anything.
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
+                if let counts {
+                    CountsRow(counts: counts)
+                        .padding(.top, 4)
                 }
-                .padding(.vertical, 6)
-                .contentShape(.rect)
             }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityHint("Edits your profile")
+            .padding(.vertical, 8)
         case let .failed(reason):
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(spacing: 8) {
                 Text(reason.message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
 
                 Button("Try again") {
                     Task { await retryProfile() }
                 }
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 8)
         }
     }
 
+    private var avatarDiameter: CGFloat { 84 }
+
     private func identity(for profile: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(spacing: 4) {
             Text(profile.title(fallback: fallbackName))
-                .font(.headline)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+                .font(.title2.bold())
+                .lineLimit(2)
 
             // An account made before signup asked for a username has none, and
             // saying so is what sends someone to set one.
@@ -276,11 +289,11 @@ private struct SignedInAccount: View {
                 Text(bio)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .padding(.top, 2)
+                    .padding(.top, 4)
             }
         }
-        .multilineTextAlignment(.leading)
+        .multilineTextAlignment(.center)
+        .accessibilityElement(children: .combine)
     }
 
     private var fallbackName: String {
@@ -294,18 +307,55 @@ private struct SignedInAccount: View {
     }
 }
 
+/// Friends first, because that is the number the watchlist setting is about.
+private struct CountsRow: View {
+    let counts: ProfileCounts
+
+    var body: some View {
+        HStack(spacing: 28) {
+            count(counts.friends, "Friends")
+            count(counts.followers, "Followers")
+            count(counts.following, "Following")
+        }
+    }
+
+    private func count(_ value: Int, _ label: LocalizedStringKey) -> some View {
+        VStack(spacing: 2) {
+            Text(value, format: .number)
+                .font(.headline)
+                .monospacedDigit()
+
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 #if DEBUG
 
     #Preview("Signed out") {
         AccountView()
             .environment(SessionStore(authentication: PreviewAuthentication()))
+            .environment(ProfileStore(profiles: PreviewProfiles()))
     }
 
     #Preview("Signed in") {
-        AccountView()
-            .environment(
-                SessionStore(authentication: PreviewAuthentication(restored: .preview))
-            )
+        SignedInPreview()
+    }
+
+    private struct SignedInPreview: View {
+        @State private var profiles = ProfileStore(profiles: PreviewProfiles())
+
+        var body: some View {
+            AccountView()
+                .environment(
+                    SessionStore(authentication: PreviewAuthentication(restored: .preview))
+                )
+                .environment(profiles)
+                .task { await profiles.load(userID: UserProfile.preview.userID) }
+        }
     }
 
 #endif

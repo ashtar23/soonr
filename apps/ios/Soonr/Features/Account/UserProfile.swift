@@ -82,8 +82,23 @@ struct ProfileEdit: Encodable, Equatable, Sendable {
     }
 }
 
+/// How many people are connected to a profile, which is what makes a profile
+/// read as a person rather than as a form about one.
+struct ProfileCounts: Decodable, Equatable, Sendable {
+    let friends: Int
+    let followers: Int
+    let following: Int
+}
+
+/// A profile and its counts, which arrive in the same response. Kept apart
+/// because only the profile comes back from an edit.
+struct ProfileOverview: Equatable, Sendable {
+    let profile: UserProfile
+    let counts: ProfileCounts
+}
+
 /// Reading and changing the signed-in account's own profile.
 protocol ProfileEditing: Sendable {
-    func profile(userID: String) async throws -> UserProfile
+    func profile(userID: String) async throws -> ProfileOverview
     func updateProfile(_ edit: ProfileEdit) async throws -> UserProfile
 }
