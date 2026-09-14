@@ -12,6 +12,7 @@ struct AppDependencies: Sendable {
     /// Pushes invalidations while the app is in front; see NotificationsRealtime.
     let notificationStream: any NotificationStreaming
     let accounts: any AccountCreating
+    let profiles: any ProfileEditing
     /// Shared with the session store, so requests and the signed-in state read
     /// the same session.
     let authentication: any Authenticating
@@ -41,6 +42,7 @@ struct AppDependencies: Sendable {
                 accessToken: { await authentication.accessToken() }
             ),
             accounts: api,
+            profiles: api,
             authentication: authentication,
             rejectedSessions: rejectedSessions
         )
@@ -65,6 +67,7 @@ struct AppDependencies: Sendable {
             notifications: PreviewNotifications(),
             notificationStream: PreviewNotificationStream(),
             accounts: PreviewTitleCatalog(),
+            profiles: PreviewProfiles(),
             authentication: PreviewAuthentication(),
             rejectedSessions: AsyncStream { _ in }
         )

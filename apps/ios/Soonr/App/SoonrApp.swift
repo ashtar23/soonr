@@ -15,6 +15,7 @@ struct SoonrApp: App {
     @State private var notificationPreferences: NotificationPreferencesStore
     @State private var pushRegistration: PushRegistrationStore
     @State private var router = AppRouter()
+    @State private var profiles: ProfileStore
     @State private var realtime: NotificationsRealtime
 
     @Environment(\.scenePhase) private var scenePhase
@@ -27,6 +28,7 @@ struct SoonrApp: App {
         _pushRegistration = State(
             initialValue: PushRegistrationStore(notifications: dependencies.notifications)
         )
+        _profiles = State(initialValue: ProfileStore(profiles: dependencies.profiles))
 
         let notifications = NotificationsStore(notifications: dependencies.notifications)
         let preferences = NotificationPreferencesStore(notifications: dependencies.notifications)
@@ -64,6 +66,7 @@ struct SoonrApp: App {
                 .environment(notificationPreferences)
                 .environment(pushRegistration)
                 .environment(router)
+                .environment(profiles)
                 .environment(\.accounts, dependencies.accounts)
                 .tint(theme.accent.color)
                 .preferredColorScheme(theme.appearance.colorScheme)
@@ -131,13 +134,15 @@ struct SoonrApp: App {
                         watchlist.clear()
                         notifications.clear()
                         notificationPreferences.clear()
+                        profiles.clear()
                         router.reset()
                         await pushRegistration.signedOut()
-                    case .signedIn:
+                    case let .signedIn(user):
                         await pushRegistration.signedIn()
                         await withTaskGroup(of: Void.self) { group in
                             group.addTask { await watchlist.load() }
                             group.addTask { await notifications.load() }
+                            group.addTask { await profiles.load(userID: user.userID) }
                         }
                     }
                 }

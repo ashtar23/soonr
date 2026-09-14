@@ -2,6 +2,7 @@ import Foundation
 
 struct SoonrAPI:
     TitleSearching, TitleDetailsLoading, HomeDiscovering, WatchlistManaging, AccountCreating,
+    ProfileEditing,
     NotificationsReading, NotificationPreferencesProviding, DeviceRegistering, Sendable
 {
     /// Matches the server's own default. Its maximum is 50; asking for more
@@ -94,6 +95,24 @@ struct SoonrAPI:
             ]
         )
         return page.items
+    }
+
+    func profile(userID: String) async throws -> UserProfile {
+        // The overview answers about anyone, and carries the relationship and
+        // counts a profile screen wants. Only the profile itself is read here;
+        // the rest belongs to a screen that shows somebody else.
+        let response: ProfileOverviewResponse = try await client.get(
+            ["profile", userID]
+        )
+        return response.profile
+    }
+
+    func updateProfile(_ edit: ProfileEdit) async throws -> UserProfile {
+        let response: ProfileResponse = try await client.put(
+            ["profile", "me"],
+            body: edit
+        )
+        return response.profile
     }
 
     func unreadNotificationCount() async throws -> Int {
@@ -193,6 +212,14 @@ private struct WatchlistMutationBody: Encodable {
 
 private struct TitleSearchResponse: Decodable {
     let results: [TitleSummary]
+}
+
+private struct ProfileOverviewResponse: Decodable {
+    let profile: UserProfile
+}
+
+private struct ProfileResponse: Decodable {
+    let profile: UserProfile
 }
 
 private struct UnreadCountResponse: Decodable {

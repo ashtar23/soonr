@@ -2,7 +2,9 @@ import SwiftUI
 
 struct AccountView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(ProfileStore.self) private var profiles
     @State private var isPresentingSignIn = false
+    @State private var isEditingProfile = false
 
     var body: some View {
         NavigationStack {
@@ -23,6 +25,11 @@ struct AccountView: View {
         .sheet(isPresented: $isPresentingSignIn) {
             SignInSheet()
         }
+        .sheet(isPresented: $isEditingProfile) {
+            if let profile = profiles.state.profile {
+                ProfileEditor(profile: profile)
+            }
+        }
     }
 
     @ViewBuilder
@@ -37,7 +44,13 @@ struct AccountView: View {
                 isPresentingSignIn = true
             }
         case let .signedIn(user):
-            SignedInAccount(user: user, isSigningOut: session.isSigningOut) {
+            SignedInAccount(
+                user: user,
+                profile: profiles.state,
+                isSigningOut: session.isSigningOut,
+                editProfile: { isEditingProfile = true },
+                retryProfile: { await profiles.retry(userID: user.userID) }
+            ) {
                 await session.signOut()
             }
         }
@@ -122,31 +135,32 @@ struct SignedOutAccountContent: View {
 
 private struct SignedInAccount: View {
     let user: UserSession
+    let profile: ProfileState
     let isSigningOut: Bool
+    let editProfile: () -> Void
+    let retryProfile: () async -> Void
     let signOut: () async -> Void
 
     var body: some View {
         List {
             Section {
-                HStack(spacing: 14) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.tint)
-                        .accessibilityHidden(true)
+                header
+            }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(user.email ?? "Your account")
-                            .font(.headline)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+            if let profile = profile.profile {
+                Section {
+                    Button("Edit profile", systemImage: "pencil", action: editProfile)
 
-                        Text("Signed in")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                    LabeledContent("Watchlist", value: profile.watchlistVisibility.label)
+                } footer: {
+                    Text(profile.watchlistVisibility.explanation)
                 }
-                .padding(.vertical, 6)
-                .accessibilityElement(children: .combine)
+            }
+
+            Section {
+                LabeledContent("Email", value: user.email ?? "—")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
             Section {
@@ -164,6 +178,64 @@ private struct SignedInAccount: View {
                 .disabled(isSigningOut)
             }
         }
+    }
+
+    /// Who you are rather than that you are signed in, which the screen you
+    /// reached by signing in did not need to tell you.
+    @ViewBuilder
+    private var header: some View {
+        switch profile {
+        case .loading:
+            HStack(spacing: 14) {
+                avatar
+                ProgressView()
+            }
+            .padding(.vertical, 6)
+        case let .loaded(profile):
+            HStack(spacing: 14) {
+                avatar
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(profile.title(fallback: user.email ?? "Your account"))
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    // An account made before signup asked for a username has
+                    // none, and saying so is what sends someone to set one.
+                    Text(profile.username.map { "@\($0)" } ?? "No username yet")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    if let bio = profile.bio {
+                        Text(bio)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+                    }
+                }
+            }
+            .padding(.vertical, 6)
+            .accessibilityElement(children: .combine)
+        case let .failed(reason):
+            VStack(alignment: .leading, spacing: 8) {
+                Text(reason.message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Button("Try again") {
+                    Task { await retryProfile() }
+                }
+            }
+            .padding(.vertical, 6)
+        }
+    }
+
+    private var avatar: some View {
+        Image(systemName: "person.crop.circle.fill")
+            .font(.system(size: 44))
+            .foregroundStyle(.tint)
+            .accessibilityHidden(true)
     }
 }
 
