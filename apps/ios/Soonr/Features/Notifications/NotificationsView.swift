@@ -68,15 +68,18 @@ struct NotificationsView: View {
 
     private var menu: some View {
         Menu {
-            Button("Mark all read", systemImage: "checkmark.circle") {
-                Task {
-                    await notifications.markAllRead()
+            // What this list does, apart from where this list goes.
+            Section {
+                Button("Mark all read", systemImage: "checkmark.circle") {
+                    Task {
+                        await notifications.markAllRead()
+                    }
                 }
-            }
-            .disabled(notifications.unreadCount == 0)
+                .disabled(notifications.unreadCount == 0)
 
-            Toggle(isOn: $showsUnreadOnly) {
-                Label("Unread only", systemImage: "line.3.horizontal.decrease.circle")
+                Toggle(isOn: $showsUnreadOnly) {
+                    Label("Unread only", systemImage: "line.3.horizontal.decrease.circle")
+                }
             }
 
             NavigationLink(value: NotificationsRoute.preferences) {
