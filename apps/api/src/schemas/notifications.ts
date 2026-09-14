@@ -79,6 +79,9 @@ export const NotificationPreferencesResultSchema = Type.Object({
 export const NotificationsQuerySchema = Type.Object({
   cursor: Type.Optional(Type.String()),
   limit: Type.Optional(Type.String()),
+  // A string like the others: query parameters arrive as text, and the route
+  // decides what counts as true rather than relying on coercion.
+  unread: Type.Optional(Type.String()),
 });
 
 export const NotificationReadBodySchema = Type.Object({

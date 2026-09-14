@@ -99,7 +99,7 @@ export function registerNotificationRoutes(server: FastifyInstance) {
       }
 
       try {
-        const { cursor, limit } = request.query;
+        const { cursor, limit, unread } = request.query;
 
         return await listNotificationRecords(user.id, {
           cursor:
@@ -111,6 +111,7 @@ export function registerNotificationRoutes(server: FastifyInstance) {
             Number.isInteger(Number.parseInt(limit, 10))
               ? Number.parseInt(limit, 10)
               : undefined,
+          unreadOnly: unread === "true",
         });
       } catch (error) {
         return sendInternalServerError(server, reply, error);
