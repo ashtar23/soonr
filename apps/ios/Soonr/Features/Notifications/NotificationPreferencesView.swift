@@ -206,52 +206,45 @@ private struct TimingRow: View {
 
 private typealias TimingPreset = NotificationPreferences.TimingPreset
 
-private extension TimingPreset {
-    var label: String {
-        switch self {
-        case .onDay: "On release day"
-        case .hours24Before: "A day before"
-        case .days7Before: "A week before"
-        case .days30Before: "A month before"
-        }
+#if DEBUG
+
+    #Preview("Preferences") {
+        PreferencesPreview(authorization: .authorized)
     }
-}
 
-#Preview("Preferences") {
-    PreferencesPreview(authorization: .authorized)
-}
+    #Preview("Push not yet asked for") {
+        PreferencesPreview(authorization: .undetermined)
+    }
 
-#Preview("Push not yet asked for") {
-    PreferencesPreview(authorization: .undetermined)
-}
+    #Preview("Push refused") {
+        PreferencesPreview(authorization: .denied)
+    }
 
-#Preview("Push refused") {
-    PreferencesPreview(authorization: .denied)
-}
-
-private struct PreferencesPreview: View {
-    @State private var preferences = NotificationPreferencesStore(
-        notifications: PreviewNotifications()
-    )
-    @State private var push: PushRegistrationStore
-
-    init(authorization: PushAuthorization) {
-        _push = State(
-            initialValue: PushRegistrationStore(
-                notifications: PreviewNotifications(),
-                system: PreviewPushAuthorization(authorization: authorization)
-            )
+    private struct PreferencesPreview: View {
+        @State private var preferences = NotificationPreferencesStore(
+            notifications: PreviewNotifications()
         )
+        @State private var push: PushRegistrationStore
+
+        init(authorization: PushAuthorization) {
+            _push = State(
+                initialValue: PushRegistrationStore(
+                    notifications: PreviewNotifications(),
+                    system: PreviewPushAuthorization(authorization: authorization)
+                )
+            )
+        }
+
+        var body: some View {
+            NavigationStack {
+                NotificationPreferencesView()
+            }
+            .environment(preferences)
+            .environment(push)
+            .task {
+                await push.restore()
+            }
+        }
     }
 
-    var body: some View {
-        NavigationStack {
-            NotificationPreferencesView()
-        }
-        .environment(preferences)
-        .environment(push)
-        .task {
-            await push.restore()
-        }
-    }
-}
+#endif

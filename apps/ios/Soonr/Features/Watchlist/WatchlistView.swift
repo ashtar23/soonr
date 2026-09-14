@@ -86,7 +86,15 @@ struct WatchlistView: View {
 private struct WatchlistList: View {
     let entries: [WatchlistEntry]
 
+    @Environment(WatchlistStore.self) private var watchlist
+
     var body: some View {
+        ScrollToTop(tab: .watchlist, topID: entries.first?.id) {
+            list
+        }
+    }
+
+    private var list: some View {
         List {
             ForEach(entries) { entry in
                 NavigationLink(value: TitleDestination(entry.title)) {
@@ -94,8 +102,17 @@ private struct WatchlistList: View {
                 }
                 .hidingOuterSeparators(
                     isFirst: entry.id == entries.first?.id,
-                    isLast: entry.id == entries.last?.id
+                    isLast: entry.id == entries.last?.id && watchlist.hasMore == false
                 )
+            }
+
+            // A row of its own rather than an `.onAppear` on the last entry, so
+            // the trigger does not depend on which entry happens to be last.
+            if watchlist.hasMore {
+                LoadingMoreRow()
+                    .task(id: entries.count) {
+                        await watchlist.loadMore()
+                    }
             }
         }
         .listStyle(.plain)
@@ -103,43 +120,48 @@ private struct WatchlistList: View {
     }
 }
 
-#Preview("Saved games") {
-    WatchlistPreview(catalog: PreviewTitleCatalog(), restored: .preview)
-}
+#if DEBUG
 
-#Preview("Signed out") {
-    WatchlistPreview(catalog: PreviewTitleCatalog(), restored: nil)
-}
-
-#Preview("Nothing saved") {
-    WatchlistPreview(catalog: PreviewTitleCatalog(saved: []), restored: .preview)
-}
-
-/// Loads the store the way the app root does, so previews show the states a
-/// signed-in viewer would see.
-private struct WatchlistPreview: View {
-    let catalog: PreviewTitleCatalog
-    let restored: UserSession?
-
-    @State private var watchlist: WatchlistStore
-    @State private var session: SessionStore
-
-    init(catalog: PreviewTitleCatalog, restored: UserSession?) {
-        self.catalog = catalog
-        self.restored = restored
-        _watchlist = State(initialValue: WatchlistStore(watchlist: catalog))
-        _session = State(
-            initialValue: SessionStore(authentication: PreviewAuthentication(restored: restored))
-        )
+    #Preview("Saved games") {
+        WatchlistPreview(catalog: PreviewTitleCatalog(), restored: .preview)
     }
 
-    var body: some View {
-        WatchlistView(details: .preview)
-            .environment(session)
-            .environment(watchlist)
-            .task {
-                await session.restore()
-                await watchlist.load()
-            }
+    #Preview("Signed out") {
+        WatchlistPreview(catalog: PreviewTitleCatalog(), restored: nil)
     }
-}
+
+    #Preview("Nothing saved") {
+        WatchlistPreview(catalog: PreviewTitleCatalog(saved: []), restored: .preview)
+    }
+
+    /// Loads the store the way the app root does, so previews show the states a
+    /// signed-in viewer would see.
+    private struct WatchlistPreview: View {
+        let catalog: PreviewTitleCatalog
+        let restored: UserSession?
+
+        @State private var watchlist: WatchlistStore
+        @State private var session: SessionStore
+
+        init(catalog: PreviewTitleCatalog, restored: UserSession?) {
+            self.catalog = catalog
+            self.restored = restored
+            _watchlist = State(initialValue: WatchlistStore(watchlist: catalog))
+            _session = State(
+                initialValue: SessionStore(
+                    authentication: PreviewAuthentication(restored: restored))
+            )
+        }
+
+        var body: some View {
+            WatchlistView(details: .preview)
+                .environment(session)
+                .environment(watchlist)
+                .task {
+                    await session.restore()
+                    await watchlist.load()
+                }
+        }
+    }
+
+#endif

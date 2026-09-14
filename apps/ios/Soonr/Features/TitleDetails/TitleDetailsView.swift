@@ -239,37 +239,41 @@ private struct TitleDetailsList: View {
     }
 }
 
-#Preview("Loaded") {
-    NavigationStack {
-        TitleDetailsView(destination: .preview, dependencies: .preview)
-    }
-    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
-}
+#if DEBUG
 
-#Preview("Sparse") {
-    NavigationStack {
-        TitleDetailsView(
-            destination: .preview,
-            dependencies: .preview(PreviewTitleCatalog(details: .previewSparse))
-        )
+    #Preview("Loaded") {
+        NavigationStack {
+            TitleDetailsView(destination: .preview, dependencies: .preview)
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
     }
-    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
-}
 
-#Preview("Not found") {
-    NavigationStack {
-        TitleDetailsView(
-            destination: .preview,
-            dependencies: .preview(PreviewTitleCatalog(details: nil))
-        )
+    #Preview("Sparse") {
+        NavigationStack {
+            TitleDetailsView(
+                destination: .preview,
+                dependencies: .preview(PreviewTitleCatalog(details: .previewSparse))
+            )
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
     }
-    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
-}
 
-/// A guest, whose watchlist tap opens the sign-in sheet instead of saving.
-#Preview("Guest") {
-    NavigationStack {
-        TitleDetailsView(destination: .preview, dependencies: .preview)
+    #Preview("Not found") {
+        NavigationStack {
+            TitleDetailsView(
+                destination: .preview,
+                dependencies: .preview(PreviewTitleCatalog(details: nil))
+            )
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
     }
-    .environment(SessionStore(authentication: PreviewAuthentication()))
-}
+
+    /// A guest, whose watchlist tap opens the sign-in sheet instead of saving.
+    #Preview("Guest") {
+        NavigationStack {
+            TitleDetailsView(destination: .preview, dependencies: .preview)
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication()))
+    }
+
+#endif

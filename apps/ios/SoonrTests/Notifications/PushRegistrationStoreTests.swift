@@ -257,7 +257,7 @@ private actor StubPushSystem: PushAuthorizing {
     }
 }
 
-private actor StubDeviceRegistrar: NotificationsProviding {
+private actor StubDeviceRegistrar: DeviceRegistering {
     private(set) var registered: [(token: String, environment: PushEnvironment)] = []
     private(set) var unregistered: [String] = []
 
@@ -277,23 +277,5 @@ private actor StubDeviceRegistrar: NotificationsProviding {
 
     func unregisterDevice(token: String) async throws {
         unregistered.append(token)
-    }
-
-    func notifications() async throws -> [NotificationRecord] { [] }
-
-    func unreadNotificationCount() async throws -> Int { 0 }
-
-    func markNotificationRead(id: String) async throws -> NotificationRecord {
-        .previewUnread
-    }
-
-    func markAllNotificationsRead() async throws -> Int { 0 }
-
-    func notificationPreferences() async throws -> NotificationPreferences { .default }
-
-    func updateNotificationPreferences(
-        _ preferences: NotificationPreferences
-    ) async throws -> NotificationPreferences {
-        preferences
     }
 }

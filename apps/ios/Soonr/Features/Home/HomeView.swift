@@ -113,10 +113,14 @@ private struct HomeRailSection: View {
     }
 }
 
-#Preview {
-    HomeView(
-        homeDiscovery: PreviewTitleCatalog(),
-        details: .preview
-    )
-    .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
-}
+#if DEBUG
+
+    #Preview {
+        HomeView(
+            homeDiscovery: PreviewTitleCatalog(),
+            details: .preview
+        )
+        .environment(SessionStore(authentication: PreviewAuthentication(restored: .preview)))
+    }
+
+#endif

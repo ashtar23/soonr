@@ -167,14 +167,18 @@ private struct SignedInAccount: View {
     }
 }
 
-#Preview("Signed out") {
-    AccountView()
-        .environment(SessionStore(authentication: PreviewAuthentication()))
-}
+#if DEBUG
 
-#Preview("Signed in") {
-    AccountView()
-        .environment(
-            SessionStore(authentication: PreviewAuthentication(restored: .preview))
-        )
-}
+    #Preview("Signed out") {
+        AccountView()
+            .environment(SessionStore(authentication: PreviewAuthentication()))
+    }
+
+    #Preview("Signed in") {
+        AccountView()
+            .environment(
+                SessionStore(authentication: PreviewAuthentication(restored: .preview))
+            )
+    }
+
+#endif

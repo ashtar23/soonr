@@ -85,7 +85,13 @@ Search/
 ```
 
 Capability protocols live with the feature that consumes them, not beside the
-infrastructure that implements them.
+infrastructure that implements them, and stay as narrow as the store that uses
+them. Notifications is the worked example: `NotificationsReading`,
+`NotificationPreferencesProviding`, `DeviceRegistering`, and
+`NotificationStreaming` are four protocols over one service, so each store
+depends only on what it calls and each test stub implements only that. One
+protocol carrying all of it made every stub implement methods it never used,
+and every new endpoint break all of them.
 
 Small reusable row views may remain in their feature. They move to the design
 system only after reuse is demonstrated.
@@ -124,13 +130,47 @@ The iOS client calls `apps/api` for application data. It never calls RAWG or the
 Supabase database directly. Supabase on iOS is limited to authentication and
 session management.
 
+#### Realtime
+
+`NotificationsSocket` is the client half of `GET /notifications/stream`. Its
+transport sits behind `WebSocketChannel`, so the handshake, reconnect, and
+heartbeat logic above it is tested without a server.
+
+Two properties of that endpoint shape everything above it:
+
+- **It authenticates by message, not by header.** A new connection has five
+  seconds to send `{"type":"auth","accessToken":…}` before the server closes it
+  with 4401, so the token is fetched per attempt and a reconnect after a long
+  backoff carries a fresh one rather than a captured stale one.
+- **It pushes invalidations, not records.** A change arrives as
+  `{"type":"notifications.changed","scope":"records"}` carrying no payload. The
+  client answers by refetching, which means no merge logic, no dedupe against a
+  push describing the same change, and a missed event costing latency rather
+  than correctness. A `preferences` event is the exception: it carries the new
+  copy when the server has a readable one.
+
+A socket idling behind NAT is dropped without either end being told, and this
+stream is quiet by nature, so a ping on a timer turns a dead connection into a
+failed send that the existing reconnect answers.
+
 ### `Shared`
 
-Contains types already used by multiple features, such as `TitleSummary` and
-`ReleaseDateText`, plus small platform-neutral helpers. Views belong in
-`DesignSystem`; `Shared` holds models and logic. `Shared` is not a
-miscellaneous folder: a type stays inside its feature until a real second
-consumer needs it.
+Contains types already used by multiple features, plus small platform-neutral
+helpers. Views belong in `DesignSystem`; `Shared` holds models and logic.
+`Shared` is not a miscellaneous folder: a type stays inside its feature until a
+real second consumer needs it.
+
+```text
+Shared/
+  Models/            TitleSummary, TitleDestination, FailureReason
+  Previews/          in-memory doubles, DEBUG only
+  ReleaseDateText    formatting used by several features
+```
+
+Everything in `Previews/` is wrapped in `#if DEBUG`, as is every `#Preview`
+block that uses it. They were compiled into the release binary until that was
+noticed, and only a Release build finds such a site — a Debug build compiles
+both halves, so it cannot.
 
 API response types may initially double as application models when their shapes
 are identical. Introduce explicit DTO-to-domain mapping only when the API shape
@@ -233,12 +273,74 @@ alternative is a drift check that decodes spec examples in tests.
 Feature models keep depending on narrow protocols even if their live
 implementation later uses a generated client.
 
+## Paging
+
+`Page` is one response's worth; `PagedList` is the accumulated pages, as a
+plain value with no notion of any feature. Both lists use it, and the rules
+that matter are cost rules:
+
+- membership is a `Set`, so loading page *n* does not cost *n* passes over what
+  is already held
+- nothing rebuilds the array wholesale — `List` diffs on identity, so appending
+  costs work for new rows only, while a freshly built array is a full diff and
+  a lost scroll position
+- no `.id()` on a `ForEach` child, ever: it makes `List` build every row
+  eagerly, which is the entire cost of paging paid at once
+
+**Identity is the list's, not the domain's.** `PagedList` dedupes on
+`Identifiable`. A watchlist entry is identified by the entry but removed by the
+title it holds, and a title saved locally carries a stand-in id until the
+server answers — so the store bridges that gap rather than the value type
+guessing at it. Removal takes a predicate for the same reason.
+
+**Cursors are anchored to a row's own values, not to an offset.** Deleting the
+row a cursor was made from does not move where the next page starts, and rows
+arriving at the top do not shift a deeper cursor. That is what lets a realtime
+change reload only the first page and leave `nextCursor` alone.
+
+**Ordering is an assumption, not a given.** Putting new rows on top is correct
+only while the server's order is newest-first, which it is for both lists
+today. A sort option would invalidate it — see the roadmap, which records what
+breaks before anyone builds it.
+
+## Decision record: counting realtime echoes
+
+**Context.** `notification_records_realtime_trigger` is an `after insert or
+update … for each row` trigger, and an update to `read_at` notifies. Reading a
+notification therefore comes back to the device that read it as news that
+notifications changed. Answering every event with a refetch cost two requests
+per tap and two per row for marking everything read — forty requests for twenty
+unread notifications, all for changes the screen had already applied.
+
+**Decision.** `NotificationsStore` counts the events its own writes are owed and
+counts incoming events off against that budget, refetching only what is left
+over. The count is exact rather than time-based because
+`markAllNotificationsRead` returns how many rows the server changed, which is
+how many events the per-row trigger produces. Events are also collapsed, so a
+burst costs one refetch whoever caused it.
+
+**Consequences, and what breaks it.** The counts balance, so a change from
+elsewhere landing inside a burst of ours is still answered exactly once. But the
+budget assumes **one event per changed row** and **1:1 delivery**:
+
+- changing that trigger to `for each statement`, or notifying on columns other
+  than `read_at`, silently breaks the accounting
+- so would a lossy buffering policy on the event stream, which is why
+  `AsyncStream` is left unbounded here rather than `.bufferingNewest(1)`
+
+A budget left standing by an event that never arrives expires after ten seconds,
+so a mismatch degrades to one stale list rather than a permanently deaf client.
+`NotificationsStoreTests` covers each of these paths, and each test was checked
+by breaking the code it covers.
+
 ## Architecture checkpoints
 
 Revisit structure only when evidence warrants it:
 
 - A second endpoint needs the same request behavior: extract the request core
   (done: `APIClient`).
+- A store depends on a protocol it only partly calls: split the protocol
+  (done: notifications, four capabilities over one service).
 - A second feature needs a UI component: consider the design system
   (`TitleArtwork` is shared by search rows and title details, and
   `ReleaseDateText` by both features).

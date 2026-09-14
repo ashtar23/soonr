@@ -157,14 +157,21 @@ Included:
   states
 - Email and password sign-in through Supabase, with session restore and sign out
 - Authenticated requests to `apps/api`
+- Paged notifications and watchlist, loading the next page at the last row
 - Notifications with read state, an unread badge, and delivery preferences
+- Push notifications over APNs, with the environment read from the signed
+  provisioning profile rather than the build flag
+- Notifications in realtime over a WebSocket, held while signed in and active
 - Skeleton settings routes
 - Swift Testing coverage for tabs, search and details models, API requests,
-  response decoding, and release-date formatting
+  response decoding, release-date formatting, push registration, and the
+  realtime socket
 
 Deferred:
 
-- Remaining API endpoints and Supabase authentication
-- Authentication state
-- Watchlist and notification persistence
-- Production assets, signing, and release configuration
+- Sorting and searching the watchlist, which the API supports and the client
+  does not ask for
+- Marking a notification unread, which no API endpoint can do
+- Offline and cache policy
+- Localization and a complete accessibility audit
+- Production assets, signing, TestFlight, and release configuration

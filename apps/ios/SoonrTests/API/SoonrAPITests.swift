@@ -191,13 +191,13 @@ struct SoonrAPITests {
     func theWatchlistDecodesItsSavedTitles() async throws {
         let transport = StubTransport(.init(statusCode: 200, body: Self.watchlistJSON))
 
-        let entries = try await transport.api(accessToken: "token").watchlist()
+        let page = try await transport.api(accessToken: "token").watchlist(after: nil)
 
         let request = try #require(await transport.requests.first)
         #expect(request.url?.path(percentEncoded: false) == "/watchlist")
-        #expect(entries.map(\.id) == ["user:rawg:274755"])
-        #expect(entries.first?.title.name == "Hades")
-        #expect(entries.first?.addedAt == "2026-01-01T10:00:00.000Z")
+        #expect(page.items.map(\.id) == ["user:rawg:274755"])
+        #expect(page.items.first?.title.name == "Hades")
+        #expect(page.items.first?.addedAt == "2026-01-01T10:00:00.000Z")
     }
 
     @Test
@@ -206,7 +206,7 @@ struct SoonrAPITests {
             .init(statusCode: 200, body: #"{"items":[],"nextCursor":null}"#)
         ).api(accessToken: "token")
 
-        #expect(try await api.watchlist().isEmpty)
+        #expect(try await api.watchlist(after: nil).items.isEmpty)
     }
 
     @Test

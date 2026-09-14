@@ -67,15 +67,19 @@ private struct AccentRow: View {
     }
 }
 
-#Preview {
-    NavigationStack {
-        ThemeSettingsView()
-    }
-    .environment(ThemeSettings(defaults: .previewDefaults))
-}
+#if DEBUG
 
-extension UserDefaults {
-    /// An isolated store so previews never mutate the simulator's settings.
-    @MainActor
-    static let previewDefaults = UserDefaults(suiteName: "preview.theme") ?? .standard
-}
+    #Preview {
+        NavigationStack {
+            ThemeSettingsView()
+        }
+        .environment(ThemeSettings(defaults: .previewDefaults))
+    }
+
+    extension UserDefaults {
+        /// An isolated store so previews never mutate the simulator's settings.
+        @MainActor
+        static let previewDefaults = UserDefaults(suiteName: "preview.theme") ?? .standard
+    }
+
+#endif

@@ -30,9 +30,69 @@ struct AppRouterTests {
 
         router.open(opened)
         // Whatever else happens before the notifications screen exists.
-        router.selectedTab = .notifications
+        router.select(.notifications)
 
         #expect(router.notificationsPath.count == 1)
+    }
+
+    // MARK: - Tapping the tab already showing
+
+    @Test
+    func tappingAnotherTabJustChangesTabs() {
+        let router = AppRouter()
+
+        router.select(.notifications)
+
+        #expect(router.selectedTab == .notifications)
+        #expect(router.scrollToTopRequest == nil)
+    }
+
+    @Test
+    func tappingTheTabAlreadyShowingAsksItToScrollToTheTop() {
+        let router = AppRouter()
+        router.select(.notifications)
+
+        router.select(.notifications)
+
+        #expect(router.scrollToTopRequest?.tab == .notifications)
+    }
+
+    /// Asking twice has to read as two requests, or the second tap would look
+    /// identical to the first and change nothing.
+    @Test
+    func askingTwiceReadsAsTwoRequests() {
+        let router = AppRouter()
+        router.select(.notifications)
+
+        router.select(.notifications)
+        let first = router.scrollToTopRequest
+        router.select(.notifications)
+
+        #expect(router.scrollToTopRequest != first)
+    }
+
+    /// A push sets the destination and then the tab, and selecting a tab
+    /// cannot tell that apart from a tap. Anything that discarded the path
+    /// here would open the list and nothing else — the deep link bug again.
+    @Test
+    func selectingTheTabAPushJustOpenedKeepsItsDestination() {
+        let router = AppRouter()
+        router.open(opened)
+
+        router.select(.notifications)
+
+        #expect(router.notificationsPath.count == 1)
+    }
+
+    @Test
+    func signingOutForgetsAPendingRequest() {
+        let router = AppRouter()
+        router.select(.home)
+
+        router.reset()
+
+        #expect(router.scrollToTopRequest == nil)
+        #expect(router.selectedTab == .home)
     }
 
     @Test

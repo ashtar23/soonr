@@ -121,16 +121,20 @@ struct SignInView: View {
     }
 }
 
-#Preview {
-    NavigationStack {
-        SignInView()
-    }
-    .environment(SessionStore(authentication: PreviewAuthentication()))
-}
+#if DEBUG
 
-#Preview("Raised by an action") {
-    NavigationStack {
-        SignInView(prompt: "Sign in to add Hades II to your watchlist.")
+    #Preview {
+        NavigationStack {
+            SignInView()
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication()))
     }
-    .environment(SessionStore(authentication: PreviewAuthentication()))
-}
+
+    #Preview("Raised by an action") {
+        NavigationStack {
+            SignInView(prompt: "Sign in to add Hades II to your watchlist.")
+        }
+        .environment(SessionStore(authentication: PreviewAuthentication()))
+    }
+
+#endif

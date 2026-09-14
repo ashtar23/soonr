@@ -3,17 +3,34 @@ import Foundation
 /// What a notification was about, as data rather than as the sentence the
 /// server wrote when it generated the row.
 enum NotificationPayload: Hashable, Sendable {
-    case releaseApproaching(targetReleaseDate: String?)
+    case releaseApproaching(
+        targetReleaseDate: String?,
+        /// Which reminder this was. Four of them fire for one release, and
+        /// without it they all read as the same sentence about the same date.
+        timingPreset: NotificationPreferences.TimingPreset? = nil
+    )
     case releaseDateChanged(nextReleaseDate: String?)
     /// An event this build does not know how to describe, which falls back to
     /// the server's own words.
     case unrecognized
 }
 
+extension NotificationPayload {
+    /// Which reminder this was, when it was one.
+    var timingPreset: NotificationPreferences.TimingPreset? {
+        if case let .releaseApproaching(_, preset) = self {
+            return preset
+        }
+
+        return nil
+    }
+}
+
 extension NotificationPayload: Decodable {
     private enum CodingKeys: String, CodingKey {
         case targetReleaseDate
         case nextReleaseDate
+        case timingPreset
     }
 
     /// The two payloads are told apart by their keys rather than by the record's
@@ -27,7 +44,13 @@ extension NotificationPayload: Decodable {
 
         if container.contains(.targetReleaseDate) {
             self = .releaseApproaching(
-                targetReleaseDate: try? container.decode(String?.self, forKey: .targetReleaseDate)
+                targetReleaseDate: try? container.decode(String?.self, forKey: .targetReleaseDate),
+                // A preset this build cannot name is dropped rather than
+                // failing the payload it arrived with.
+                timingPreset: try? container.decodeIfPresent(
+                    NotificationPreferences.TimingPreset.self,
+                    forKey: .timingPreset
+                )
             )
         } else if container.contains(.nextReleaseDate) {
             self = .releaseDateChanged(
@@ -60,7 +83,7 @@ enum NotificationCaption {
         locale: Locale
     ) -> String? {
         switch record.payload {
-        case let .releaseApproaching(date):
+        case let .releaseApproaching(date, _):
             return releaseText(date, now: now, locale: locale)
         case let .releaseDateChanged(date):
             guard let text = date.map({ formatted($0, locale: locale) }) ?? nil else {

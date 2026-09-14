@@ -7,9 +7,16 @@ struct RootTabView: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        @Bindable var router = router
+        tabs(selection: tabSelection)
+    }
 
-        return tabs(selection: $router.selectedTab)
+    /// Every selection, including re-tapping the tab already showing, which
+    /// the router reads as a request to go back to the top.
+    private var tabSelection: Binding<AppTab> {
+        Binding(
+            get: { router.selectedTab },
+            set: { router.select($0) }
+        )
     }
 
     @ViewBuilder
@@ -113,8 +120,12 @@ struct RootTabView: View {
     }
 }
 
-#Preview {
-    RootTabView(dependencies: .preview)
-        .environment(ThemeSettings(defaults: .previewDefaults))
-        .environment(NotificationsStore(notifications: PreviewNotifications()))
-}
+#if DEBUG
+
+    #Preview {
+        RootTabView(dependencies: .preview)
+            .environment(ThemeSettings(defaults: .previewDefaults))
+            .environment(NotificationsStore(notifications: PreviewNotifications()))
+    }
+
+#endif

@@ -32,18 +32,22 @@ struct SignInSheet: View {
     }
 }
 
-#Preview("From the account screen") {
-    Color(.systemGroupedBackground)
-        .sheet(isPresented: .constant(true)) {
-            SignInSheet()
-                .environment(SessionStore(authentication: PreviewAuthentication()))
-        }
-}
+#if DEBUG
 
-#Preview("Raised by an action") {
-    Color(.systemGroupedBackground)
-        .sheet(isPresented: .constant(true)) {
-            SignInSheet(prompt: "Sign in to add Hades II to your watchlist.")
-                .environment(SessionStore(authentication: PreviewAuthentication()))
-        }
-}
+    #Preview("From the account screen") {
+        Color(.systemGroupedBackground)
+            .sheet(isPresented: .constant(true)) {
+                SignInSheet()
+                    .environment(SessionStore(authentication: PreviewAuthentication()))
+            }
+    }
+
+    #Preview("Raised by an action") {
+        Color(.systemGroupedBackground)
+            .sheet(isPresented: .constant(true)) {
+                SignInSheet(prompt: "Sign in to add Hades II to your watchlist.")
+                    .environment(SessionStore(authentication: PreviewAuthentication()))
+            }
+    }
+
+#endif

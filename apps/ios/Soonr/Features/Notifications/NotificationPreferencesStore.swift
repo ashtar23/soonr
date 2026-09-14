@@ -24,15 +24,18 @@ final class NotificationPreferencesStore {
     private(set) var state: NotificationPreferencesState = .loading
     private(set) var saveFailure: FailureReason?
 
-    @ObservationIgnored private let notifications: any NotificationsProviding
+    @ObservationIgnored private let notifications: any NotificationPreferencesProviding
     @ObservationIgnored private let saveDelay: Duration
     /// The last copy the server acknowledged, which is where a failed save
     /// returns to.
     @ObservationIgnored private var confirmed: NotificationPreferences?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    /// True while a save is in flight. `saveTask` is cleared before the request
+    /// goes out, so it alone cannot tell a settled screen from a settling one.
+    @ObservationIgnored private var isSaving = false
 
     init(
-        notifications: any NotificationsProviding,
+        notifications: any NotificationPreferencesProviding,
         saveDelay: Duration = .milliseconds(400)
     ) {
         self.notifications = notifications
@@ -84,13 +87,39 @@ final class NotificationPreferencesStore {
     func clear() {
         saveTask?.cancel()
         saveTask = nil
+        isSaving = false
         confirmed = nil
         saveFailure = nil
         state = .loading
     }
 
-    private func fetch() async {
-        state = .loading
+    /// Adopts what the server pushed down the notifications stream.
+    ///
+    /// A change of this device's own comes back as an event, so the copy that
+    /// arrives is usually the echo of a save. Landing it on a screen whose
+    /// switches have moved since would undo the viewer mid-tap, which is why
+    /// anything still settling declines it: the save already in flight carries
+    /// the newer truth, and its answer is what the screen ends on.
+    func apply(_ pushed: NotificationPreferences?) async {
+        guard saveTask == nil, isSaving == false else {
+            return
+        }
+
+        guard let pushed else {
+            // The event arrived without a readable copy, so the server is the
+            // only place the new one exists.
+            await fetch(showingLoadingState: preferences == nil)
+            return
+        }
+
+        confirmed = pushed
+        state = .loaded(pushed)
+    }
+
+    private func fetch(showingLoadingState: Bool = true) async {
+        if showingLoadingState {
+            state = .loading
+        }
 
         do {
             let loaded = try await notifications.notificationPreferences()
@@ -124,6 +153,9 @@ final class NotificationPreferencesStore {
         guard let pending = preferences else {
             return
         }
+
+        isSaving = true
+        defer { isSaving = false }
 
         do {
             let acknowledged = try await notifications.updateNotificationPreferences(pending)

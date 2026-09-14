@@ -211,22 +211,140 @@ Deferred:
 - `release_date_changed` notifications, which nothing generates yet
 - `nextCursor` paging
 
+### Slice 10: Push delivery
+
+Its own slice rather than a leftover of Slice 8, and as much `apps/api` as iOS:
+APNs credentials, device-token storage, a send path, and the client half.
+
+- token-based APNs (ES256 over HTTP/2), sandbox and production chosen per
+  device rather than per build
+- device tokens stored with the token as the primary key, so a rotated token
+  replaces itself; 410 Unregistered and 400 BadDeviceToken delete the device
+- permission asked on the way _on_ — turning the switch on is what prompts, so
+  the system alert follows a request for notifications rather than arriving
+  unexplained at launch
+- a refused switch opens Soonr's own notification settings, because iOS shows
+  its prompt once per install and Settings is the only way back
+- the icon badge follows the unread count the list already owns
+
+**The build flag and the signature disagree.** A Staging build run from Xcode is
+development-signed, so it holds a sandbox token while `DEBUG` is undefined.
+Claiming production for it has APNs answer `BadDeviceToken`, which the delivery
+pass reads as a dead device and deletes. The environment is read from the signed
+provisioning profile instead.
+
+Five of the bugs this slice produced were only findable on a device or in
+production: a delegate isolated with `nonisolated` crashed on tap, a deep link
+never fired because `.onChange` does not run when a tab's content is first
+created, the badge stuck, and a notification opened from a push did not clear.
+
+### Slice 11: Notifications in realtime
+
+The list and the preferences screen follow the server without a refresh.
+
+- `NotificationStreaming` behind a `URLSessionWebSocketTask` transport, with
+  reconnect and backoff, and a heartbeat so a socket dropped behind NAT is
+  found on the next ping rather than at the next read
+- held only while signed in and the scene is active, from one predicate rather
+  than a call at each of sign-in, sign-out, and scene change
+- one connection fanned out to both stores, because a stream has one consumer
+
+**The server pushes invalidations, not records.** A change arrives as
+`{"type":"notifications.changed","scope":"records"}` with no payload, so the
+answer is a refetch. That is simpler than it sounds: no client-side merge, no
+dedupe against the push that may describe the same thing, and a missed event
+costs latency rather than correctness.
+
+**Which makes the echo the expensive part.** The trigger fires per row on insert
+or update, and an update to `read_at` counts, so this device's own read comes
+straight back as news it already acted on. The store counts the events its
+writes are owed — exactly, because marking everything read reports how many rows
+moved — and collapses bursts into one refetch. Without it, twenty unread
+notifications cost forty requests to mark read.
+
+Deferred:
+
+- a repeatedly rejected token reconnects rather than ending the session, unlike
+  the HTTP path; a background socket is a bad place to sign someone out from
+- `nextCursor` paging, now Slice 12
+
+### Slice 12: Paging
+
+Both lists fetch a page at a time and load the next when the last row comes
+into view. On staging that was 20 of 84 notifications and 20 of 48 saved
+titles reachable.
+
+- `Page` and `PagedList`: the accumulated pages as a plain value, with
+  membership held as a set so loading page _n_ does not cost _n_ passes over
+  what is already held
+- a realtime change reloads the first page and merges it — rows still present
+  are updated where they stand, new ones go on top, deeper pages and the
+  reader's place in them are untouched
+- a request in flight blocks a second, so a fast scroll asks once
+- a failed page is silent: the rows on screen are still good and reaching the
+  bottom again retries
+
+**Cursors are anchored to a row's own values rather than to an offset.** That
+is what lets a reloaded first page leave `nextCursor` alone, and what makes
+removing a row safe: deleting the row a cursor was made from does not move
+where the next page starts. Offset paging would break on both.
+
+**Identity is the list's, not the domain's.** `PagedList` dedupes on
+`Identifiable`, which is correct generically and blind to the watchlist, where
+an entry is identified by the entry and removed by the title it holds — and
+where a title saved locally carries a stand-in id until the server answers.
+That showed a title twice in two different ways, both caught by tests rather
+than by use.
+
+**A page cap was planned and then dropped.** Trimming loaded pages would need
+the cursor of each to restore them, plus placeholders and a fetch on scrolling
+back. Measured against it: a notification record averages 399 bytes, so 20,000
+of them is 7.6 MB and anything realistic is well under one. `List` recycles
+row views and artwork is already requested at a row-sized resize, so neither
+grows with the array. The complexity bought nothing.
+
+### Slice 12.5: Back to the top in one tap
+
+Tapping the tab already showing scrolls its list to the top. iOS does this
+itself, but by animating towards an offset it estimates, and lazily laid out
+rows correct those estimates mid-animation — so a long list stopped short and
+took several taps. Scrolling to a view instead needs no height known ahead.
+
+The anchor sits above the rows rather than on one: an identifier on a `ForEach`
+child makes `List` build every row eagerly, which on a paged list is the whole
+cost of paging paid at once.
+
+The re-tap only scrolls, and deliberately does not also pop the navigation
+stack the way the system apps do: selecting a tab cannot be told apart from a
+push notification setting the selection in code, one line after putting its
+destination on the path, so popping would open the list and nothing else.
+
 ## Planned
 
-### Comment cleanup
+### Slice 13: Sorting and searching the watchlist
 
-Not a slice. The codebase carries an explanatory comment on nearly every
-property and modifier, which buries the few that matter. Comments stay only
-where the reason is non-obvious — platform behaviour that surprised us,
-`ImageRenderer` limits, API semantics the code depends on — and go everywhere
-they restate the code. Do this as its own pass, so it never hides inside a
-feature diff.
+`GET /watchlist` already accepts `sort` (added, release date, name) and a
+`query` filter, and the client passes neither. Sorting by release date is
+arguably what a watchlist is for.
 
-### Push and realtime delivery
+It is not additive, because paging and local edits both assume the server's
+default order:
 
-Its own slice, not a leftover of Slice 8. Nothing in the stack sends a push
-today: no APNs credentials, no device-token storage, no send path. It needs
-work in `apps/api` as much as here, which is why it was never in scope above.
+- **Changing sort or query starts a new list.** The cursor encodes the sort it
+  was made under, so pages already held cannot be continued into a different
+  one. The paged list is reset, not appended to.
+- **A saved title can no longer go on top.** `prepend` is right only while
+  newest-first means new things belong at the top. Sorted by release date, a
+  saved title belongs wherever its date puts it, and under a query it may not
+  belong on screen at all. Either the store inserts at the sorted position, or
+  a local add reloads the first page instead of guessing — the second is
+  duller and harder to get wrong.
+- **Removal is unaffected**, because taking a row out does not depend on where
+  rows go.
+- **Reconciling is unaffected here**, because only notifications have a stream.
+  If notifications ever gain a sort, `reconcileFirstPage` inherits the same
+  problem: it puts new rows on top because newest-first is the only order it
+  is correct for.
 
 ### Slice 9: Production hardening
 
