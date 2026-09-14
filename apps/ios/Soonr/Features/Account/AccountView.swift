@@ -133,6 +133,12 @@ struct SignedOutAccountContent: View {
     }
 }
 
+/// Who you are, and the few things about you that are not app behaviour.
+///
+/// Anything that answers "how should the app work" lives behind the gear
+/// instead. What is left here is your name, who gets to see what, and the
+/// account itself — which is why the screen leads with the profile rather than
+/// with a row that says you are signed in.
 private struct SignedInAccount: View {
     let user: UserSession
     let profile: ProfileState
@@ -148,22 +154,23 @@ private struct SignedInAccount: View {
             }
 
             if let profile = profile.profile {
-                Section {
-                    Button("Edit profile", systemImage: "pencil", action: editProfile)
-
-                    LabeledContent("Watchlist", value: profile.watchlistVisibility.label)
-                } footer: {
-                    Text(profile.watchlistVisibility.explanation)
+                Section("Privacy") {
+                    NavigationLink {
+                        WatchlistVisibilityView(profile: profile)
+                    } label: {
+                        LabeledContent(
+                            "Watchlist visibility",
+                            value: profile.watchlistVisibility.label
+                        )
+                    }
                 }
             }
 
-            Section {
+            Section("Account") {
                 LabeledContent("Email", value: user.email ?? "—")
                     .lineLimit(1)
                     .truncationMode(.middle)
-            }
 
-            Section {
                 Button(role: .destructive) {
                     Task { await signOut() }
                 } label: {
@@ -180,43 +187,41 @@ private struct SignedInAccount: View {
         }
     }
 
-    /// Who you are rather than that you are signed in, which the screen you
-    /// reached by signing in did not need to tell you.
+    /// The whole row opens the editor, rather than a pencil sitting beside it:
+    /// there is one thing to do with your own profile here, and the row is
+    /// already the size of a target.
     @ViewBuilder
     private var header: some View {
         switch profile {
         case .loading:
             HStack(spacing: 14) {
-                avatar
+                InitialsAvatar(name: fallbackName)
                 ProgressView()
             }
             .padding(.vertical, 6)
         case let .loaded(profile):
-            HStack(spacing: 14) {
-                avatar
+            Button(action: editProfile) {
+                HStack(spacing: 14) {
+                    InitialsAvatar(name: avatarName(for: profile))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(profile.title(fallback: user.email ?? "Your account"))
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    identity(for: profile)
 
-                    // An account made before signup asked for a username has
-                    // none, and saying so is what sends someone to set one.
-                    Text(profile.username.map { "@\($0)" } ?? "No username yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
 
-                    if let bio = profile.bio {
-                        Text(bio)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 2)
-                    }
+                    // Drawn rather than pushed: this row opens a sheet, and a
+                    // NavigationLink would promise a screen you can come back
+                    // from without deciding anything.
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
                 }
+                .padding(.vertical, 6)
+                .contentShape(.rect)
             }
-            .padding(.vertical, 6)
+            .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Edits your profile")
         case let .failed(reason):
             VStack(alignment: .leading, spacing: 8) {
                 Text(reason.message)
@@ -231,11 +236,39 @@ private struct SignedInAccount: View {
         }
     }
 
-    private var avatar: some View {
-        Image(systemName: "person.crop.circle.fill")
-            .font(.system(size: 44))
-            .foregroundStyle(.tint)
-            .accessibilityHidden(true)
+    private func identity(for profile: UserProfile) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(profile.title(fallback: fallbackName))
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            // An account made before signup asked for a username has none, and
+            // saying so is what sends someone to set one.
+            Text(profile.username.map { "@\($0)" } ?? "No username yet")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            if let bio = profile.bio {
+                Text(bio)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.top, 2)
+            }
+        }
+        .multilineTextAlignment(.leading)
+    }
+
+    private var fallbackName: String {
+        user.email ?? "Your account"
+    }
+
+    /// Deliberately not `title(fallback:)`: that leads with "@reader", and the
+    /// initial of a handle is the at sign.
+    private func avatarName(for profile: UserProfile) -> String {
+        profile.displayName ?? profile.username ?? fallbackName
     }
 }
 

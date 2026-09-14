@@ -64,17 +64,6 @@ struct ProfileEditor: View {
                     }
                 }
 
-                Section {
-                    Picker("Who can see your watchlist", selection: $edit.watchlistVisibility) {
-                        ForEach(WatchlistVisibility.allCases, id: \.self) { visibility in
-                            Text(visibility.label).tag(visibility)
-                        }
-                    }
-                } header: {
-                    Text("Watchlist")
-                } footer: {
-                    Text(edit.watchlistVisibility.explanation)
-                }
             }
             .navigationTitle("Edit profile")
             .navigationBarTitleDisplayMode(.inline)
