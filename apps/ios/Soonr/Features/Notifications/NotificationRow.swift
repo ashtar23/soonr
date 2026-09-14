@@ -3,6 +3,8 @@ import SwiftUI
 struct NotificationRow: View {
     let record: NotificationRecord
     var now: Date = .now
+    /// How many more this game has said, when the row stands for all of them.
+    var hiddenCount = 0
 
     var body: some View {
         TitleListRow(
@@ -12,7 +14,11 @@ struct NotificationRow: View {
             title: record.titleName,
             secondary: caption,
             titleWeight: record.isRead ? .regular : .semibold
-        )
+        ) {
+            if hiddenCount > 0 {
+                ReleaseBadge(text: "+\(hiddenCount) earlier")
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -28,9 +34,14 @@ struct NotificationRow: View {
     }
 
     private var accessibilityLabel: String {
-        [record.isRead ? nil : "Unread", record.titleName, caption]
-            .compactMap { $0 }
-            .joined(separator: ", ")
+        [
+            record.isRead ? nil : "Unread",
+            record.titleName,
+            caption,
+            hiddenCount > 0 ? "\(hiddenCount) earlier" : nil,
+        ]
+        .compactMap { $0 }
+        .joined(separator: ", ")
     }
 }
 

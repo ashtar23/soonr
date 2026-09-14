@@ -10,6 +10,7 @@ struct NotificationsView: View {
     @Environment(AppRouter.self) private var router
 
     @State private var isPresentingSignIn = false
+    @AppStorage("notifications.groupsByGame") private var groupsByGame = true
 
     private let details: TitleDetailsDependencies
 
@@ -75,6 +76,10 @@ struct NotificationsView: View {
                     }
                 }
                 .disabled(notifications.unreadCount == 0)
+
+                Toggle(isOn: $groupsByGame) {
+                    Label("Group by game", systemImage: "square.stack")
+                }
 
                 Toggle(
                     isOn: Binding(
@@ -156,7 +161,7 @@ struct NotificationsView: View {
                 await notifications.refresh()
             }
         case let .loaded(records):
-            NotificationsList(records: records)
+            NotificationsList(records: records, groupsByGame: groupsByGame)
                 .refreshable {
                     await notifications.refresh()
                 }
@@ -170,40 +175,43 @@ struct NotificationsView: View {
 
 private struct NotificationsList: View {
     let records: [NotificationRecord]
+    let groupsByGame: Bool
 
     @Environment(NotificationsStore.self) private var notifications
+    @State private var openGroup: NotificationGameGroup?
 
     var body: some View {
         ScrollToTop(tab: .notifications, topID: records.first?.id) {
             list
         }
+        .sheet(item: $openGroup) { group in
+            NotificationGameSheet(group: group)
+                // One detent, sized to what it holds: a panel rather than a
+                // thing to be resized. It scrolls inside when a game has been
+                // heard from more often than the cap allows for.
+                .presentationDetents([.height(sheetHeight(for: group))])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    /// Roughly a row each, plus the bar above them, and never more than half
+    /// the screen.
+    private func sheetHeight(for group: NotificationGameGroup) -> CGFloat {
+        let rows = CGFloat(group.records.count)
+        return min(120 + rows * 58, 420)
     }
 
     private var list: some View {
         List {
             ForEach(NotificationTimeGroup.sections(for: records)) { section in
                 Section(section.group.title) {
-                    ForEach(section.records) { record in
-                        // The record, not its title: the destination marks it
-                        // read and needs to know which it was.
-                        NavigationLink(value: record) {
-                            NotificationRow(record: record)
+                    if groupsByGame {
+                        ForEach(NotificationGameGroup.groups(for: section.records)) { group in
+                            groupRow(group, in: section)
                         }
-                        .hidingOuterSeparators(
-                            isFirst: record.id == section.records.first?.id,
-                            isLast: record.id == section.records.last?.id
-                        )
-                        .unreadRowBackground(record.isRead == false)
-                        .swipeActions(edge: .trailing) {
-                            // One way only: the API can set a notification read
-                            // and has no way to put it back.
-                            if record.isRead == false {
-                                Button("Mark read", systemImage: "envelope.open") {
-                                    Task {
-                                        await notifications.markRead(id: record.id)
-                                    }
-                                }
-                            }
+                    } else {
+                        ForEach(section.records) { record in
+                            row(record, in: section.records)
                         }
                     }
                 }
@@ -225,6 +233,57 @@ private struct NotificationsList: View {
         }
         .listStyle(.plain)
         .accessibilityLabel("Notifications")
+    }
+
+    /// A game heard from once is the row it always was; one heard from more
+    /// opens what else it said rather than pretending the latest is all of it.
+    @ViewBuilder
+    private func groupRow(
+        _ group: NotificationGameGroup,
+        in section: NotificationSection
+    ) -> some View {
+        if group.isCollapsed {
+            Button {
+                openGroup = group
+            } label: {
+                NotificationRow(record: group.latest, hiddenCount: group.hiddenCount)
+            }
+            .buttonStyle(.plain)
+            .hidingOuterSeparators(
+                isFirst: group.latest.id == section.records.first?.id,
+                isLast: group.latest.id == section.records.last?.id
+            )
+            .unreadRowBackground(group.hasUnread)
+        } else {
+            row(group.latest, in: section.records)
+        }
+    }
+
+    private func row(
+        _ record: NotificationRecord,
+        in records: [NotificationRecord]
+    ) -> some View {
+        // The record, not its title: the destination marks it read and needs
+        // to know which it was.
+        NavigationLink(value: record) {
+            NotificationRow(record: record)
+        }
+        .hidingOuterSeparators(
+            isFirst: record.id == records.first?.id,
+            isLast: record.id == records.last?.id
+        )
+        .unreadRowBackground(record.isRead == false)
+        .swipeActions(edge: .trailing) {
+            // One way only: the API can set a notification read and has no way
+            // to put it back.
+            if record.isRead == false {
+                Button("Mark read", systemImage: "envelope.open") {
+                    Task {
+                        await notifications.markRead(id: record.id)
+                    }
+                }
+            }
+        }
     }
 }
 
