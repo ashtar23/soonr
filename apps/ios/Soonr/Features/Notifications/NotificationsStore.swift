@@ -429,11 +429,12 @@ final class NotificationsStore {
         }
     }
 
-    /// Reloads the first page only, and merges it.
+    /// Reloads the first page only, and merges it into the whole list.
     ///
     /// Everything new is newest, so it belongs on the first page; refetching
     /// every page loaded would cost a request each to learn the same thing, and
     /// replacing the list wholesale would throw away the reader's place in it.
+    /// The unread filter is the exception, and replaces it.
     private func reconcile() async {
         let asked = queryGeneration
         do {
@@ -448,8 +449,18 @@ final class NotificationsStore {
                 return
             }
 
-            forgetPendingReads(for: reloaded.items)
-            page.reconcileFirstPage(reloaded)
+            if showsUnreadOnly {
+                // A row missing from an unread-only answer was read somewhere
+                // else, so it has to go rather than be kept. Unread lists are
+                // short, and starting again from the first page costs less
+                // than showing a read notification under an "Unread" filter.
+                page.reset(to: reloaded)
+                pendingReads = [:]
+            } else {
+                forgetPendingReads(for: reloaded.items)
+                page.reconcileFirstPage(reloaded)
+            }
+
             state = .loaded(page.items)
             takeServerCount(unread)
         } catch is CancellationError {

@@ -649,6 +649,31 @@ struct NotificationsStoreTests {
 
     /// A later page has to keep asking the narrower question, or paging would
     /// widen the list halfway down.
+    /// Merging keeps rows the server no longer lists, which is right for the
+    /// whole list and wrong here: missing from an unread-only answer means read
+    /// somewhere else. Kept, it sat in the list still marked unread while the
+    /// badge had already dropped.
+    @Test
+    func anUnreadOnlyRefreshDropsARowReadElsewhere() async throws {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1"), .unread(id: "n2")],
+            unreadCount: 2
+        )
+        let store = NotificationsStore(notifications: notifications, refreshDelay: .zero)
+        await store.setShowsUnreadOnly(true)
+        #expect(store.state.records?.map(\.id) == ["n1", "n2"])
+
+        await notifications.setFirstPage([.unread(id: "n2")])
+        await notifications.setUnreadCount(1)
+        let loads = await notifications.loadEvents()
+        await store.changedRemotely()
+        for await _ in loads { break }
+        await settle()
+
+        #expect(store.state.records?.map(\.id) == ["n2"])
+        #expect(store.unreadCount == 1)
+    }
+
     @Test
     func alaterPageKeepsTheFilter() async {
         let notifications = StubNotifications(
