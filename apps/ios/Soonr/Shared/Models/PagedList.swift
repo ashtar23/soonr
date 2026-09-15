@@ -117,6 +117,19 @@ where Item.ID: Sendable {
         items.removeAll(where: shouldRemove)
     }
 
+    /// Puts one row back where it was, for a removal the server refused.
+    ///
+    /// The position is clamped rather than trusted: rows can have come and gone
+    /// while the request was out, so the old index may now be past the end.
+    mutating func insert(_ item: Item, at index: Int) {
+        guard identifiers.contains(item.id) == false else {
+            return
+        }
+
+        identifiers.insert(item.id)
+        items.insert(item, at: min(max(index, 0), items.count))
+    }
+
     /// Replaces one row, wherever it sits. Used for a change made here rather
     /// than one the server reported.
     mutating func update(_ item: Item) {

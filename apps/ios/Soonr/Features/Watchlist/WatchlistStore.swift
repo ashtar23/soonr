@@ -40,6 +40,13 @@ final class WatchlistStore {
 
     @ObservationIgnored private let watchlist: any WatchlistManaging
     @ObservationIgnored private var page = PagedList<WatchlistEntry>()
+    /// Whether each title with a write still out is being saved or removed.
+    /// One write per title at a time, because a save and an unsave sent
+    /// together can land in either order.
+    @ObservationIgnored private var pendingWrites: [String: Bool] = [:]
+    /// Moves on sign-out. Anything that started under an older value belongs
+    /// to the previous account, and its answer is dropped instead of applied.
+    @ObservationIgnored private var generation = 0
 
     init(watchlist: any WatchlistManaging) {
         self.watchlist = watchlist
@@ -65,6 +72,9 @@ final class WatchlistStore {
 
     /// Drops another account's titles rather than leaving them on screen.
     func clear() {
+        generation += 1
+        pendingWrites = [:]
+        isLoadingMore = false
         page = PagedList<WatchlistEntry>()
         state = .loaded([])
         savedIDs = []
@@ -86,16 +96,25 @@ final class WatchlistStore {
         }
     }
 
-    /// Moves the bookmark and the list first, putting both back if the server
-    /// refuses. Adding without knowing the current state is safe: the API
-    /// upserts, which is how signing in finishes an add started as a guest.
+    /// Moves the bookmark and the list first, putting back only this title if
+    /// the server refuses. Adding without knowing the current state is safe:
+    /// the API upserts, which is how signing in finishes an add started as a
+    /// guest.
+    ///
+    /// The undo is scoped to the title rather than a snapshot of everything:
+    /// restoring a snapshot would also erase whatever else changed while this
+    /// request was out — another title saved, another page loaded.
     func setSaved(_ shouldSave: Bool, title: TitleSummary) async {
-        guard shouldSave || contains(title.id) else {
+        guard shouldSave || contains(title.id), pendingWrites[title.id] == nil else {
             return
         }
 
-        let previousIDs = savedIDs
-        let previousState = state
+        let started = generation
+        let wasSaved = contains(title.id)
+        let removed = page.items.firstIndex { $0.title.id == title.id }.map {
+            (index: $0, entry: page.items[$0])
+        }
+        pendingWrites[title.id] = shouldSave
         mutationFailure = nil
 
         if shouldSave {
@@ -112,15 +131,33 @@ final class WatchlistStore {
             } else {
                 try await watchlist.removeFromWatchlist(titleID: title.id)
             }
-        } catch is CancellationError {
-            savedIDs = previousIDs
-            state = previousState
+
+            guard started == generation else {
+                return
+            }
+
+            pendingWrites[title.id] = nil
         } catch {
+            guard started == generation else {
+                return
+            }
+
+            pendingWrites[title.id] = nil
+
+            // Cancelled is not refused: the request may well have reached the
+            // server, so the change stands and the next load settles it.
+            guard error is CancellationError == false else {
+                return
+            }
+
             AppLog.watchlist.error(
                 "Could not \(shouldSave ? "save" : "remove", privacy: .public) a title: \(error)"
             )
-            savedIDs = previousIDs
-            state = previousState
+            if shouldSave {
+                undoSave(of: title.id, wasSaved: wasSaved)
+            } else {
+                undoRemoval(of: title.id, putting: removed)
+            }
             mutationFailure = FailureReason(error)
         }
     }
@@ -137,12 +174,20 @@ final class WatchlistStore {
             return
         }
 
+        let started = generation
         isLoadingMore = true
-        defer { isLoadingMore = false }
+        defer {
+            if started == generation {
+                isLoadingMore = false
+            }
+        }
 
         do {
             let next = try await watchlist.watchlist(after: cursor)
             try Task.checkCancellation()
+            guard started == generation else {
+                return
+            }
             // A title saved while its real entry sat on a page not yet loaded
             // is held under a stand-in id, which the paged list cannot match
             // against the server's own. Letting the server's copy win keeps the
@@ -150,16 +195,66 @@ final class WatchlistStore {
             let arriving = Set(next.items.map(\.title.id))
             page.removeAll { arriving.contains($0.title.id) }
             page.append(next)
-            state = .loaded(page.items)
             // Membership grows with what has been seen; a title on a page not
             // loaded yet is still answered by title details, which reports it
             // for one title authoritatively.
             savedIDs.formUnion(next.items.map(\.title.id))
+            applyPendingWrites()
+            state = .loaded(page.items)
         } catch is CancellationError {
             return
         } catch {
             AppLog.watchlist.error("Could not load more of the watchlist: \(error)")
         }
+    }
+
+    private func undoSave(of titleID: String, wasSaved: Bool) {
+        // Only the stand-in this save made, which carries the title's id as
+        // its own; a real entry the server has since listed stays.
+        page.removeAll { $0.id == titleID }
+
+        if wasSaved == false, page.items.contains(where: { $0.title.id == titleID }) == false {
+            savedIDs.remove(titleID)
+        }
+
+        publishIfLoaded()
+    }
+
+    private func undoRemoval(
+        of titleID: String,
+        putting removed: (index: Int, entry: WatchlistEntry)?
+    ) {
+        savedIDs.insert(titleID)
+
+        if let removed {
+            page.insert(removed.entry, at: removed.index)
+        }
+
+        publishIfLoaded()
+    }
+
+    /// A page asked for before a write landed describes the world before it.
+    /// Laying the writes still out over it keeps the bookmark from flipping
+    /// back while they finish.
+    private func applyPendingWrites() {
+        for (titleID, isSaving) in pendingWrites {
+            if isSaving {
+                savedIDs.insert(titleID)
+            } else {
+                savedIDs.remove(titleID)
+                page.removeAll { $0.title.id == titleID }
+            }
+        }
+    }
+
+    /// A loading or failed screen is not turned into a list by a write that
+    /// happened to finish meanwhile.
+    private func publishIfLoaded() {
+        guard state.entries != nil else {
+            return
+        }
+
+        state = .loaded(page.items)
     }
 
     private func insertEntry(for title: TitleSummary) {
@@ -194,6 +289,7 @@ final class WatchlistStore {
     }
 
     private func fetch(showingLoadingState: Bool) async {
+        let started = generation
         if showingLoadingState {
             state = .loading
         }
@@ -201,12 +297,21 @@ final class WatchlistStore {
         do {
             let first = try await watchlist.watchlist(after: nil)
             try Task.checkCancellation()
+            guard started == generation else {
+                return
+            }
+
             page.reset(to: first)
-            state = .loaded(page.items)
             savedIDs = Set(page.items.map(\.title.id))
+            applyPendingWrites()
+            state = .loaded(page.items)
         } catch is CancellationError {
             return
         } catch {
+            guard started == generation else {
+                return
+            }
+
             AppLog.watchlist.error("Could not load the watchlist: \(error)")
             state = .failed(FailureReason(error))
         }

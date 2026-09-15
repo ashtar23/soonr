@@ -108,6 +108,147 @@ struct WatchlistStoreTests {
         #expect(store.mutationFailure == .unknown(message: "You're offline."))
     }
 
+    // MARK: - Overlapping work
+
+    /// Rolling back the screen but not the pages behind it let the next page
+    /// publish a title the server had just refused.
+    @Test
+    func aRefusedSaveDoesNotComeBackWithTheNextPage() async {
+        let watchlist = StubWatchlist(
+            results: [.success([.fixture(id: "e1", titleID: "rawg:a")])],
+            failingMutations: true,
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [.fixture(id: "e2", titleID: "rawg:c")], nextCursor: nil)]
+        )
+        let store = WatchlistStore(watchlist: watchlist)
+        await store.load()
+
+        await store.setSaved(true, title: .preview(id: "rawg:b"))
+        await store.loadMore()
+
+        #expect(store.state.entries?.map(\.title.id) == ["rawg:a", "rawg:c"])
+        #expect(store.contains("rawg:b") == false)
+    }
+
+    /// Two titles are two writes. One failing must put back only itself.
+    @Test
+    func afailedSaveDoesNotUndoALaterSaveOfAnotherTitle() async {
+        let watchlist = StubWatchlist(results: [.success([])], failingTitles: ["rawg:a"])
+        let store = WatchlistStore(watchlist: watchlist)
+        await store.load()
+        await watchlist.gate.hold("add:rawg:a")
+
+        let failing = Task { await store.setSaved(true, title: .preview(id: "rawg:a")) }
+        await watchlist.gate.waitUntilParked("add:rawg:a")
+        await store.setSaved(true, title: .preview(id: "rawg:b"))
+        await watchlist.gate.release("add:rawg:a")
+        await failing.value
+
+        #expect(store.contains("rawg:b"))
+        #expect(store.contains("rawg:a") == false)
+        #expect(store.state.entries?.map(\.title.id) == ["rawg:b"])
+    }
+
+    /// Save and unsave sent together can land in either order, leaving the
+    /// server and the bookmark disagreeing. One write per title at a time.
+    @Test
+    func atitleHasOneWriteInFlightAtATime() async {
+        let watchlist = StubWatchlist(results: [.success([])])
+        let store = WatchlistStore(watchlist: watchlist)
+        await store.load()
+        await watchlist.gate.hold("add:\(TitleSummary.preview.id)")
+
+        let saving = Task { await store.setSaved(true, title: .preview) }
+        await watchlist.gate.waitUntilParked("add:\(TitleSummary.preview.id)")
+        await store.setSaved(false, title: .preview)
+        await watchlist.gate.release("add:\(TitleSummary.preview.id)")
+        await saving.value
+
+        #expect(await watchlist.changes == [.added(TitleSummary.preview.id)])
+        #expect(store.contains(TitleSummary.preview.id))
+    }
+
+    @Test
+    func arefusedRemovalReturnsTheTitleToItsPlace() async {
+        let watchlist = StubWatchlist(
+            results: [
+                .success([
+                    .fixture(id: "e1", titleID: "rawg:a"),
+                    .fixture(id: "e2", titleID: "rawg:b"),
+                    .fixture(id: "e3", titleID: "rawg:c"),
+                ])
+            ],
+            failingTitles: ["rawg:b"]
+        )
+        let store = WatchlistStore(watchlist: watchlist)
+        await store.load()
+
+        await store.setSaved(false, title: .preview(id: "rawg:b"))
+
+        #expect(store.state.entries?.map(\.title.id) == ["rawg:a", "rawg:b", "rawg:c"])
+    }
+
+    /// A refusal that lands after sign-out must not restore the previous
+    /// account's list onto the next person's screen.
+    @Test
+    func arefusalAfterSigningOutLeavesTheListEmpty() async {
+        let watchlist = StubWatchlist(results: [.success([.fixture])], failingMutations: true)
+        let store = WatchlistStore(watchlist: watchlist)
+        await store.load()
+        await watchlist.gate.hold("remove:\(TitleSummary.preview.id)")
+
+        let removing = Task { await store.setSaved(false, title: .preview) }
+        await watchlist.gate.waitUntilParked("remove:\(TitleSummary.preview.id)")
+        store.clear()
+        await watchlist.gate.release("remove:\(TitleSummary.preview.id)")
+        await removing.value
+
+        #expect(store.state == .loaded([]))
+        #expect(store.contains(TitleSummary.preview.id) == false)
+        #expect(store.mutationFailure == nil)
+    }
+
+    @Test
+    func apageArrivingAfterSigningOutIsDropped() async {
+        let watchlist = StubWatchlist(
+            results: [.success([.fixture(id: "e1", titleID: "rawg:a")])],
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [.fixture(id: "e2", titleID: "rawg:b")], nextCursor: nil)]
+        )
+        let store = WatchlistStore(watchlist: watchlist)
+        await store.load()
+        await watchlist.gate.hold("page")
+
+        let paging = Task { await store.loadMore() }
+        await watchlist.gate.waitUntilParked("page")
+        store.clear()
+        #expect(store.isLoadingMore == false)
+        await watchlist.gate.release("page")
+        await paging.value
+
+        #expect(store.state == .loaded([]))
+        #expect(store.contains("rawg:b") == false)
+    }
+
+    /// A refresh answered before a removal lands still lists the title; it
+    /// must not reappear under a bookmark that says it is gone.
+    @Test
+    func arefreshDuringAPendingRemovalDoesNotBringTheTitleBack() async {
+        let watchlist = StubWatchlist(results: [.success([.fixture]), .success([.fixture])])
+        let store = WatchlistStore(watchlist: watchlist)
+        await store.load()
+        await watchlist.gate.hold("remove:\(TitleSummary.preview.id)")
+
+        let removing = Task { await store.setSaved(false, title: .preview) }
+        await watchlist.gate.waitUntilParked("remove:\(TitleSummary.preview.id)")
+        await store.refresh()
+        await watchlist.gate.release("remove:\(TitleSummary.preview.id)")
+        await removing.value
+
+        #expect(store.contains(TitleSummary.preview.id) == false)
+        #expect(store.state == .loaded([]))
+    }
+
     @Test
     func removingATitleThatIsNotSavedSendsNothing() async {
         let watchlist = StubWatchlist(results: [.success([])])
@@ -266,24 +407,30 @@ private actor StubWatchlist: WatchlistManaging {
     private(set) var changes: [Change] = []
     private var results: [Result<[WatchlistEntry], WatchlistFixtureError>]
     private let failingMutations: Bool
+    private let failingTitles: Set<String>
     private let firstPageCursor: String?
     private var laterPages: [Page<WatchlistEntry>]
     private(set) var cursorsAsked: [String?] = []
+    /// Requests park here under `add:<id>`, `remove:<id>`, `first` and `page`.
+    let gate = TestGate()
 
     init(
         results: [Result<[WatchlistEntry], WatchlistFixtureError>],
         failingMutations: Bool = false,
+        failingTitles: Set<String> = [],
         firstPageCursor: String? = nil,
         laterPages: [Page<WatchlistEntry>] = []
     ) {
         self.results = results
         self.failingMutations = failingMutations
+        self.failingTitles = failingTitles
         self.firstPageCursor = firstPageCursor
         self.laterPages = laterPages
     }
 
     func watchlist(after cursor: String?) async throws -> Page<WatchlistEntry> {
         cursorsAsked.append(cursor)
+        await gate.pass(cursor == nil ? "first" : "page")
 
         if cursor != nil, laterPages.isEmpty == false {
             return laterPages.removeFirst()
@@ -294,16 +441,18 @@ private actor StubWatchlist: WatchlistManaging {
 
     func addToWatchlist(titleID: String) async throws {
         changes.append(.added(titleID))
-        try failIfNeeded()
+        await gate.pass("add:\(titleID)")
+        try failIfNeeded(titleID)
     }
 
     func removeFromWatchlist(titleID: String) async throws {
         changes.append(.removed(titleID))
-        try failIfNeeded()
+        await gate.pass("remove:\(titleID)")
+        try failIfNeeded(titleID)
     }
 
-    private func failIfNeeded() throws {
-        if failingMutations {
+    private func failIfNeeded(_ titleID: String) throws {
+        if failingMutations || failingTitles.contains(titleID) {
             throw WatchlistFixtureError.offline
         }
     }

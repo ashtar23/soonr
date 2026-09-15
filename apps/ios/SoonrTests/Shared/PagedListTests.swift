@@ -274,6 +274,38 @@ struct PagedListTests {
         #expect(list.nextCursor == "cursor-2")
     }
 
+    /// A refused removal puts the row back where it was, not at the top.
+    @Test
+    func aRowPutBackReturnsToItsPlace() {
+        var list = PagedList(page(["a", "b", "c"]))
+        list.removeAll { $0.id == "b" }
+
+        list.insert(Row(id: "b"), at: 1)
+
+        #expect(list.items.map(\.id) == ["a", "b", "c"])
+    }
+
+    /// Rows can go while the request is out, leaving the old index past the
+    /// end; the row still comes back rather than crashing.
+    @Test
+    func aRowPutBackPastTheEndGoesLast() {
+        var list = PagedList(page(["a", "b", "c"]))
+        list.removeAll { $0.id != "a" }
+
+        list.insert(Row(id: "c"), at: 2)
+
+        #expect(list.items.map(\.id) == ["a", "c"])
+    }
+
+    @Test
+    func aRowAlreadyHeldIsNotPutBackTwice() {
+        var list = PagedList(page(["a", "b"]))
+
+        list.insert(Row(id: "b"), at: 0)
+
+        #expect(list.items.map(\.id) == ["a", "b"])
+    }
+
     // MARK: - Cost
 
     /// Loading deep must not get slower the deeper it goes: identity is a set
