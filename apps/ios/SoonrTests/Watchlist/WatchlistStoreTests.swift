@@ -4,7 +4,7 @@ import Testing
 @testable import Soonr
 
 @MainActor
-@Suite(.tags(.networking))
+@Suite(.tags(.networking), .timeLimit(.minutes(1)))
 struct WatchlistStoreTests {
     @Test
     func loadShowsSavedTitlesAndTheirMembership() async {

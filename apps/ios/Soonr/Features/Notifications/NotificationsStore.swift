@@ -50,6 +50,31 @@ final class NotificationsStore {
     @ObservationIgnored private var expectedEchoes = 0
     @ObservationIgnored private var echoesExpectedAt: ContinuousClock.Instant?
 
+    /// Rows with a read still out, each under the latest write that touched it
+    /// and the copy the server last confirmed.
+    ///
+    /// This is what lets a failure undo only its own work. A refused write puts
+    /// a row back only if no later write has taken it over, and puts it back to
+    /// what the server said rather than to whatever the screen showed when the
+    /// write began — which may itself have been another write's guess.
+    @ObservationIgnored private var pendingReads: [String: PendingRead] = [:]
+    @ObservationIgnored private var lastWrite = 0
+    /// Moves whenever the count is taken from the server. A write's own share
+    /// of the badge is only undone if the count has not been replaced since:
+    /// once it has, the server's number already describes the outcome.
+    @ObservationIgnored private var countRevision = 0
+    /// Moves on sign-out. A write started under an older value belongs to the
+    /// previous account, and its answer is dropped.
+    @ObservationIgnored private var sessionGeneration = 0
+    /// Moves on sign-out and when the filter changes. A page asked for under an
+    /// older value answers a question nobody is asking any more.
+    @ObservationIgnored private var queryGeneration = 0
+
+    private struct PendingRead {
+        let write: Int
+        let confirmed: NotificationRecord
+    }
+
     init(
         notifications: any NotificationsReading,
         refreshDelay: Duration = .milliseconds(300)
@@ -64,7 +89,10 @@ final class NotificationsStore {
         }
 
         self.showsUnreadOnly = showsUnreadOnly
+        queryGeneration += 1
         refreshTask?.cancel()
+        isLoadingMore = false
+        pendingReads = [:]
         page = PagedList<NotificationRecord>()
         await fetch(showingLoadingState: true)
     }
@@ -82,10 +110,14 @@ final class NotificationsStore {
     }
 
     func clear() {
+        sessionGeneration += 1
+        queryGeneration += 1
         refreshTask?.cancel()
         refreshTask = nil
         expectedEchoes = 0
         echoesExpectedAt = nil
+        pendingReads = [:]
+        isLoadingMore = false
         showsUnreadOnly = false
         page = PagedList<NotificationRecord>()
         state = .loaded([])
@@ -104,6 +136,10 @@ final class NotificationsStore {
             return
         }
 
+        scheduleReconcile()
+    }
+
+    private func scheduleReconcile() {
         refreshTask?.cancel()
         refreshTask = Task { [weak self, refreshDelay] in
             try? await Task.sleep(for: refreshDelay)
@@ -147,47 +183,74 @@ final class NotificationsStore {
         echoesExpectedAt = .now
     }
 
-    /// Moves the row and the badge first, putting both back if the server
-    /// refuses.
-    func markRead(id: String) async {
-        let known = state.records?.firstIndex { $0.id == id }
+    /// Moves the row and the badge first, putting back only this row and its
+    /// share of the badge if the server refuses.
+    ///
+    /// Returns whether the read stands, so a screen holding its own copy of the
+    /// row knows whether to keep it read.
+    @discardableResult
+    func markRead(id: String) async -> Bool {
+        let known = state.records?.first { $0.id == id }
 
         // Only a record we hold and already know to be read is worth skipping.
         // A tapped push opens this before the list has loaded, and requiring a
         // loaded list here left the server never told.
-        if let records = state.records, let known, records[known].isRead {
-            return
+        if let known, known.isRead {
+            return true
         }
 
-        let previousPage = page
-        let previousState = state
-        let previousCount = unreadCount
-        if let records = state.records, let known {
-            page.update(records[known].markedRead())
-            state = .loaded(page.items)
+        let session = sessionGeneration
+        let countedAt = countRevision
+        let write = beginWrite()
+        if let known {
+            hold(known, under: write)
+            page.update(known.markedRead())
+            publishIfLoaded()
             unreadCount = max(0, unreadCount - 1)
         }
 
         do {
             let updated = try await notifications.markNotificationRead(id: id)
-            expectEchoes(1)
-            page.update(updated)
-            state = .loaded(page.items)
+            guard session == sessionGeneration else {
+                return false
+            }
 
-            if known == nil {
+            settle(updated, from: write)
+            // A count taken from the server while this was out may or may not
+            // include it. Not expecting the echo lets that event refetch and
+            // settle the number instead of swallowing it.
+            if known == nil || countedAt == countRevision {
+                expectEchoes(1)
+            }
+
+            if known == nil,
+                let count = try? await notifications.unreadNotificationCount(),
+                session == sessionGeneration
+            {
                 // Nothing local was adjusted, so the count — and the badge that
                 // follows it — would otherwise still include what was just read.
-                unreadCount = (try? await notifications.unreadNotificationCount()) ?? unreadCount
+                takeServerCount(count)
             }
+
+            return true
         } catch is CancellationError {
-            page = previousPage
-            state = previousState
-            unreadCount = previousCount
+            guard session == sessionGeneration else {
+                return false
+            }
+
+            // Cancelled is not refused. Backing out of a notification cancels
+            // its read, which may already have reached the server, so the row
+            // stays read and the server is asked what is true.
+            scheduleReconcile()
+            return true
         } catch {
             AppLog.notifications.error("Could not mark a notification read: \(error)")
-            page = previousPage
-            state = previousState
-            unreadCount = previousCount
+            guard session == sessionGeneration else {
+                return false
+            }
+
+            undo(write, countedAt: countedAt)
+            return false
         }
     }
 
@@ -202,31 +265,125 @@ final class NotificationsStore {
         }
     }
 
+    /// A write over every loaded row, following the same rules as a single
+    /// read: it takes over rows already being read, and a failure puts back
+    /// only the rows it still owns.
     func markAllRead() async {
         guard let records = state.records, records.contains(where: { $0.isRead == false }) else {
             return
         }
 
-        let previousPage = page
-        let previousState = state
-        let previousCount = unreadCount
+        let session = sessionGeneration
+        let countedAt = countRevision
+        let write = beginWrite()
+        // The badge also counts what has not been paged in, which no row
+        // here can give back on failure.
+        let unloadedUnread = max(0, unreadCount - records.count { $0.isRead == false })
+        for record in page.items where record.isRead == false || pendingReads[record.id] != nil {
+            hold(record, under: write)
+        }
         page.updateAll { $0.markedRead() }
-        state = .loaded(page.items)
+        publishIfLoaded()
         unreadCount = 0
 
         do {
+            let changed = try await notifications.markAllNotificationsRead()
+            guard session == sessionGeneration else {
+                return
+            }
+
+            for (id, pending) in pendingReads where pending.write == write {
+                pendingReads[id] = nil
+            }
+
             // One event per row the server actually changed.
-            expectEchoes(try await notifications.markAllNotificationsRead())
+            if countedAt == countRevision {
+                expectEchoes(changed)
+            }
         } catch is CancellationError {
-            page = previousPage
-            state = previousState
-            unreadCount = previousCount
+            guard session == sessionGeneration else {
+                return
+            }
+
+            scheduleReconcile()
         } catch {
             AppLog.notifications.error("Could not mark notifications read: \(error)")
-            page = previousPage
-            state = previousState
-            unreadCount = previousCount
+            guard session == sessionGeneration else {
+                return
+            }
+
+            undo(write, countedAt: countedAt, unloadedUnread: unloadedUnread)
         }
+    }
+
+    private func beginWrite() -> Int {
+        lastWrite += 1
+        return lastWrite
+    }
+
+    /// Hands a row to a write, keeping the copy the server confirmed if an
+    /// earlier write already holds one — that earlier write's guess is not
+    /// what a failure should return to.
+    private func hold(_ record: NotificationRecord, under write: Int) {
+        let confirmed = pendingReads[record.id]?.confirmed ?? record
+        pendingReads[record.id] = PendingRead(write: write, confirmed: confirmed)
+    }
+
+    /// The server took a read. If a later write still owns the row, it keeps
+    /// it, but a failure of that write now returns to this answer.
+    private func settle(_ confirmed: NotificationRecord, from write: Int) {
+        if let pending = pendingReads[confirmed.id] {
+            pendingReads[confirmed.id] =
+                pending.write == write
+                ? nil
+                : PendingRead(write: pending.write, confirmed: confirmed)
+        }
+
+        page.update(confirmed)
+        publishIfLoaded()
+    }
+
+    private func undo(_ write: Int, countedAt: Int, unloadedUnread: Int = 0) {
+        var restored = 0
+        for (id, pending) in pendingReads where pending.write == write {
+            pendingReads[id] = nil
+            guard page.contains(id: id) else {
+                continue
+            }
+
+            page.update(pending.confirmed)
+            if pending.confirmed.isRead == false {
+                restored += 1
+            }
+        }
+
+        publishIfLoaded()
+        if countedAt == countRevision {
+            unreadCount += restored + unloadedUnread
+        }
+    }
+
+    /// Rows the server has just described are its truth, not a write's guess,
+    /// so nothing should later be undone back over them.
+    private func forgetPendingReads(for records: [NotificationRecord]) {
+        for record in records {
+            pendingReads[record.id] = nil
+        }
+    }
+
+    private func takeServerCount(_ count: Int) {
+        unreadCount = count
+        countRevision += 1
+    }
+
+    /// A loading or failed screen is not turned into a list by a write that
+    /// happened to finish meanwhile.
+    private func publishIfLoaded() {
+        guard state.records != nil else {
+            return
+        }
+
+        state = .loaded(page.items)
     }
 
     /// Every notification about one game, asked for directly rather than
@@ -245,8 +402,13 @@ final class NotificationsStore {
             return
         }
 
+        let asked = queryGeneration
         isLoadingMore = true
-        defer { isLoadingMore = false }
+        defer {
+            if asked == queryGeneration {
+                isLoadingMore = false
+            }
+        }
 
         do {
             let next = try await notifications.notifications(
@@ -254,8 +416,12 @@ final class NotificationsStore {
                 unreadOnly: showsUnreadOnly
             )
             try Task.checkCancellation()
+            guard asked == queryGeneration else {
+                return
+            }
+
             page.append(next)
-            state = .loaded(page.items)
+            publishIfLoaded()
         } catch is CancellationError {
             return
         } catch {
@@ -269,6 +435,7 @@ final class NotificationsStore {
     /// every page loaded would cost a request each to learn the same thing, and
     /// replacing the list wholesale would throw away the reader's place in it.
     private func reconcile() async {
+        let asked = queryGeneration
         do {
             async let first = notifications.notifications(
                 after: nil,
@@ -277,9 +444,14 @@ final class NotificationsStore {
             async let count = notifications.unreadNotificationCount()
             let (reloaded, unread) = try await (first, count)
             try Task.checkCancellation()
+            guard asked == queryGeneration else {
+                return
+            }
+
+            forgetPendingReads(for: reloaded.items)
             page.reconcileFirstPage(reloaded)
             state = .loaded(page.items)
-            unreadCount = unread
+            takeServerCount(unread)
         } catch is CancellationError {
             return
         } catch {
@@ -288,6 +460,7 @@ final class NotificationsStore {
     }
 
     private func fetch(showingLoadingState: Bool) async {
+        let asked = queryGeneration
         if showingLoadingState {
             state = .loading
         }
@@ -300,12 +473,21 @@ final class NotificationsStore {
             async let count = notifications.unreadNotificationCount()
             let (loaded, unread) = try await (first, count)
             try Task.checkCancellation()
+            guard asked == queryGeneration else {
+                return
+            }
+
             page.reset(to: loaded)
+            pendingReads = [:]
             state = .loaded(page.items)
-            unreadCount = unread
+            takeServerCount(unread)
         } catch is CancellationError {
             return
         } catch {
+            guard asked == queryGeneration else {
+                return
+            }
+
             AppLog.notifications.error("Could not load notifications: \(error)")
             state = .failed(FailureReason(error))
         }

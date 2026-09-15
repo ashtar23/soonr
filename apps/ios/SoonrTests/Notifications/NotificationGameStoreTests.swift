@@ -4,7 +4,7 @@ import Testing
 @testable import Soonr
 
 @MainActor
-@Suite(.tags(.networking))
+@Suite(.tags(.networking), .timeLimit(.minutes(1)))
 struct NotificationGameStoreTests {
     private let titleID = "rawg:1"
 
@@ -124,6 +124,69 @@ struct NotificationGameStoreTests {
         #expect(await service.readIDs == ["a"])
     }
 
+    /// A notification the list never paged in cannot be confirmed from the
+    /// list, but the server took the read. It stays read.
+    @Test
+    func aReadTheListCannotConfirmStaysRead() async {
+        let paged = record(id: "x")
+        let older = record(id: "a")
+        let service = StubGameNotifications(answer: [paged, older], listPage: [paged])
+        let list = NotificationsStore(notifications: service)
+        await list.load()
+        let store = NotificationGameStore(titleID: titleID, showing: [older], in: list)
+
+        await store.markRead(id: "a")
+
+        #expect(store.records.first?.isRead == true)
+    }
+
+    @Test
+    func arefusedReadPutsBackOnlyItsOwnRow() async {
+        let service = StubGameNotifications(
+            answer: [record(id: "a"), record(id: "b")],
+            failingReadIDs: ["a"]
+        )
+        let list = NotificationsStore(notifications: service)
+        await list.load()
+        let store = NotificationGameStore(
+            titleID: titleID,
+            showing: [record(id: "a"), record(id: "b")],
+            in: list
+        )
+        await service.gate.hold("read:a")
+
+        let failing = Task { await store.markRead(id: "a") }
+        await service.gate.waitUntilParked("read:a")
+        await store.markRead(id: "b")
+        await service.gate.release("read:a")
+        await failing.value
+
+        #expect(store.records.map(\.isRead) == [false, true])
+    }
+
+    /// The server's answer can arrive while a read is out and move the rows.
+    /// The read lands on its own row, not on whatever now sits at its old
+    /// position.
+    @Test
+    func areadLandsOnItsOwnRowAfterTheRowsMoved() async {
+        let newer = record(id: "z")
+        let older = record(id: "a")
+        let service = StubGameNotifications(answer: [newer, older], listPage: [])
+        let list = NotificationsStore(notifications: service)
+        await list.load()
+        let store = NotificationGameStore(titleID: titleID, showing: [older], in: list)
+        await service.gate.hold("read:a")
+
+        let reading = Task { await store.markRead(id: "a") }
+        await service.gate.waitUntilParked("read:a")
+        await store.load()
+        await service.gate.release("read:a")
+        await reading.value
+
+        #expect(store.records.map(\.id) == ["z", "a"])
+        #expect(store.records.map(\.isRead) == [false, true])
+    }
+
     @Test
     func readingSomethingAlreadyReadAsksForNothing() async {
         let read = record(id: "a", readAt: "2026-01-03T13:00:00.000Z")
@@ -153,11 +216,22 @@ private actor StubGameNotifications: NotificationsReading {
     private(set) var readIDs: [String] = []
 
     private let answer: [NotificationRecord]
+    /// What the list pages in, when it should differ from the game's answer.
+    private let listPage: [NotificationRecord]?
     private var failing: Bool
+    private let failingReadIDs: Set<String>
+    let gate = TestGate()
 
-    init(answer: [NotificationRecord], failing: Bool = false) {
+    init(
+        answer: [NotificationRecord],
+        listPage: [NotificationRecord]? = nil,
+        failing: Bool = false,
+        failingReadIDs: Set<String> = []
+    ) {
         self.answer = answer
+        self.listPage = listPage
         self.failing = failing
+        self.failingReadIDs = failingReadIDs
     }
 
     func stopFailing() {
@@ -178,7 +252,7 @@ private actor StubGameNotifications: NotificationsReading {
         after _: String?,
         unreadOnly _: Bool
     ) async throws -> Page<NotificationRecord> {
-        Page(items: answer)
+        Page(items: listPage ?? answer)
     }
 
     func unreadNotificationCount() async throws -> Int {
@@ -187,6 +261,12 @@ private actor StubGameNotifications: NotificationsReading {
 
     func markNotificationRead(id: String) async throws -> NotificationRecord {
         readIDs.append(id)
+        await gate.pass("read:\(id)")
+
+        if failingReadIDs.contains(id) {
+            throw URLError(.notConnectedToInternet)
+        }
+
         let record = answer.first { $0.id == id }
         return NotificationRecord(
             record ?? answer[0],

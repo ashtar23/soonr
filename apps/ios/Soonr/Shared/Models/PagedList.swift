@@ -31,6 +31,10 @@ where Item.ID: Sendable {
         nextCursor != nil
     }
 
+    func contains(id: Item.ID) -> Bool {
+        identifiers.contains(id)
+    }
+
     init() {}
 
     init(_ page: Page<Item>) {

@@ -54,27 +54,36 @@ final class NotificationGameStore {
 
     /// Marks one read here and in the list behind, so the row, the collapsed
     /// row it sits under, and the badge all move together.
+    ///
+    /// Everything after the request finds the row by id: the server's answer
+    /// to `load()` can arrive meanwhile and move it.
     func markRead(id: String) async {
-        guard let index = records.firstIndex(where: { $0.id == id }),
-            records[index].isRead == false
-        else {
+        guard let record = records.first(where: { $0.id == id }), record.isRead == false else {
             return
         }
 
-        let previous = records
-        records[index] = NotificationRecord(
-            records[index],
-            readAt: ISO8601DateFormatter().string(from: .now)
-        )
+        let read = NotificationRecord(record, readAt: ISO8601DateFormatter().string(from: .now))
+        replace(read)
 
-        await list.markRead(id: id)
+        guard await list.markRead(id: id) else {
+            // Only this row: another read in the sheet may have succeeded
+            // while this one was out.
+            replace(record)
+            return
+        }
 
         // The list holds what the server confirmed, so it is the better copy
-        // wherever it has one.
-        if let confirmed = list.state.records?.first(where: { $0.id == id }) {
-            records[index] = confirmed
-        } else if list.state.records?.isEmpty == false {
-            records = previous
+        // wherever it has one. For a notification it never paged in, the read
+        // is shown again, since `load()` may have replaced it while this was
+        // out.
+        replace(list.state.records?.first(where: { $0.id == id }) ?? read)
+    }
+
+    private func replace(_ record: NotificationRecord) {
+        guard let index = records.firstIndex(where: { $0.id == record.id }) else {
+            return
         }
+
+        records[index] = record
     }
 }

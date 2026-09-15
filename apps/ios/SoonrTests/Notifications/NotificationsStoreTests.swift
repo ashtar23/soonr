@@ -4,7 +4,7 @@ import Testing
 @testable import Soonr
 
 @MainActor
-@Suite(.tags(.networking))
+@Suite(.tags(.networking), .timeLimit(.minutes(1)))
 struct NotificationsStoreTests {
     @Test
     func loadBringsTheListAndTheCountTogether() async {
@@ -263,6 +263,239 @@ struct NotificationsStoreTests {
         #expect(await notifications.loads == 1)
     }
 
+    // MARK: - Overlapping work
+
+    /// Two reads are two writes. The earlier failing must put back only its
+    /// own row, and only its own share of the badge.
+    @Test
+    func anEarlierFailedReadDoesNotUndoALaterSuccessfulOne() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1"), .unread(id: "n2")],
+            unreadCount: 2,
+            failingReadIDs: ["n1"]
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("read:n1")
+
+        let failing = Task { await store.markRead(id: "n1") }
+        await notifications.gate.waitUntilParked("read:n1")
+        await store.markRead(id: "n2")
+        await notifications.gate.release("read:n1")
+        await failing.value
+
+        #expect(store.state.records?.map(\.isRead) == [false, true])
+        #expect(store.unreadCount == 1)
+    }
+
+    /// A refusal landing after sign-out must not restore the previous
+    /// account's rows and badge onto the next person's screen.
+    @Test
+    func aReadRefusedAfterSigningOutRestoresNothing() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1")],
+            unreadCount: 1,
+            failingReadIDs: ["n1"]
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("read:n1")
+
+        let failing = Task { await store.markRead(id: "n1") }
+        await notifications.gate.waitUntilParked("read:n1")
+        store.clear()
+        await notifications.gate.release("read:n1")
+        await failing.value
+
+        #expect(store.state == .loaded([]))
+        #expect(store.unreadCount == 0)
+    }
+
+    /// The badge also counts notifications never paged in, which a refused
+    /// mark-all gives back. After sign-out that would be the previous
+    /// account's number.
+    @Test
+    func aMarkAllRefusedAfterSigningOutLeavesTheBadgeAlone() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1")],
+            unreadCount: 5,
+            failingMarkAll: true
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("all")
+
+        let all = Task { await store.markAllRead() }
+        await notifications.gate.waitUntilParked("all")
+        store.clear()
+        await notifications.gate.release("all")
+        await all.value
+
+        #expect(store.unreadCount == 0)
+        #expect(store.state == .loaded([]))
+    }
+
+    /// A tapped push reads a notification the list may not hold, then asks the
+    /// server for the count. That count belongs to whoever tapped it.
+    @Test
+    func aPushReadFinishingAfterSigningOutLeavesTheBadgeAlone() async {
+        let notifications = StubNotifications(records: [], unreadCount: 3)
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("read:pushed")
+
+        let reading = Task { await store.markRead(id: "pushed") }
+        await notifications.gate.waitUntilParked("read:pushed")
+        store.clear()
+        await notifications.gate.release("read:pushed")
+        await reading.value
+
+        #expect(store.unreadCount == 0)
+    }
+
+    @Test
+    func aSuccessfulMarkAllOutlastsAnEarlierFailedRead() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1"), .unread(id: "n2")],
+            unreadCount: 2,
+            failingReadIDs: ["n1"],
+            markAllResult: 2
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("read:n1")
+
+        let failing = Task { await store.markRead(id: "n1") }
+        await notifications.gate.waitUntilParked("read:n1")
+        await store.markAllRead()
+        await notifications.gate.release("read:n1")
+        await failing.value
+
+        #expect(store.state.records?.allSatisfy(\.isRead) == true)
+        #expect(store.unreadCount == 0)
+    }
+
+    /// Both failed, so both rows are unread again — including the one whose
+    /// own undo was skipped because mark-all had taken it over.
+    @Test
+    func aFailedMarkAllStillPutsBackAnEarlierFailedRead() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1"), .unread(id: "n2")],
+            unreadCount: 2,
+            failingReadIDs: ["n1"],
+            failingMarkAll: true
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("read:n1")
+        await notifications.gate.hold("all")
+
+        let read = Task { await store.markRead(id: "n1") }
+        await notifications.gate.waitUntilParked("read:n1")
+        let all = Task { await store.markAllRead() }
+        await notifications.gate.waitUntilParked("all")
+        await notifications.gate.release("read:n1")
+        await read.value
+        await notifications.gate.release("all")
+        await all.value
+
+        #expect(store.state.records?.map(\.isRead) == [false, false])
+        #expect(store.unreadCount == 2)
+    }
+
+    /// The server took the single read, so a failed mark-all must not undo it.
+    @Test
+    func aReadThatSucceedsDuringAFailedMarkAllStaysRead() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1"), .unread(id: "n2")],
+            unreadCount: 2,
+            failingMarkAll: true
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("read:n1")
+        await notifications.gate.hold("all")
+
+        let read = Task { await store.markRead(id: "n1") }
+        await notifications.gate.waitUntilParked("read:n1")
+        let all = Task { await store.markAllRead() }
+        await notifications.gate.waitUntilParked("all")
+        await notifications.gate.release("read:n1")
+        await read.value
+        await notifications.gate.release("all")
+        await all.value
+
+        #expect(store.state.records?.map(\.isRead) == [true, false])
+        #expect(store.unreadCount == 1)
+    }
+
+    /// Cancelled is not refused: backing out of a notification quickly cancels
+    /// its read, which may already have reached the server. The row is not
+    /// put back on a guess; the list asks the server what is true instead.
+    @Test
+    func aCancelledReadIsNotRolledBack() async {
+        let notifications = StubNotifications(records: [.unread(id: "n1")], unreadCount: 1)
+        let store = NotificationsStore(
+            notifications: notifications,
+            refreshDelay: .milliseconds(50)
+        )
+        await store.load()
+        await notifications.gate.hold("read:n1")
+
+        let reading = Task { await store.markRead(id: "n1") }
+        await notifications.gate.waitUntilParked("read:n1")
+        reading.cancel()
+        await notifications.gate.release("read:n1")
+        await reading.value
+
+        #expect(store.state.records?.first?.isRead == true)
+        await settle(for: .milliseconds(150))
+        #expect(await notifications.loads == 2)
+    }
+
+    @Test
+    func aPageArrivingAfterTheFilterChangedIsDropped() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1")],
+            unreadCount: 1,
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [.unread(id: "n9")], nextCursor: nil)]
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("page")
+
+        let paging = Task { await store.loadMore() }
+        await notifications.gate.waitUntilParked("page")
+        await store.setShowsUnreadOnly(true)
+        await notifications.gate.release("page")
+        await paging.value
+
+        #expect(store.state.records?.map(\.id) == ["n1"])
+    }
+
+    @Test
+    func aPageArrivingAfterSigningOutIsDropped() async {
+        let notifications = StubNotifications(
+            records: [.unread(id: "n1")],
+            unreadCount: 1,
+            firstPageCursor: "cursor-2",
+            laterPages: [Page(items: [.unread(id: "n9")], nextCursor: nil)]
+        )
+        let store = NotificationsStore(notifications: notifications)
+        await store.load()
+        await notifications.gate.hold("page")
+
+        let paging = Task { await store.loadMore() }
+        await notifications.gate.waitUntilParked("page")
+        store.clear()
+        #expect(store.isLoadingMore == false)
+        await notifications.gate.release("page")
+        await paging.value
+
+        #expect(store.state == .loaded([]))
+    }
+
     // MARK: - Paging
 
     @Test
@@ -460,8 +693,12 @@ private actor StubNotifications: NotificationsReading {
     private(set) var loads = 0
 
     private var records: [NotificationRecord]
-    private let count: Int
+    private var count: Int
     private let failingMutations: Bool
+    private let failingReadIDs: Set<String>
+    private let failingMarkAll: Bool
+    /// Requests park here under `read:<id>`, `all`, `first` and `page`.
+    let gate = TestGate()
     private let markAllResult: Int
     /// Pages served in order for cursored requests; the first page still comes
     /// from `records`.
@@ -479,6 +716,8 @@ private actor StubNotifications: NotificationsReading {
         unreadCount: Int = 0,
         failingLoads: Int = 0,
         failingMutations: Bool = false,
+        failingReadIDs: Set<String> = [],
+        failingMarkAll: Bool = false,
         markAllResult: Int = 0,
         firstPageCursor: String? = nil,
         laterPages: [Page<NotificationRecord>] = []
@@ -489,6 +728,8 @@ private actor StubNotifications: NotificationsReading {
         count = unreadCount
         self.failingLoads = failingLoads
         self.failingMutations = failingMutations
+        self.failingReadIDs = failingReadIDs
+        self.failingMarkAll = failingMarkAll
         self.markAllResult = markAllResult
     }
 
@@ -508,6 +749,7 @@ private actor StubNotifications: NotificationsReading {
         cursorsAsked.append(cursor)
         unreadOnlyAsked.append(unreadOnly)
         loadSignal?.yield()
+        await gate.pass(cursor == nil ? "first" : "page")
 
         if failingLoads > 0 {
             failingLoads -= 1
@@ -546,18 +788,32 @@ private actor StubNotifications: NotificationsReading {
         count
     }
 
+    func setUnreadCount(_ replacement: Int) {
+        count = replacement
+    }
+
     func markNotificationRead(id: String) async throws -> NotificationRecord {
         readIDs.append(id)
-        if failingMutations {
+        await gate.pass("read:\(id)")
+
+        // What URLSession does when the task asking is cancelled mid-request.
+        if Task.isCancelled {
+            throw CancellationError()
+        }
+
+        if failingMutations || failingReadIDs.contains(id) {
             throw URLError(.notConnectedToInternet)
         }
 
-        return NotificationRecord(.unread, readAt: "2026-01-03T12:00:00.000Z")
+        let record = records.first { $0.id == id } ?? .unread(id: id)
+        return NotificationRecord(record, readAt: "2026-01-03T12:00:00.000Z")
     }
 
     func markAllNotificationsRead() async throws -> Int {
         markedAll += 1
-        if failingMutations {
+        await gate.pass("all")
+
+        if failingMutations || failingMarkAll {
             throw URLError(.notConnectedToInternet)
         }
 
