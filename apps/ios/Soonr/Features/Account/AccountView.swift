@@ -20,15 +20,6 @@ struct AccountView: View {
                         }
                     }
 
-                    // In the bar, where Contacts puts it on your own card,
-                    // rather than as a button sitting under your name.
-                    if canEditProfile {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Edit") {
-                                isEditingProfile = true
-                            }
-                        }
-                    }
                 }
         }
         // Attached to the stack, not to `content`: signing in switches that
@@ -60,6 +51,7 @@ struct AccountView: View {
                 profile: profiles.state,
                 counts: profiles.counts,
                 isSigningOut: session.isSigningOut,
+                editProfile: { isEditingProfile = true },
                 setVisibility: { profiles.setWatchlistVisibility($0) },
                 retryProfile: { await profiles.retry(userID: user.userID) }
             ) {
@@ -73,13 +65,6 @@ struct AccountView: View {
         }
     }
 
-    private var canEditProfile: Bool {
-        guard case .signedIn = session.state else {
-            return false
-        }
-
-        return profiles.state.profile != nil
-    }
 }
 
 /// Creating an account lives inside the sign-in sheet, so this screen carries
@@ -164,14 +149,15 @@ struct SignedOutAccountContent: View {
 /// instead. What is left is your name, who gets to see what, and the account
 /// itself.
 ///
-/// Laid out as your card rather than as the top row of a list, the way Contacts
-/// shows your own card: this screen is about one person, and with only a few
-/// rows under it a leading row made the whole thing read as a form.
+/// Laid out as your card rather than as the top row of a list: this screen is
+/// about one person, and with only a few rows under it a leading row made the
+/// whole thing read as a form.
 private struct SignedInAccount: View {
     let user: UserSession
     let profile: ProfileState
     let counts: ProfileCounts?
     let isSigningOut: Bool
+    let editProfile: () -> Void
     let setVisibility: (WatchlistVisibility) -> Void
     let retryProfile: () async -> Void
     let signOut: () async -> Void
@@ -233,6 +219,9 @@ private struct SignedInAccount: View {
         // The card is the heading, so a large title above it would say
         // "Account" twice.
         .navigationBarTitleDisplayMode(.inline)
+        // A list leaves room above its first section for a header this one
+        // does not have, which floated the card well below the bar.
+        .contentMargins(.top, 8, for: .scrollContent)
     }
 
     @ViewBuilder
@@ -254,8 +243,18 @@ private struct SignedInAccount: View {
                     CountsRow(counts: counts)
                         .padding(.top, 4)
                 }
+
+                // On the card rather than in the bar. Beside the gear, a text
+                // action reads as one control with the symbol, which is the
+                // pairing Apple's toolbar guidance warns against.
+                Button(action: editProfile) {
+                    Text("Edit profile")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.top, 8)
             }
-            .padding(.vertical, 8)
+            .padding(.bottom, 4)
         case let .failed(reason):
             VStack(spacing: 8) {
                 Text(reason.message)
