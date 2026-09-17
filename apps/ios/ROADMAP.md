@@ -319,6 +319,28 @@ stack the way the system apps do: selecting a tab cannot be told apart from a
 push notification setting the selection in code, one line after putting its
 destination on the path, so popping would open the list and nothing else.
 
+### Slice 12.6: Your account, and writes that cannot undo each other
+
+The account tab became a profile rather than a settings form: your card —
+avatar, name, handle, bio, and the friend, follower and following counts the
+profile request already returned and the app had been dropping — with Edit on
+the card and the gear leading to Settings. `PUT /profile/me` gave the endpoint
+an account had no way to change a username from, and the editor checks a new
+one for availability as sign-up does, sharing one wording so the two screens
+cannot drift. Watchlist visibility is a menu that answers the tap and coalesces
+a burst into one request.
+
+An audit of the lists then found the real risk was not rendering but overlap.
+Every optimistic write restored a snapshot of the whole store when refused,
+so a failure undid whatever else had happened meanwhile: a refused save
+reappeared with the next page, an earlier failed read put a later successful
+one back, and a refusal landing after sign-out restored the previous account's
+rows and badge. Writes are now undone per row, through a ledger that records
+which write owns a row and what the server last confirmed, with generations
+that drop answers belonging to a signed-out account or a filter no longer
+shown. A cancelled write is not rolled back at all, because it may well have
+reached the server.
+
 ## Planned
 
 ### Slice 13: Sorting and searching the watchlist
