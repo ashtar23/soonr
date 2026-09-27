@@ -1,0 +1,1 @@
+{ "verify": "pnpm lint && pnpm check-types && DATABASE_URL=postgres://api:api@localhost:5432/soonr_test pnpm --filter api test" }
